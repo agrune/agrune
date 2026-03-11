@@ -1,0 +1,147 @@
+import type {
+  WebMcpCompiledTarget,
+  WebMcpGroupEntry,
+  WebMcpManifest,
+  WebMcpToolEntry,
+} from '../types'
+import type { ResolvedWebMcpDomOptions } from './options'
+import { toGroupToolName, toPerElementToolName } from './helpers'
+
+interface ToolBucket {
+  groupId: string
+  groupName?: string
+  groupDesc?: string
+  action: string
+  toolNameOverride?: string
+  toolDescOverride?: string
+  targets: WebMcpCompiledTarget['target'][]
+  hasActive: boolean
+}
+
+export function buildManifest(
+  entries: WebMcpCompiledTarget[],
+  options: ResolvedWebMcpDomOptions,
+): WebMcpManifest {
+  const buckets = new Map<string, ToolBucket>()
+
+  for (const entry of entries) {
+    const key = `${entry.groupId}::${entry.action}`
+    const bucket = buckets.get(key)
+    if (!bucket) {
+      buckets.set(key, {
+        groupId: entry.groupId,
+        groupName: entry.groupName,
+        groupDesc: entry.groupDesc,
+        action: entry.action,
+        toolNameOverride: entry.toolNameOverride,
+        toolDescOverride: entry.toolDescOverride,
+        targets: [entry.target],
+        hasActive: entry.status === 'active',
+      })
+      continue
+    }
+
+    if (!bucket.groupName && entry.groupName) bucket.groupName = entry.groupName
+    if (!bucket.groupDesc && entry.groupDesc) bucket.groupDesc = entry.groupDesc
+    if (!bucket.toolNameOverride && entry.toolNameOverride) {
+      bucket.toolNameOverride = entry.toolNameOverride
+    }
+    if (!bucket.toolDescOverride && entry.toolDescOverride) {
+      bucket.toolDescOverride = entry.toolDescOverride
+    }
+    bucket.targets.push(entry.target)
+    if (entry.status === 'active') bucket.hasActive = true
+  }
+
+  const grouped = new Map<string, WebMcpGroupEntry>()
+
+  const sortedBuckets = Array.from(buckets.values()).sort((a, b) => {
+    const groupCmp = a.groupId.localeCompare(b.groupId)
+    if (groupCmp !== 0) return groupCmp
+    return a.action.localeCompare(b.action)
+  })
+
+  for (const bucket of sortedBuckets) {
+    const groupEntry = grouped.get(bucket.groupId) ?? {
+      groupId: bucket.groupId,
+      groupName: bucket.groupName,
+      groupDesc: bucket.groupDesc,
+      tools: [],
+    }
+
+    if (!groupEntry.groupName && bucket.groupName) groupEntry.groupName = bucket.groupName
+    if (!groupEntry.groupDesc && bucket.groupDesc) groupEntry.groupDesc = bucket.groupDesc
+
+    if (options.exposureMode === 'grouped') {
+      const stableSeed = bucket.targets
+        .map(target => `${target.sourceFile}:${target.targetId}`)
+        .sort()
+        .join('|')
+
+      const toolName =
+        bucket.toolNameOverride ??
+        toGroupToolName(
+          options.toolPrefix,
+          bucket.groupId,
+          bucket.action,
+          `${bucket.groupId}:${bucket.action}:${stableSeed}`,
+        )
+
+      const toolDesc =
+        bucket.toolDescOverride ??
+        bucket.groupDesc ??
+        `${bucket.groupName ?? bucket.groupId} 그룹에서 ${bucket.action} 액션을 실행합니다.`
+
+      const tool: WebMcpToolEntry = {
+        toolName,
+        toolDesc,
+        action: bucket.action,
+        status: bucket.hasActive ? 'active' : 'skipped_unsupported_action',
+        targets: bucket.targets
+          .slice()
+          .sort((a, b) => a.targetId.localeCompare(b.targetId)),
+      }
+
+      groupEntry.tools.push(tool)
+      grouped.set(bucket.groupId, groupEntry)
+      continue
+    }
+
+    const sortedTargets = bucket.targets
+      .slice()
+      .sort((a, b) => a.targetId.localeCompare(b.targetId))
+
+    for (const target of sortedTargets) {
+      const tool: WebMcpToolEntry = {
+        toolName: toPerElementToolName(
+          options.toolPrefix,
+          bucket.action,
+          target.name,
+          target.sourceFile,
+          target.targetId,
+        ),
+        toolDesc: bucket.toolDescOverride ?? bucket.groupDesc ?? target.desc,
+        action: bucket.action,
+        status: bucket.hasActive ? 'active' : 'skipped_unsupported_action',
+        targets: [target],
+      }
+      groupEntry.tools.push(tool)
+    }
+
+    grouped.set(bucket.groupId, groupEntry)
+  }
+
+  const groups = Array.from(grouped.values())
+    .map(group => ({
+      ...group,
+      tools: group.tools.sort((a, b) => a.toolName.localeCompare(b.toolName)),
+    }))
+    .sort((a, b) => a.groupId.localeCompare(b.groupId))
+
+  return {
+    version: 2,
+    generatedAt: new Date().toISOString(),
+    exposureMode: options.exposureMode,
+    groups,
+  }
+}

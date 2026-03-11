@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "declaration": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "paths": {
+      "@webcli-dom/core": ["packages/core/src/index.ts"],
+      "@webcli-dom/build-core": ["packages/build-core/src/index.ts"],
+      "@webcli-dom/build-core/register": ["packages/build-core/src/register.ts"],
+      "@webcli-dom/build-core/runtime": ["packages/build-core/src/runtime/index.ts"],
+      "@webcli-dom/browser-client": ["packages/browser-client/src/index.ts"],
+      "@webcli-dom/companion": ["packages/companion/src/index.ts"]
+    }
+  }
+}
