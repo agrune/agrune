@@ -3,9 +3,6 @@ import type http from 'node:http'
 import type { SessionRuntime } from './runtime-types.js'
 
 export const PAGE_SESSION_TOKEN_TTL_MS = 24 * 60 * 60 * 1_000
-export const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1_000
-export const ADMIN_SESSION_COOKIE_NAME = 'webmcp_admin_session'
-
 export interface PageSessionTokenClaims {
   kind: 'page-session'
   sessionId: string
@@ -15,13 +12,7 @@ export interface PageSessionTokenClaims {
   exp: number
 }
 
-export interface AdminSessionTokenClaims {
-  kind: 'admin-session'
-  iat: number
-  exp: number
-}
-
-type SignedTokenClaims = PageSessionTokenClaims | AdminSessionTokenClaims
+type SignedTokenClaims = PageSessionTokenClaims
 
 export function createSigningSecret(): Buffer {
   return randomBytes(32)
@@ -32,26 +23,6 @@ export function readBearerToken(req: http.IncomingMessage): string {
   if (typeof header !== 'string') return ''
   const match = /^Bearer\s+(.+)$/i.exec(header.trim())
   return match?.[1]?.trim() ?? ''
-}
-
-export function parseCookies(req: http.IncomingMessage): Record<string, string> {
-  const header = req.headers.cookie
-  if (typeof header !== 'string' || !header.trim()) return {}
-
-  const cookies: Record<string, string> = {}
-  for (const part of header.split(';')) {
-    const [namePart, ...valueParts] = part.split('=')
-    const name = namePart.trim()
-    if (!name) continue
-    const rawValue = valueParts.join('=').trim()
-    try {
-      cookies[name] = decodeURIComponent(rawValue)
-    } catch {
-      cookies[name] = rawValue
-    }
-  }
-
-  return cookies
 }
 
 export function signToken(signingSecret: Buffer, claims: SignedTokenClaims): string {
@@ -132,17 +103,4 @@ export function verifyPageSessionToken(
     iat,
     exp,
   }
-}
-
-export function issueAdminSessionToken(signingSecret: Buffer): string {
-  return signToken(signingSecret, {
-    kind: 'admin-session',
-    iat: Date.now(),
-    exp: Date.now() + ADMIN_SESSION_TTL_MS,
-  })
-}
-
-export function isValidAdminSessionToken(signingSecret: Buffer, token: string): boolean {
-  const payload = verifySignedToken(signingSecret, token)
-  return Boolean(payload && payload.kind === 'admin-session')
 }

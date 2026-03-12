@@ -17,6 +17,11 @@ import type { CompanionServerOptions } from './types.js'
 
 type CliCommand = 'start' | 'status' | 'stop'
 
+const ENTER_ALTERNATE_SCREEN = '\u001B[?1049h'
+const EXIT_ALTERNATE_SCREEN = '\u001B[?1049l'
+const CLEAR_SCREEN = '\u001B[2J\u001B[H'
+const SHOW_CURSOR = '\u001B[?25h'
+
 function getCommand(raw: string | undefined): CliCommand {
   if (raw === 'start' || raw === 'status' || raw === 'stop') {
     return raw
@@ -43,6 +48,23 @@ function readOptionsFromEnv(): CompanionServerOptions {
   }
 }
 
+function enterTuiScreen(stdout: NodeJS.WriteStream): () => void {
+  if (!stdout.isTTY) {
+    return () => {}
+  }
+
+  stdout.write(`${ENTER_ALTERNATE_SCREEN}${CLEAR_SCREEN}`)
+
+  let restored = false
+  return () => {
+    if (restored) {
+      return
+    }
+    restored = true
+    stdout.write(`${SHOW_CURSOR}${EXIT_ALTERNATE_SCREEN}`)
+  }
+}
+
 async function runStart(options: CompanionServerOptions): Promise<void> {
   const info = getCompanionRuntimeInfo(options)
   const existingPid = readPid(info.paths)
@@ -57,16 +79,23 @@ async function runStart(options: CompanionServerOptions): Promise<void> {
   const handle = await startCompanionServer(options)
   writePid(handle.paths, process.pid)
   const token = fs.readFileSync(handle.tokenPath, 'utf8').trim()
+  const headless = process.env.WEBCLI_COMPANION_NO_TUI === '1' || !process.stdout.isTTY
+  let restoreScreen = () => {}
 
-  console.error(`[companion] endpoint: ${handle.endpoint}`)
-  console.error(`[companion] token path: ${handle.tokenPath}`)
-  console.error(`[companion] pid path: ${handle.paths.pidPath}`)
+  if (headless) {
+    console.error(`[companion] endpoint: ${handle.endpoint}`)
+    console.error(`[companion] token path: ${handle.tokenPath}`)
+    console.error(`[companion] pid path: ${handle.paths.pidPath}`)
+  }
 
   const shutdown = async (signal: string) => {
-    console.error(`[companion] ${signal} received, shutting down...`)
+    if (headless) {
+      console.error(`[companion] ${signal} received, shutting down...`)
+    }
     try {
       await handle.close()
     } finally {
+      restoreScreen()
       removePid(handle.paths)
       process.exit(0)
     }
@@ -79,7 +108,6 @@ async function runStart(options: CompanionServerOptions): Promise<void> {
     void shutdown('SIGTERM')
   })
 
-  const headless = process.env.WEBCLI_COMPANION_NO_TUI === '1' || !process.stdout.isTTY
   if (headless) {
     await new Promise(() => {
       // keep server alive
@@ -87,17 +115,23 @@ async function runStart(options: CompanionServerOptions): Promise<void> {
     return
   }
 
-  const app = render(
-    React.createElement(CompanionTuiApp, {
-      baseUrl: handle.endpoint,
-      token,
-      onExit: async () => {
-        await handle.close()
-        removePid(handle.paths)
-      },
-    }),
-  )
-  await app.waitUntilExit()
+  restoreScreen = enterTuiScreen(process.stdout)
+
+  try {
+    const app = render(
+      React.createElement(CompanionTuiApp, {
+        baseUrl: handle.endpoint,
+        token,
+        onExit: async () => {
+          await handle.close()
+          removePid(handle.paths)
+        },
+      }),
+    )
+    await app.waitUntilExit()
+  } finally {
+    restoreScreen()
+  }
 }
 
 function runStatus(options: CompanionServerOptions): void {

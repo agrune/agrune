@@ -1,21 +1,21 @@
-import type { WebMcpDiagnostic, WebMcpManifest } from '../types'
+import type { WebCliDiagnostic, WebCliManifest } from '../types'
 
 interface DiagnosticSink {
   warn: (message: string) => void
   error: (message: string) => never | void
 }
 
-export function formatDiagnostic(diag: WebMcpDiagnostic): string {
+export function formatDiagnostic(diag: WebCliDiagnostic): string {
   return `${diag.file}:${diag.line}:${diag.column} [${diag.code}] ${diag.message}`
 }
 
-function formatDiagnosticBlock(diagnostics: WebMcpDiagnostic[]): string {
+function formatDiagnosticBlock(diagnostics: WebCliDiagnostic[]): string {
   return `[webcli-dom]\n${diagnostics.map(formatDiagnostic).join('\n')}`
 }
 
 export function reportCompileDiagnostics(
   sink: DiagnosticSink,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
   strict: boolean,
 ): void {
   const warnings = diagnostics.filter(diagnostic => diagnostic.level === 'warning')
@@ -38,10 +38,10 @@ export function reportCompileDiagnostics(
 }
 
 export function findDuplicateToolDiagnostics(
-  manifest: WebMcpManifest,
-): WebMcpDiagnostic[] {
+  manifest: WebCliManifest,
+): WebCliDiagnostic[] {
   const seen = new Map<string, { file: string; line: number; column: number }>()
-  const duplicates: WebMcpDiagnostic[] = []
+  const duplicates: WebCliDiagnostic[] = []
 
   for (const group of manifest.groups) {
     for (const tool of group.tools) {
@@ -50,7 +50,7 @@ export function findDuplicateToolDiagnostics(
       if (prev) {
         duplicates.push({
           level: 'error',
-          code: 'WMCP_COMPILE_DUPLICATE_TOOL',
+          code: 'WCLI_COMPILE_DUPLICATE_TOOL',
           message: `중복 toolName: ${tool.toolName}`,
           file: firstTarget?.sourceFile ?? prev.file,
           line: firstTarget?.sourceLine ?? prev.line,
@@ -72,7 +72,7 @@ export function findDuplicateToolDiagnostics(
 
 export function reportDuplicateToolDiagnostics(
   sink: DiagnosticSink,
-  manifest: WebMcpManifest,
+  manifest: WebCliManifest,
 ): boolean {
   const duplicates = findDuplicateToolDiagnostics(manifest)
   if (duplicates.length === 0) return false

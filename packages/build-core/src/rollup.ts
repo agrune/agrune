@@ -1,6 +1,6 @@
 import { webCliDomUnplugin } from './plugin/index'
-import type { WebMcpDomPluginOptions } from './types'
+import type { WebCliDomPluginOptions } from './types'
 
-export default function webMcpDomRollupPlugin(options?: WebMcpDomPluginOptions): any {
+export default function webCliDomRollupPlugin(options?: WebCliDomPluginOptions): any {
   return webCliDomUnplugin.rollup(options) as any
 }

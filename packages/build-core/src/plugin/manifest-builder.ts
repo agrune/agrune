@@ -1,10 +1,10 @@
 import type {
-  WebMcpCompiledTarget,
-  WebMcpGroupEntry,
-  WebMcpManifest,
-  WebMcpToolEntry,
+  WebCliCompiledTarget,
+  WebCliGroupEntry,
+  WebCliManifest,
+  WebCliToolEntry,
 } from '../types'
-import type { ResolvedWebMcpDomOptions } from './options'
+import type { ResolvedWebCliDomOptions } from './options'
 import { toGroupToolName, toPerElementToolName } from './helpers'
 
 interface ToolBucket {
@@ -14,14 +14,14 @@ interface ToolBucket {
   action: string
   toolNameOverride?: string
   toolDescOverride?: string
-  targets: WebMcpCompiledTarget['target'][]
+  targets: WebCliCompiledTarget['target'][]
   hasActive: boolean
 }
 
 export function buildManifest(
-  entries: WebMcpCompiledTarget[],
-  options: ResolvedWebMcpDomOptions,
-): WebMcpManifest {
+  entries: WebCliCompiledTarget[],
+  options: ResolvedWebCliDomOptions,
+): WebCliManifest {
   const buckets = new Map<string, ToolBucket>()
 
   for (const entry of entries) {
@@ -53,7 +53,7 @@ export function buildManifest(
     if (entry.status === 'active') bucket.hasActive = true
   }
 
-  const grouped = new Map<string, WebMcpGroupEntry>()
+  const grouped = new Map<string, WebCliGroupEntry>()
 
   const sortedBuckets = Array.from(buckets.values()).sort((a, b) => {
     const groupCmp = a.groupId.localeCompare(b.groupId)
@@ -92,7 +92,7 @@ export function buildManifest(
         bucket.groupDesc ??
         `${bucket.groupName ?? bucket.groupId} 그룹에서 ${bucket.action} 액션을 실행합니다.`
 
-      const tool: WebMcpToolEntry = {
+      const tool: WebCliToolEntry = {
         toolName,
         toolDesc,
         action: bucket.action,
@@ -112,7 +112,7 @@ export function buildManifest(
       .sort((a, b) => a.targetId.localeCompare(b.targetId))
 
     for (const target of sortedTargets) {
-      const tool: WebMcpToolEntry = {
+      const tool: WebCliToolEntry = {
         toolName: toPerElementToolName(
           options.toolPrefix,
           bucket.action,

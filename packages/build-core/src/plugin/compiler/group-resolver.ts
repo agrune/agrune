@@ -1,6 +1,6 @@
 import type { JSXElement, JSXOpeningElement } from '@babel/types'
-import type { ResolvedWebMcpDomOptions } from '../options'
-import type { WebMcpDiagnostic } from '../../types'
+import type { ResolvedWebCliDomOptions } from '../options'
+import type { WebCliDiagnostic } from '../../types'
 import { isLikelyDynamicExpression } from '../helpers'
 import {
   GROUP_META_ATTRS,
@@ -28,7 +28,7 @@ function readHtmlOptionalMeta(
   node: AnyNode,
   attrName: string,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
   fallbackLine: number,
   fallbackColumn: number,
 ): string | undefined {
@@ -43,7 +43,7 @@ function readHtmlOptionalMeta(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_EMPTY_ATTR',
+        'WCLI_COMPILE_EMPTY_ATTR',
         `${attrName} 값은 비어 있을 수 없습니다.`,
         relativePath,
         line,
@@ -57,7 +57,7 @@ function readHtmlOptionalMeta(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_DYNAMIC_ATTR',
+        'WCLI_COMPILE_DYNAMIC_ATTR',
         `${attrName}는 정적 문자열이어야 합니다.`,
         relativePath,
         line,
@@ -72,9 +72,9 @@ function readHtmlOptionalMeta(
 
 export function resolveHtmlGroupContext(
   node: AnyNode,
-  options: ResolvedWebMcpDomOptions,
+  options: ResolvedWebCliDomOptions,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
   fallbackLine: number,
   fallbackColumn: number,
 ): HtmlGroupResolution {
@@ -170,7 +170,7 @@ function readJsxOptionalMeta(
   node: JSXOpeningElement,
   attrName: string,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
   fallbackLine: number,
   fallbackColumn: number,
 ): string | undefined {
@@ -185,7 +185,7 @@ function readJsxOptionalMeta(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_DYNAMIC_ATTR',
+        'WCLI_COMPILE_DYNAMIC_ATTR',
         `${attrName}는 정적 문자열이어야 합니다.`,
         relativePath,
         line,
@@ -199,7 +199,7 @@ function readJsxOptionalMeta(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_EMPTY_ATTR',
+        'WCLI_COMPILE_EMPTY_ATTR',
         `${attrName} 값은 비어 있을 수 없습니다.`,
         relativePath,
         line,
@@ -237,9 +237,9 @@ function getJsxAncestorOpeningElements(path: any): JSXOpeningElement[] {
 
 export function resolveJsxGroupContext(
   path: any,
-  options: ResolvedWebMcpDomOptions,
+  options: ResolvedWebCliDomOptions,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
   fallbackLine: number,
   fallbackColumn: number,
 ): JsxGroupResolution {

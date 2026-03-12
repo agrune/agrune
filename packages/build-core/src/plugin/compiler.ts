@@ -1,4 +1,4 @@
-import type { ResolvedWebMcpDomOptions } from './options'
+import type { ResolvedWebCliDomOptions } from './options'
 import type { CompileResult } from './compiler/shared'
 import { htmlCompile } from './compiler/html-compiler'
 import { jsxCompile } from './compiler/jsx-compiler'
@@ -7,7 +7,7 @@ import { canContainJsx, isHtmlLike } from './compiler/shared'
 export function compileSource(
   code: string,
   relativePath: string,
-  options: ResolvedWebMcpDomOptions,
+  options: ResolvedWebCliDomOptions,
   isDevBuild = false,
 ): CompileResult {
   const emitTrackingAttr = options.emitTrackingAttr !== 'none'

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import type { CommandResult, PageSnapshot, PageTarget, SessionSnapshot } from './types.js'
 
@@ -36,6 +36,207 @@ type ActionGroupModel = {
 type ActionRow =
   | { type: 'group'; group: ActionGroupModel }
   | { type: 'target'; group: ActionGroupModel; target: PageTarget }
+
+type ViewPresentation = 'base' | 'overlay'
+
+type VisibleActionView = {
+  presentation: ViewPresentation
+  viewKey: string
+  groups: ActionGroupModel[]
+}
+
+type ActionViewFrame = {
+  presentation: ViewPresentation
+  viewKey: string
+  selectedActionKey: string | null
+  actionFilter: string
+  collapsedGroups: Record<string, boolean>
+}
+
+function getActionRowKey(row: ActionRow): string {
+  return row.type === 'group' ? `group:${row.group.groupId}` : `target:${row.target.targetId}`
+}
+
+function buildActionGroupModels(
+  snapshot: PageSnapshot,
+  sourceTargets: PageTarget[],
+): ActionGroupModel[] {
+  const byGroup = new Map<string, PageTarget[]>()
+  for (const target of sourceTargets) {
+    const items = byGroup.get(target.groupId) ?? []
+    items.push(target)
+    byGroup.set(target.groupId, items)
+  }
+
+  const seenGroupIds = new Set<string>()
+  return snapshot.groups
+    .filter(group => {
+      if (seenGroupIds.has(group.groupId)) {
+        return false
+      }
+      seenGroupIds.add(group.groupId)
+      return true
+    })
+    .map(group => {
+      const seenTargetIds = new Set<string>()
+      const targets = (byGroup.get(group.groupId) ?? [])
+        .slice()
+        .filter(target => {
+          if (seenTargetIds.has(target.targetId)) {
+            return false
+          }
+          seenTargetIds.add(target.targetId)
+          return true
+        })
+        .sort((left, right) => left.name.localeCompare(right.name))
+      return {
+        groupId: group.groupId,
+        label: group.groupName ?? group.groupId,
+        description: group.groupDesc,
+        targets,
+        actionableCount: targets.filter(canExecuteTarget).length,
+      }
+    })
+    .filter(group => group.targets.length > 0)
+}
+
+function buildActionGroups(
+  snapshot: PageSnapshot | null,
+  presentation: ViewPresentation,
+): ActionGroupModel[] {
+  if (!snapshot) {
+    return []
+  }
+
+  if (presentation === 'overlay') {
+    const overlayTargets = snapshot.targets.filter(
+      target => isOverlayLikeTarget(target) && canExecuteTarget(target),
+    )
+    if (overlayTargets.length === 0) {
+      return []
+    }
+
+    const overlayGroupIds = new Set(overlayTargets.map(target => target.groupId))
+    return buildActionGroupModels(
+      snapshot,
+      snapshot.targets.filter(target => overlayGroupIds.has(target.groupId)),
+    )
+  }
+
+  return buildActionGroupModels(snapshot, snapshot.targets)
+}
+
+function buildActionViewKey(
+  snapshot: PageSnapshot,
+  presentation: ViewPresentation,
+  groups: ActionGroupModel[],
+): string {
+  return JSON.stringify({
+    presentation,
+    title: snapshot.title,
+    url: snapshot.url,
+    groups: groups
+      .map(group => ({
+        groupId: group.groupId,
+        targetIds: group.targets.map(target => target.targetId).sort(),
+      }))
+      .sort((left, right) => left.groupId.localeCompare(right.groupId)),
+  })
+}
+
+function mergeCollapsedGroups(
+  current: Record<string, boolean>,
+  groups: ActionGroupModel[],
+): Record<string, boolean> {
+  const next: Record<string, boolean> = {}
+  for (const group of groups) {
+    next[group.groupId] = current[group.groupId] ?? true
+  }
+  return next
+}
+
+export function createActionViewFrame(view: VisibleActionView): ActionViewFrame {
+  return {
+    presentation: view.presentation,
+    viewKey: view.viewKey,
+    selectedActionKey: view.groups[0] ? `group:${view.groups[0].groupId}` : null,
+    actionFilter: '',
+    collapsedGroups: mergeCollapsedGroups({}, view.groups),
+  }
+}
+
+function hydrateActionViewFrame(
+  frame: ActionViewFrame,
+  view: VisibleActionView,
+): ActionViewFrame {
+  return {
+    ...frame,
+    presentation: view.presentation,
+    viewKey: view.viewKey,
+    collapsedGroups: mergeCollapsedGroups(frame.collapsedGroups, view.groups),
+  }
+}
+
+function trimTrailingOverlayFrames(frames: ActionViewFrame[]): ActionViewFrame[] {
+  let end = frames.length
+  while (end > 0 && frames[end - 1]?.presentation === 'overlay') {
+    end -= 1
+  }
+  return frames.slice(0, end)
+}
+
+export function reconcileActionViewFrames(
+  frames: ActionViewFrame[],
+  nextView: VisibleActionView | null,
+): ActionViewFrame[] {
+  if (!nextView) {
+    return []
+  }
+
+  if (frames.length === 0) {
+    return [createActionViewFrame(nextView)]
+  }
+
+  if (nextView.presentation === 'overlay') {
+    const top = frames[frames.length - 1]
+    if (top?.presentation === 'overlay') {
+      return [...frames.slice(0, -1), hydrateActionViewFrame(top, nextView)]
+    }
+    return [...frames, createActionViewFrame(nextView)]
+  }
+
+  const baseFrames = trimTrailingOverlayFrames(frames)
+  let existingIndex = -1
+  for (let index = baseFrames.length - 1; index >= 0; index -= 1) {
+    if (baseFrames[index]?.viewKey === nextView.viewKey) {
+      existingIndex = index
+      break
+    }
+  }
+  if (existingIndex >= 0) {
+    const nextFrames = baseFrames.slice(0, existingIndex + 1)
+    nextFrames[existingIndex] = hydrateActionViewFrame(nextFrames[existingIndex], nextView)
+    return nextFrames
+  }
+
+  return [...baseFrames, createActionViewFrame(nextView)]
+}
+
+function normalizeSearchTerm(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function matchesSearch(parts: Array<string | null | undefined>, searchTerm: string): boolean {
+  if (!searchTerm) {
+    return true
+  }
+
+  return parts
+    .filter((part): part is string => typeof part === 'string' && part.length > 0)
+    .join(' ')
+    .toLowerCase()
+    .includes(searchTerm)
+}
 
 function isOverlayLikeTarget(target: PageTarget): boolean {
   const text = `${target.groupId} ${target.groupName ?? ''} ${target.groupDesc ?? ''}`.toLowerCase()
@@ -147,11 +348,13 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   })
   const [activePanel, setActivePanel] = useState(1)
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
-  const [selectedActionRow, setSelectedActionRow] = useState(0)
   const [selectedSetting, setSelectedSetting] = useState(0)
   const [lastResult, setLastResult] = useState<string>('아직 실행 결과가 없습니다.')
   const [fillDraft, setFillDraft] = useState<{ targetId: string; value: string } | null>(null)
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const [editingActionFilter, setEditingActionFilter] = useState(false)
+  const [actionViewFrames, setActionViewFrames] = useState<ActionViewFrame[]>([])
+  const selectedSessionIdRef = useRef<string | null>(selectedSessionId)
+  const commandInFlightRef = useRef(false)
   const panelLabels = ['Sessions', 'Live Actions', 'Details', 'Settings'] as const
 
   const selectedSessionIndex = Math.max(
@@ -165,78 +368,101 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     data.sessions[0] ??
     null
 
-  const groupedActions = useMemo<ActionGroupModel[]>(() => {
-    if (!data.snapshot) return []
-
-    const sourceTargets = (() => {
-      const overlayTargets = data.snapshot.targets.filter(
-        target => isOverlayLikeTarget(target) && canExecuteTarget(target),
-      )
-      if (overlayTargets.length > 0) {
-        const overlayGroupIds = new Set(overlayTargets.map(target => target.groupId))
-        return data.snapshot.targets.filter(target => overlayGroupIds.has(target.groupId))
-      }
-      return data.snapshot.targets
-    })()
-
-    const byGroup = new Map<string, PageTarget[]>()
-    for (const target of sourceTargets) {
-      const items = byGroup.get(target.groupId) ?? []
-      items.push(target)
-      byGroup.set(target.groupId, items)
+  const baseActionGroups = useMemo(
+    () => buildActionGroups(data.snapshot, 'base'),
+    [data.snapshot],
+  )
+  const overlayActionGroups = useMemo(
+    () => buildActionGroups(data.snapshot, 'overlay'),
+    [data.snapshot],
+  )
+  const visibleActionView = useMemo<VisibleActionView | null>(() => {
+    if (!data.snapshot) {
+      return null
     }
 
-    const seenGroupIds = new Set<string>()
-    return data.snapshot.groups
-      .filter(group => {
-        if (seenGroupIds.has(group.groupId)) {
-          return false
-        }
-        seenGroupIds.add(group.groupId)
-        return true
-      })
-      .map(group => {
-        const seenTargetIds = new Set<string>()
-        const targets = (byGroup.get(group.groupId) ?? [])
-          .slice()
-          .filter(target => {
-            if (seenTargetIds.has(target.targetId)) {
-              return false
-            }
-            seenTargetIds.add(target.targetId)
-            return true
-          })
-          .sort((left, right) => left.name.localeCompare(right.name))
-        return {
-          groupId: group.groupId,
-          label: group.groupName ?? group.groupId,
-          description: group.groupDesc,
-          targets,
-          actionableCount: targets.filter(canExecuteTarget).length,
-        }
-      })
-      .filter(group => group.targets.length > 0)
-  }, [data.snapshot])
+    const presentation: ViewPresentation =
+      overlayActionGroups.length > 0 ? 'overlay' : 'base'
+    const groups = presentation === 'overlay' ? overlayActionGroups : baseActionGroups
+    return {
+      presentation,
+      groups,
+      viewKey: buildActionViewKey(data.snapshot, presentation, groups),
+    }
+  }, [baseActionGroups, data.snapshot, overlayActionGroups])
+  const currentActionFrame =
+    actionViewFrames[actionViewFrames.length - 1] ??
+    (visibleActionView ? createActionViewFrame(visibleActionView) : null)
+  const currentActionFilter = currentActionFrame?.actionFilter ?? ''
+  const normalizedActionFilter = normalizeSearchTerm(currentActionFilter)
+  const currentActionGroups = visibleActionView?.groups ?? []
+  const filteredActionGroups = useMemo<ActionGroupModel[]>(() => {
+    if (!normalizedActionFilter) {
+      return currentActionGroups
+    }
 
+    return currentActionGroups.flatMap(group => {
+      const groupMatches = matchesSearch(
+        [group.groupId, group.label, group.description],
+        normalizedActionFilter,
+      )
+      const matchedTargets = groupMatches
+        ? group.targets
+        : group.targets.filter(target =>
+            matchesSearch(
+              [
+                target.targetId,
+                target.name,
+                target.description,
+                target.groupName,
+                target.groupDesc,
+                target.actionKind,
+                target.selector,
+                target.textContent,
+                target.valuePreview ?? undefined,
+              ],
+              normalizedActionFilter,
+            ),
+          )
+
+      if (matchedTargets.length === 0) {
+        return []
+      }
+
+      return [
+        {
+          ...group,
+          targets: matchedTargets,
+          actionableCount: matchedTargets.filter(canExecuteTarget).length,
+        },
+      ]
+    })
+  }, [currentActionGroups, normalizedActionFilter])
   const actionRows = useMemo<ActionRow[]>(() => {
-    return groupedActions.flatMap(group => {
+    const collapsedGroups = currentActionFrame?.collapsedGroups ?? {}
+    return filteredActionGroups.flatMap(group => {
       const header: ActionRow = { type: 'group', group }
+      if (normalizedActionFilter) {
+        return [header, ...group.targets.map(target => ({ type: 'target' as const, group, target }))]
+      }
       if (collapsedGroups[group.groupId] ?? true) {
         return [header]
       }
       return [header, ...group.targets.map(target => ({ type: 'target' as const, group, target }))]
     })
-  }, [collapsedGroups, groupedActions])
-
+  }, [currentActionFrame?.collapsedGroups, filteredActionGroups, normalizedActionFilter])
+  const selectedActionRow = Math.max(
+    0,
+    actionRows.findIndex(row => getActionRowKey(row) === currentActionFrame?.selectedActionKey),
+  )
   const selectedActionItem = actionRows[selectedActionRow] ?? null
   const selectedTarget = selectedActionItem?.type === 'target' ? selectedActionItem.target : null
-
   const visibleClickTargets = useMemo(
     () =>
-      (data.snapshot?.targets ?? []).filter(
-        target => target.actionKind === 'click' && canExecuteTarget(target),
+      filteredActionGroups.flatMap(group =>
+        group.targets.filter(target => target.actionKind === 'click' && canExecuteTarget(target)),
       ),
-    [data.snapshot],
+    [filteredActionGroups],
   )
 
   const sessionRows = useMemo(
@@ -250,24 +476,89 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   const logRows = useMemo(() => data.logs.slice(0, 8), [data.logs])
   const detailRows = useMemo(() => toPreviewLines(lastResult), [lastResult])
 
+  const formatError = (error: unknown): string =>
+    error instanceof Error ? error.message : String(error)
+
+  const currentCollapsedGroups = currentActionFrame?.collapsedGroups ?? {}
+
+  const updateCurrentActionFrame = (updater: (frame: ActionViewFrame) => ActionViewFrame) => {
+    setActionViewFrames(current => {
+      const seededFrames =
+        current.length > 0
+          ? current
+          : visibleActionView
+            ? [createActionViewFrame(visibleActionView)]
+            : []
+
+      if (seededFrames.length === 0) {
+        return seededFrames
+      }
+
+      const nextFrames = seededFrames.slice()
+      nextFrames[nextFrames.length - 1] = updater(nextFrames[nextFrames.length - 1])
+      return nextFrames
+    })
+  }
+
+  const setSelectedActionKey = (selectedActionKey: string | null) => {
+    updateCurrentActionFrame(frame => ({
+      ...frame,
+      selectedActionKey,
+    }))
+  }
+
+  const moveActionSelection = (delta: number) => {
+    if (actionRows.length === 0) {
+      return
+    }
+
+    const nextIndex = Math.max(
+      0,
+      Math.min(actionRows.length - 1, selectedActionRow + delta),
+    )
+    const nextRow = actionRows[nextIndex]
+    if (!nextRow) {
+      return
+    }
+
+    setSelectedActionKey(getActionRowKey(nextRow))
+  }
+
+  const clearActionSearch = () => {
+    updateCurrentActionFrame(frame => ({
+      ...frame,
+      actionFilter: '',
+    }))
+    setEditingActionFilter(false)
+  }
+
   const toggleGroup = (groupId: string) => {
-    setCollapsedGroups(current => ({
-      ...current,
-      [groupId]: !(current[groupId] ?? true),
+    updateCurrentActionFrame(frame => ({
+      ...frame,
+      collapsedGroups: {
+        ...frame.collapsedGroups,
+        [groupId]: !(frame.collapsedGroups[groupId] ?? true),
+      },
     }))
   }
 
   const collapseGroup = (groupId: string) => {
-    setCollapsedGroups(current => ({
-      ...current,
-      [groupId]: true,
+    updateCurrentActionFrame(frame => ({
+      ...frame,
+      collapsedGroups: {
+        ...frame.collapsedGroups,
+        [groupId]: true,
+      },
     }))
   }
 
   const expandGroup = (groupId: string) => {
-    setCollapsedGroups(current => ({
-      ...current,
-      [groupId]: false,
+    updateCurrentActionFrame(frame => ({
+      ...frame,
+      collapsedGroups: {
+        ...frame.collapsedGroups,
+        [groupId]: false,
+      },
     }))
   }
 
@@ -279,8 +570,8 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       '/api/sessions',
     )
     const nextSelectedSession =
-      (selectedSessionId
-        ? sessionsPayload.sessions.find(session => session.id === selectedSessionId)
+      (selectedSessionIdRef.current
+        ? sessionsPayload.sessions.find(session => session.id === selectedSessionIdRef.current)
         : null) ??
       null
     const activeSession =
@@ -309,6 +600,10 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   }
 
   useEffect(() => {
+    selectedSessionIdRef.current = selectedSessionId
+  }, [selectedSessionId])
+
+  useEffect(() => {
     void refresh().catch(error => {
       setLastResult(error instanceof Error ? error.message : String(error))
     })
@@ -319,6 +614,16 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     }, 750)
     return () => clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!selectedSessionId) {
+      return
+    }
+
+    void refresh().catch(error => {
+      setLastResult(error instanceof Error ? error.message : String(error))
+    })
+  }, [selectedSessionId])
 
   useEffect(() => {
     if (data.sessions.length === 0) {
@@ -346,20 +651,44 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   }, [data.sessions, data.status?.activeSessionId, selectedSessionId])
 
   useEffect(() => {
-    setCollapsedGroups(current => {
-      const next: Record<string, boolean> = {}
-      for (const group of groupedActions) {
-        next[group.groupId] = current[group.groupId] ?? true
-      }
-      return next
-    })
-  }, [groupedActions])
+    setActionViewFrames(current => reconcileActionViewFrames(current, visibleActionView))
+  }, [visibleActionView])
 
   useEffect(() => {
-    if (selectedActionRow >= actionRows.length && actionRows.length > 0) {
-      setSelectedActionRow(actionRows.length - 1)
+    if (!currentActionFrame) {
+      return
     }
-  }, [actionRows.length, selectedActionRow])
+
+    const nextSelectedActionKey =
+      actionRows.length === 0
+        ? null
+        : currentActionFrame.selectedActionKey &&
+            actionRows.some(row => getActionRowKey(row) === currentActionFrame.selectedActionKey)
+          ? currentActionFrame.selectedActionKey
+          : getActionRowKey(actionRows[0])
+
+    if (nextSelectedActionKey === currentActionFrame.selectedActionKey) {
+      return
+    }
+
+    setActionViewFrames(current => {
+      if (current.length === 0) {
+        return current
+      }
+
+      const nextFrames = current.slice()
+      const topFrame = nextFrames[nextFrames.length - 1]
+      if (!topFrame || topFrame.viewKey !== currentActionFrame.viewKey) {
+        return current
+      }
+
+      nextFrames[nextFrames.length - 1] = {
+        ...topFrame,
+        selectedActionKey: nextSelectedActionKey,
+      }
+      return nextFrames
+    })
+  }, [actionRows, currentActionFrame?.selectedActionKey, currentActionFrame?.viewKey])
 
   useEffect(() => {
     if (!selectedSessionItem || !data.snapshot) {
@@ -370,42 +699,105 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     }
   }, [activePanel, data.snapshot, selectedSessionItem])
 
+  const ensureSelectedSessionReadyForCommands = async (): Promise<boolean> => {
+    if (!selectedSessionItem) {
+      setLastResult('선택된 세션이 없습니다.')
+      return false
+    }
+
+    if (selectedSessionItem.approvalStatus !== 'approved') {
+      setLastResult(
+        `선택한 세션 origin이 아직 승인되지 않았습니다. Sessions 패널에서 a로 승인한 뒤 다시 실행하세요.`,
+      )
+      return false
+    }
+
+    if (!selectedSessionItem.active) {
+      await apiRequest(baseUrl, token, '/api/sessions/activate', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: selectedSessionItem.id }),
+      })
+    }
+
+    return true
+  }
+
   const executeCommand = async (pathname: string, payload: Record<string, unknown>) => {
-    const result = await apiRequest<CommandResult>(baseUrl, token, pathname, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
-    setLastResult(JSON.stringify(result, null, 2))
-    await refresh()
+    const isActionCommand = pathname.startsWith('/api/commands/')
+
+    if (isActionCommand) {
+      if (commandInFlightRef.current) {
+        return
+      }
+      commandInFlightRef.current = true
+    }
+
+    try {
+      if (isActionCommand) {
+        const ready = await ensureSelectedSessionReadyForCommands()
+        if (!ready) {
+          return
+        }
+      }
+
+      const result = await apiRequest<CommandResult>(baseUrl, token, pathname, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+      setLastResult(JSON.stringify(result, null, 2))
+      await refresh()
+    } catch (error) {
+      setLastResult(formatError(error))
+    } finally {
+      if (isActionCommand) {
+        commandInFlightRef.current = false
+      }
+    }
   }
 
   const approveSelectedOrigin = async () => {
     if (!selectedSessionItem) return
-    await apiRequest(baseUrl, token, '/api/origins/approve', {
-      method: 'POST',
-      body: JSON.stringify({ origin: selectedSessionItem.origin }),
-    })
-    setLastResult(`approved origin: ${selectedSessionItem.origin}`)
-    await refresh()
+    try {
+      await apiRequest(baseUrl, token, '/api/origins/approve', {
+        method: 'POST',
+        body: JSON.stringify({ origin: selectedSessionItem.origin }),
+      })
+      setLastResult(`approved origin: ${selectedSessionItem.origin}`)
+      await refresh()
+    } catch (error) {
+      setLastResult(formatError(error))
+    }
   }
 
   const activateSelectedSession = async () => {
-    if (!selectedSessionItem || selectedSessionItem.approvalStatus !== 'approved') return
-    await apiRequest(baseUrl, token, '/api/sessions/activate', {
-      method: 'POST',
-      body: JSON.stringify({ sessionId: selectedSessionItem.id }),
-    })
-    setLastResult(`active session: ${selectedSessionItem.id}`)
-    await refresh()
+    if (!selectedSessionItem) return
+    if (selectedSessionItem.approvalStatus !== 'approved') {
+      setLastResult('선택한 세션 origin이 아직 승인되지 않았습니다. 먼저 a로 승인하세요.')
+      return
+    }
+    try {
+      await apiRequest(baseUrl, token, '/api/sessions/activate', {
+        method: 'POST',
+        body: JSON.stringify({ sessionId: selectedSessionItem.id }),
+      })
+      setLastResult(`active session: ${selectedSessionItem.id}`)
+      await refresh()
+    } catch (error) {
+      setLastResult(formatError(error))
+    }
   }
 
   const updateConfig = async (patch: Record<string, unknown>) => {
-    const result = await apiRequest(baseUrl, token, '/api/config', {
-      method: 'PUT',
-      body: JSON.stringify(patch),
-    })
-    setLastResult(JSON.stringify(result, null, 2))
-    await refresh()
+    try {
+      const result = await apiRequest(baseUrl, token, '/api/config', {
+        method: 'PUT',
+        body: JSON.stringify(patch),
+      })
+      setLastResult(JSON.stringify(result, null, 2))
+      await refresh()
+    } catch (error) {
+      setLastResult(formatError(error))
+    }
   }
 
   const describeBlockedTarget = (target: PageTarget) => {
@@ -458,6 +850,31 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       return
     }
 
+    if (editingActionFilter) {
+      if (key.escape) {
+        clearActionSearch()
+        return
+      }
+      if (key.return) {
+        setEditingActionFilter(false)
+        return
+      }
+      if (key.backspace || key.delete) {
+        updateCurrentActionFrame(frame => ({
+          ...frame,
+          actionFilter: frame.actionFilter.slice(0, -1),
+        }))
+        return
+      }
+      if (input && !key.ctrl && !key.meta) {
+        updateCurrentActionFrame(frame => ({
+          ...frame,
+          actionFilter: frame.actionFilter + input,
+        }))
+      }
+      return
+    }
+
     if (key.tab || input === '\t') {
       setActivePanel(current => (current + 1) % 4)
       return
@@ -472,6 +889,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       const index = Number(input) - 1
       const target = visibleClickTargets[index]
       if (target) {
+        clearActionSearch()
         void executeCommand('/api/commands/act', {
           targetId: target.targetId,
           expectedVersion: data.snapshot?.version,
@@ -502,37 +920,44 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     }
 
     if (activePanel === 1) {
-      if (key.upArrow) {
-        setSelectedActionRow(current => Math.max(0, current - 1))
+      if (input === '/') {
+        setEditingActionFilter(true)
+      } else if (key.escape && currentActionFilter) {
+        clearActionSearch()
+      } else if (key.upArrow) {
+        moveActionSelection(-1)
       } else if (key.downArrow) {
-        setSelectedActionRow(current => Math.min(actionRows.length - 1, current + 1))
-      } else if (key.leftArrow && selectedActionItem?.type === 'target') {
-        const headerIndex = actionRows.findIndex(
-          row => row.type === 'group' && row.group.groupId === selectedActionItem.group.groupId,
-        )
+        moveActionSelection(1)
+      } else if (!normalizedActionFilter && key.leftArrow && selectedActionItem?.type === 'target') {
         collapseGroup(selectedActionItem.group.groupId)
-        if (headerIndex >= 0) {
-          setSelectedActionRow(headerIndex)
-        }
-      } else if (key.leftArrow && selectedActionItem?.type === 'group') {
+        setSelectedActionKey(`group:${selectedActionItem.group.groupId}`)
+      } else if (!normalizedActionFilter && key.leftArrow && selectedActionItem?.type === 'group') {
         collapseGroup(selectedActionItem.group.groupId)
-      } else if (key.rightArrow && selectedActionItem?.type === 'group') {
-        const wasCollapsed = collapsedGroups[selectedActionItem.group.groupId] ?? true
+        setSelectedActionKey(`group:${selectedActionItem.group.groupId}`)
+      } else if (!normalizedActionFilter && key.rightArrow && selectedActionItem?.type === 'group') {
+        const wasCollapsed = currentCollapsedGroups[selectedActionItem.group.groupId] ?? true
         expandGroup(selectedActionItem.group.groupId)
-        if (wasCollapsed && selectedActionItem.group.targets.length > 0) {
-          setSelectedActionRow(current => Math.min(actionRows.length, current + 1))
+        const firstTarget = selectedActionItem.group.targets[0]
+        if (wasCollapsed && firstTarget) {
+          setSelectedActionKey(`target:${firstTarget.targetId}`)
+        } else {
+          setSelectedActionKey(`group:${selectedActionItem.group.groupId}`)
         }
-      } else if (key.return && selectedActionItem?.type === 'group') {
-        const wasCollapsed = collapsedGroups[selectedActionItem.group.groupId] ?? true
+      } else if (!normalizedActionFilter && key.return && selectedActionItem?.type === 'group') {
+        const wasCollapsed = currentCollapsedGroups[selectedActionItem.group.groupId] ?? true
         toggleGroup(selectedActionItem.group.groupId)
-        if (wasCollapsed && selectedActionItem.group.targets.length > 0) {
-          setSelectedActionRow(current => Math.min(actionRows.length, current + 1))
+        const firstTarget = selectedActionItem.group.targets[0]
+        if (wasCollapsed && firstTarget) {
+          setSelectedActionKey(`target:${firstTarget.targetId}`)
+        } else {
+          setSelectedActionKey(`group:${selectedActionItem.group.groupId}`)
         }
       } else if (key.return && selectedTarget?.actionKind === 'click') {
         if (!canExecuteTarget(selectedTarget)) {
           describeBlockedTarget(selectedTarget)
           return
         }
+        clearActionSearch()
         void executeCommand('/api/commands/act', {
           targetId: selectedTarget.targetId,
           expectedVersion: data.snapshot?.version,
@@ -542,6 +967,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           describeBlockedTarget(selectedTarget)
           return
         }
+        clearActionSearch()
         setFillDraft({ targetId: selectedTarget.targetId, value: '' })
       }
       return
@@ -573,7 +999,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text color="cyanBright">webcli-dom companion</Text>
-        <Text>  Tab 전환  Enter 실행/토글  좌우 접기  a 승인  e fill  r 새로고침  q 종료</Text>
+        <Text>  Tab 전환  Enter 실행/토글  좌우 접기  / 검색  Esc 검색해제  a 승인  e fill  r 새로고침  q 종료</Text>
       </Box>
       <Box marginBottom={1}>
         <Text color="yellow">focus: {panelLabels[activePanel]}</Text>
@@ -596,28 +1022,33 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
 
         <Box flexDirection="column" width="35%" marginRight={1} borderStyle="round" borderColor={activePanel === 1 ? 'cyan' : 'gray'}>
           <Text>Live Actions</Text>
-          {groupedActions.length === 0 ? <Text color="gray">snapshot 없음</Text> : null}
+          <Text color={editingActionFilter ? 'yellow' : currentActionFilter ? 'cyan' : 'gray'} wrap="truncate-end">
+            {editingActionFilter
+              ? `search: ${currentActionFilter}_`
+              : currentActionFilter
+                ? `search: ${currentActionFilter}`
+                : 'search: /로 필터'}
+          </Text>
+          {currentActionGroups.length === 0 ? <Text color="gray">snapshot 없음</Text> : null}
+          {currentActionGroups.length > 0 && normalizedActionFilter && filteredActionGroups.length === 0 ? (
+            <Text color="gray">검색 결과 없음</Text>
+          ) : null}
           {actionWindow.map(row => {
-            const index = actionRows.findIndex(item =>
-              item.type === 'group' && row.type === 'group'
-                ? item.group.groupId === row.group.groupId
-                : item.type === 'target' && row.type === 'target'
-                  ? item.target.targetId === row.target.targetId
-                  : false,
-            )
+            const rowKey = getActionRowKey(row)
+            const isSelected = rowKey === currentActionFrame?.selectedActionKey
 
             if (row.type === 'group') {
-              const collapsed = collapsedGroups[row.group.groupId] ?? true
+              const collapsed = currentCollapsedGroups[row.group.groupId] ?? true
               return (
-                <Text key={`group:${row.group.groupId}`} color={index === selectedActionRow ? 'green' : 'cyan'}>
-                  {index === selectedActionRow ? '>' : ' '} {collapsed ? '▸' : '▾'} {row.group.label} [{row.group.actionableCount}/{row.group.targets.length}]
+                <Text key={`group:${row.group.groupId}`} color={isSelected ? 'green' : 'cyan'}>
+                  {isSelected ? '>' : ' '} {collapsed ? '▸' : '▾'} {row.group.label} [{row.group.actionableCount}/{row.group.targets.length}]
                 </Text>
               )
             }
 
             return (
-              <Text key={`target:${row.target.targetId}`} color={index === selectedActionRow ? 'green' : undefined} wrap="truncate-end">
-                {index === selectedActionRow ? '>' : ' '}   {row.target.name} ({row.target.actionKind}) [{getTargetStatus(row.target)}]
+              <Text key={`target:${row.target.targetId}`} color={isSelected ? 'green' : undefined} wrap="truncate-end">
+                {isSelected ? '>' : ' '}   {row.target.name} ({row.target.actionKind}) [{getTargetStatus(row.target)}]
               </Text>
             )
           })}

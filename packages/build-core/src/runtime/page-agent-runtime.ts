@@ -7,12 +7,12 @@ import {
   type PageTarget,
 } from '@webcli-dom/core'
 import type {
-  WebMcpManifest,
-  WebMcpRuntimeOptions,
-  WebMcpTargetEntry,
+  WebCliManifest,
+  WebCliRuntimeOptions,
+  WebCliTargetEntry,
 } from '../types'
 
-const DEFAULT_OPTIONS: WebMcpRuntimeOptions = {
+const DEFAULT_OPTIONS: WebCliRuntimeOptions = {
   clickAutoScroll: true,
   clickRetryCount: 2,
   clickRetryDelayMs: 120,
@@ -32,7 +32,7 @@ interface TargetDescriptor {
   groupId: string
   groupName?: string
   groupDesc?: string
-  target: WebMcpTargetEntry
+  target: WebCliTargetEntry
 }
 
 interface MutableSnapshotStore {
@@ -182,7 +182,7 @@ function isFillableElement(
   )
 }
 
-function collectDescriptors(manifest: WebMcpManifest): TargetDescriptor[] {
+function collectDescriptors(manifest: WebCliManifest): TargetDescriptor[] {
   const result: TargetDescriptor[] = []
 
   for (const group of manifest.groups) {
@@ -209,7 +209,7 @@ function findElement(descriptor: TargetDescriptor): HTMLElement | null {
 }
 
 function normalizeExecutionConfig(
-  runtimeOptions: WebMcpRuntimeOptions,
+  runtimeOptions: WebCliRuntimeOptions,
   next?: Partial<CompanionConfig>,
 ): CompanionConfig {
   return mergeCompanionConfig(
@@ -405,8 +405,8 @@ function setElementValue(
 }
 
 export function createPageAgentRuntime(
-  manifest: WebMcpManifest,
-  options: Partial<WebMcpRuntimeOptions> = {},
+  manifest: WebCliManifest,
+  options: Partial<WebCliRuntimeOptions> = {},
 ): PageAgentRuntime {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('Page agent runtime requires a browser environment.')
@@ -603,8 +603,8 @@ export function getInstalledPageAgentRuntime(): PageAgentRuntimeHandle | null {
 }
 
 export function installPageAgentRuntime(
-  manifest: WebMcpManifest,
-  options: Partial<WebMcpRuntimeOptions> = {},
+  manifest: WebCliManifest,
+  options: Partial<WebCliRuntimeOptions> = {},
 ): PageAgentRuntimeHandle {
   const runtime = createPageAgentRuntime(manifest, options)
   const globalStore = getGlobalRuntimeStore()

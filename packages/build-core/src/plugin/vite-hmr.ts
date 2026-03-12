@@ -1,9 +1,9 @@
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import type { WebMcpCompiledTarget, WebMcpManifest } from '../types'
+import type { WebCliCompiledTarget, WebCliManifest } from '../types'
 import { WEBCLI_MANIFEST_UPDATE_EVENT } from '../hmr-events'
 import { compileSource } from './compiler'
-import type { ResolvedWebMcpDomOptions } from './options'
+import type { ResolvedWebCliDomOptions } from './options'
 
 interface ViteWebSocketLike {
   send: (payload: { type: 'custom'; event: string; data: unknown }) => void
@@ -19,12 +19,12 @@ interface ViteHotUpdateContextLike {
 }
 
 interface CreateViteHmrBridgeInput {
-  options: ResolvedWebMcpDomOptions
+  options: ResolvedWebCliDomOptions
   shouldHandleFile: (id: string) => boolean
-  toCurrentManifest: () => WebMcpManifest
+  toCurrentManifest: () => WebCliManifest
   updateEntries: (
     relativePath: string,
-    nextEntries: WebMcpCompiledTarget[],
+    nextEntries: WebCliCompiledTarget[],
   ) => { changed: boolean }
 }
 
@@ -59,7 +59,7 @@ export function createViteHmrBridge(input: CreateViteHmrBridgeInput): ViteHmrBri
       if (!input.shouldHandleFile(ctx.file)) return
 
       const relativePath = path.relative(process.cwd(), ctx.file)
-      let nextEntries: WebMcpCompiledTarget[] = []
+      let nextEntries: WebCliCompiledTarget[] = []
 
       try {
         const code = await fs.readFile(ctx.file, 'utf8')

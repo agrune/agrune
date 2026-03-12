@@ -1,5 +1,5 @@
 import type { JSXOpeningElement } from '@babel/types'
-import type { WebMcpDiagnostic } from '../../types'
+import type { WebCliDiagnostic } from '../../types'
 import { isLikelyDynamicExpression } from '../helpers'
 import {
   TARGET_REQ_ATTRS,
@@ -25,7 +25,7 @@ export interface ValidatedTarget {
 export function validateHtmlTargetNode(
   node: AnyNode,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
 ): ValidatedTarget | undefined {
   const actionAttr = findAttr(node, 'data-webcli-action')
   if (!actionAttr) return undefined
@@ -52,7 +52,7 @@ export function validateHtmlTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_MISSING_ATTR',
+          'WCLI_COMPILE_MISSING_ATTR',
           `${attrName} 속성이 필요합니다.`,
           relativePath,
           attrLine,
@@ -67,7 +67,7 @@ export function validateHtmlTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_EMPTY_ATTR',
+          'WCLI_COMPILE_EMPTY_ATTR',
           `${attrName} 값은 비어 있을 수 없습니다.`,
           relativePath,
           attrLine,
@@ -82,7 +82,7 @@ export function validateHtmlTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_DYNAMIC_ATTR',
+          'WCLI_COMPILE_DYNAMIC_ATTR',
           `${attrName}는 정적 문자열이어야 합니다.`,
           relativePath,
           attrLine,
@@ -101,7 +101,7 @@ export function validateHtmlTargetNode(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_DYNAMIC_ATTR',
+        'WCLI_COMPILE_DYNAMIC_ATTR',
         'data-webcli-key는 정적 문자열이어야 합니다.',
         relativePath,
         node.sourceCodeLocation?.attrs?.['data-webcli-key']?.startLine ?? line,
@@ -127,7 +127,7 @@ export function validateHtmlTargetNode(
 export function validateJsxTargetNode(
   node: JSXOpeningElement,
   relativePath: string,
-  diagnostics: WebMcpDiagnostic[],
+  diagnostics: WebCliDiagnostic[],
 ): ValidatedTarget | undefined {
   const actionAttr = getJsxAttr(node, 'data-webcli-action')
   if (!actionAttr) return undefined
@@ -144,7 +144,7 @@ export function validateJsxTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_MISSING_ATTR',
+          'WCLI_COMPILE_MISSING_ATTR',
           `${attrName} 속성이 필요합니다.`,
           relativePath,
           line,
@@ -160,7 +160,7 @@ export function validateJsxTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_DYNAMIC_ATTR',
+          'WCLI_COMPILE_DYNAMIC_ATTR',
           `${attrName}는 정적 문자열이어야 합니다.`,
           relativePath,
           attr.loc?.start.line ?? line,
@@ -175,7 +175,7 @@ export function validateJsxTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_EMPTY_ATTR',
+          'WCLI_COMPILE_EMPTY_ATTR',
           `${attrName} 값은 비어 있을 수 없습니다.`,
           relativePath,
           attr.loc?.start.line ?? line,
@@ -198,7 +198,7 @@ export function validateJsxTargetNode(
       diagnostics.push(
         buildDiagnostic(
           'error',
-          'WMCP_COMPILE_DYNAMIC_ATTR',
+          'WCLI_COMPILE_DYNAMIC_ATTR',
           'data-webcli-key는 정적 문자열이어야 합니다.',
           relativePath,
           keyAttr.loc?.start.line ?? line,

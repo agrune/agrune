@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WebMcpManifest } from '../src/types'
+import type { WebCliManifest } from '../src/types'
 import {
   createPageAgentRuntime,
   getInstalledPageAgentRuntime,
@@ -21,7 +21,7 @@ function mockRect() {
   } as DOMRect
 }
 
-function makeManifest(): WebMcpManifest {
+function makeManifest(): WebCliManifest {
   return {
     version: 2,
     generatedAt: new Date().toISOString(),

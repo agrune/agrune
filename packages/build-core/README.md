@@ -62,7 +62,7 @@ import '@webcli-dom/build-core/register'
 ## 옵션
 
 ```ts
-webMcpDomPlugin({
+webCliDomPlugin({
   exposureMode: 'grouped', // default
   groupAttr: 'data-webcli-group',
   unsupportedActionHandling: 'warn-skip',

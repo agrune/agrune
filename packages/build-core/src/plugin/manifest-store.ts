@@ -1,23 +1,23 @@
-import type { WebMcpCompiledTarget, WebMcpManifest } from '../types'
-import type { ResolvedWebMcpDomOptions } from './options'
+import type { WebCliCompiledTarget, WebCliManifest } from '../types'
+import type { ResolvedWebCliDomOptions } from './options'
 import { buildManifest } from './manifest-builder'
 
 export interface ManifestStore {
   clear: () => void
-  setEntries: (relativePath: string, nextEntries: WebMcpCompiledTarget[]) => void
+  setEntries: (relativePath: string, nextEntries: WebCliCompiledTarget[]) => void
   updateEntries: (
     relativePath: string,
-    nextEntries: WebMcpCompiledTarget[],
+    nextEntries: WebCliCompiledTarget[],
   ) => { changed: boolean }
-  toManifest: () => WebMcpManifest
+  toManifest: () => WebCliManifest
 }
 
-export function createManifestStore(options: ResolvedWebMcpDomOptions): ManifestStore {
-  const entriesByFile = new Map<string, WebMcpCompiledTarget[]>()
+export function createManifestStore(options: ResolvedWebCliDomOptions): ManifestStore {
+  const entriesByFile = new Map<string, WebCliCompiledTarget[]>()
 
   const writeEntries = (
     relativePath: string,
-    nextEntries: WebMcpCompiledTarget[],
+    nextEntries: WebCliCompiledTarget[],
   ): void => {
     if (nextEntries.length > 0) {
       entriesByFile.set(relativePath, nextEntries)

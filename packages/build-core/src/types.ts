@@ -1,12 +1,12 @@
 export type UnsupportedActionHandling = 'warn-skip' | 'error'
 
-export type WebMcpExposureMode = 'grouped' | 'per-element'
+export type WebCliExposureMode = 'grouped' | 'per-element'
 
-export type WebMcpEmitTrackingAttr = 'none' | 'debug' | 'always'
+export type WebCliEmitTrackingAttr = 'none' | 'debug' | 'always'
 
-export type WebMcpDeclarativeCompat = 'off' | 'webmcp-form-draft-2025-10'
+export type WebCliDeclarativeCompat = 'off' | 'webcli-form-draft-2025-10'
 
-export interface WebMcpDomPluginOptions {
+export interface WebCliDomPluginOptions {
   include?: string[]
   exclude?: string[]
   manifestFile?: string
@@ -14,10 +14,10 @@ export interface WebMcpDomPluginOptions {
   preserveSourceAttrs?: boolean
   strict?: boolean
   unsupportedActionHandling?: UnsupportedActionHandling
-  exposureMode?: WebMcpExposureMode
+  exposureMode?: WebCliExposureMode
   groupAttr?: string
-  emitTrackingAttr?: WebMcpEmitTrackingAttr
-  declarativeCompat?: WebMcpDeclarativeCompat
+  emitTrackingAttr?: WebCliEmitTrackingAttr
+  declarativeCompat?: WebCliDeclarativeCompat
   click?: {
     autoScroll?: boolean
     retryCount?: number
@@ -25,17 +25,17 @@ export interface WebMcpDomPluginOptions {
   }
 }
 
-export interface WebMcpRuntimeOptions {
+export interface WebCliRuntimeOptions {
   clickAutoScroll: boolean
   clickRetryCount: number
   clickRetryDelayMs: number
 }
 
-export type WebMcpSupportedAction = 'click' | 'fill'
+export type WebCliSupportedAction = 'click' | 'fill'
 
-export type WebMcpToolStatus = 'active' | 'skipped_unsupported_action'
+export type WebCliToolStatus = 'active' | 'skipped_unsupported_action'
 
-export interface WebMcpTargetEntry {
+export interface WebCliTargetEntry {
   targetId: string
   name: string
   desc: string
@@ -45,48 +45,48 @@ export interface WebMcpTargetEntry {
   sourceColumn: number
 }
 
-export interface WebMcpToolEntry {
+export interface WebCliToolEntry {
   toolName: string
   toolDesc: string
   action: string
-  status: WebMcpToolStatus
-  targets: WebMcpTargetEntry[]
+  status: WebCliToolStatus
+  targets: WebCliTargetEntry[]
 }
 
-export interface WebMcpGroupEntry {
+export interface WebCliGroupEntry {
   groupId: string
   groupName?: string
   groupDesc?: string
-  tools: WebMcpToolEntry[]
+  tools: WebCliToolEntry[]
 }
 
-export interface WebMcpManifest {
+export interface WebCliManifest {
   version: 2
   generatedAt: string
-  exposureMode: WebMcpExposureMode
-  groups: WebMcpGroupEntry[]
+  exposureMode: WebCliExposureMode
+  groups: WebCliGroupEntry[]
 }
 
-export interface WebMcpCompiledTarget {
+export interface WebCliCompiledTarget {
   action: string
-  status: WebMcpToolStatus
+  status: WebCliToolStatus
   groupId: string
   groupName?: string
   groupDesc?: string
   toolNameOverride?: string
   toolDescOverride?: string
-  target: WebMcpTargetEntry
+  target: WebCliTargetEntry
 }
 
-export interface WebMcpDiagnostic {
+export interface WebCliDiagnostic {
   level: 'warning' | 'error'
   code:
-    | 'WMCP_COMPILE_MISSING_ATTR'
-    | 'WMCP_COMPILE_EMPTY_ATTR'
-    | 'WMCP_COMPILE_DYNAMIC_ATTR'
-    | 'WMCP_COMPILE_UNSUPPORTED_ACTION'
-    | 'WMCP_COMPILE_DUPLICATE_TOOL'
-    | 'WMCP_COMPILE_PARSE_ERROR'
+    | 'WCLI_COMPILE_MISSING_ATTR'
+    | 'WCLI_COMPILE_EMPTY_ATTR'
+    | 'WCLI_COMPILE_DYNAMIC_ATTR'
+    | 'WCLI_COMPILE_UNSUPPORTED_ACTION'
+    | 'WCLI_COMPILE_DUPLICATE_TOOL'
+    | 'WCLI_COMPILE_PARSE_ERROR'
   message: string
   file: string
   line: number

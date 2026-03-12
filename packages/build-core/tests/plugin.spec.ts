@@ -92,7 +92,7 @@ describe('plugin', () => {
     await generateBundle?.call(ctx as never, {} as never, {} as never, false)
 
     expect(warnings.length).toBeGreaterThan(0)
-    expect(warnings.some(message => message.includes('WMCP_COMPILE_UNSUPPORTED_ACTION'))).toBe(
+    expect(warnings.some(message => message.includes('WCLI_COMPILE_UNSUPPORTED_ACTION'))).toBe(
       true,
     )
     expect(assets).toHaveLength(1)
@@ -139,7 +139,7 @@ describe('plugin', () => {
     )
 
     expect(errorCalled).toBe(false)
-    expect(warnings.some(message => message.includes('WMCP_COMPILE_MISSING_ATTR'))).toBe(true)
+    expect(warnings.some(message => message.includes('WCLI_COMPILE_MISSING_ATTR'))).toBe(true)
   })
 
   it('generateBundle에서 duplicate toolName을 에러로 보고한다', async () => {
@@ -186,7 +186,7 @@ describe('plugin', () => {
     )
 
     expect(() => generateBundle?.call(ctx as never, {} as never, {} as never, false)).toThrow(
-      /WMCP_COMPILE_DUPLICATE_TOOL/,
+      /WCLI_COMPILE_DUPLICATE_TOOL/,
     )
     expect(assets).toHaveLength(0)
   })

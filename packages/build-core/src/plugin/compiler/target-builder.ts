@@ -1,7 +1,7 @@
-import type { WebMcpCompiledTarget } from '../../types'
+import type { WebCliCompiledTarget } from '../../types'
 import type { TargetBuildParams } from './shared'
 
-export function toCompiledTarget(params: TargetBuildParams): WebMcpCompiledTarget {
+export function toCompiledTarget(params: TargetBuildParams): WebCliCompiledTarget {
   return {
     action: params.action,
     status: params.status,

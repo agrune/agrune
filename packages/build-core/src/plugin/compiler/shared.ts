@@ -1,8 +1,8 @@
 import type { JSXAttribute, JSXOpeningElement } from '@babel/types'
 import type {
-  WebMcpCompiledTarget,
-  WebMcpDiagnostic,
-  WebMcpToolStatus,
+  WebCliCompiledTarget,
+  WebCliDiagnostic,
+  WebCliToolStatus,
 } from '../../types'
 import { shortHash } from '../helpers'
 
@@ -28,8 +28,8 @@ export const DOM_KEY_ATTR = 'data-webcli-key'
 export interface CompileResult {
   code: string
   changed: boolean
-  entries: WebMcpCompiledTarget[]
-  diagnostics: WebMcpDiagnostic[]
+  entries: WebCliCompiledTarget[]
+  diagnostics: WebCliDiagnostic[]
 }
 
 export interface Edit {
@@ -73,12 +73,12 @@ export interface GroupContext {
 
 export function buildDiagnostic(
   level: 'warning' | 'error',
-  code: WebMcpDiagnostic['code'],
+  code: WebCliDiagnostic['code'],
   message: string,
   file: string,
   line: number,
   column: number,
-): WebMcpDiagnostic {
+): WebCliDiagnostic {
   return { level, code, message, file, line, column }
 }
 
@@ -150,7 +150,7 @@ export function buildSelector(emitTrackingAttr: boolean, targetId: string): stri
 
 export interface TargetBuildParams {
   action: string
-  status: WebMcpToolStatus
+  status: WebCliToolStatus
   group: GroupContext
   targetId: string
   targetName: string

@@ -1,5 +1,5 @@
 export {
-  createPageAgentRuntime as registerCompiledWebMcpTools,
+  createPageAgentRuntime as registerCompiledWebCliTools,
   createPageAgentRuntime,
   getInstalledPageAgentRuntime,
   installPageAgentRuntime,

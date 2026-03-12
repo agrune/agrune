@@ -74,7 +74,7 @@ describe('compiler', () => {
     const source = `<button data-webcli-action="click">Go</button>`
     const result = compileSource(source, 'src/app.html', resolveOptions())
 
-    const missing = result.diagnostics.filter(d => d.code === 'WMCP_COMPILE_MISSING_ATTR')
+    const missing = result.diagnostics.filter(d => d.code === 'WCLI_COMPILE_MISSING_ATTR')
     expect(missing.length).toBeGreaterThan(0)
   })
 
@@ -84,7 +84,7 @@ describe('compiler', () => {
 
     expect(result.entries).toHaveLength(1)
     expect(result.entries[0].status).toBe('skipped_unsupported_action')
-    expect(result.diagnostics.some(d => d.code === 'WMCP_COMPILE_UNSUPPORTED_ACTION')).toBe(true)
+    expect(result.diagnostics.some(d => d.code === 'WCLI_COMPILE_UNSUPPORTED_ACTION')).toBe(true)
   })
 
   it('fill action도 active 상태로 수집한다', () => {
@@ -102,7 +102,7 @@ describe('compiler', () => {
     const source = `<button data-webcli-action={kind} data-webcli-name="X" data-webcli-desc="Y">Go</button>`
     const result = compileSource(source, 'src/App.tsx', resolveOptions())
 
-    expect(result.diagnostics.some(d => d.code === 'WMCP_COMPILE_DYNAMIC_ATTR')).toBe(true)
+    expect(result.diagnostics.some(d => d.code === 'WCLI_COMPILE_DYNAMIC_ATTR')).toBe(true)
   })
 
   it('html non-strict에서는 invalid node 진단 시 source attrs를 보존한다', () => {
@@ -116,7 +116,7 @@ describe('compiler', () => {
 
     expect(result.entries).toHaveLength(1)
     expect(result.changed).toBe(true)
-    expect(result.diagnostics.some(d => d.code === 'WMCP_COMPILE_MISSING_ATTR')).toBe(true)
+    expect(result.diagnostics.some(d => d.code === 'WCLI_COMPILE_MISSING_ATTR')).toBe(true)
     expect(result.code).toContain('data-webcli-key="wcli_')
     expect(result.code).not.toContain('data-webcli-name="valid"')
     expect(result.code).toContain('<button data-webcli-action="click">Broken</button>')
@@ -133,7 +133,7 @@ describe('compiler', () => {
 
     expect(result.entries).toHaveLength(1)
     expect(result.changed).toBe(true)
-    expect(result.diagnostics.some(d => d.code === 'WMCP_COMPILE_MISSING_ATTR')).toBe(true)
+    expect(result.diagnostics.some(d => d.code === 'WCLI_COMPILE_MISSING_ATTR')).toBe(true)
     expect(result.code).toContain('data-webcli-key="wcli_')
     expect(result.code).not.toContain('data-webcli-name="valid"')
     expect(result.code).toContain('<button data-webcli-action="click">Broken</button>')

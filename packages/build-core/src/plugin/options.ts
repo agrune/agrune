@@ -1,12 +1,12 @@
 import type {
-  WebMcpDeclarativeCompat,
-  WebMcpDomPluginOptions,
-  WebMcpEmitTrackingAttr,
-  WebMcpExposureMode,
-  WebMcpRuntimeOptions,
+  WebCliDeclarativeCompat,
+  WebCliDomPluginOptions,
+  WebCliEmitTrackingAttr,
+  WebCliExposureMode,
+  WebCliRuntimeOptions,
 } from '../types'
 
-export interface ResolvedWebMcpDomOptions {
+export interface ResolvedWebCliDomOptions {
   include: string[]
   exclude: string[]
   manifestFile: string
@@ -14,18 +14,18 @@ export interface ResolvedWebMcpDomOptions {
   preserveSourceAttrs: boolean
   strict: boolean
   unsupportedActionHandling: 'warn-skip' | 'error'
-  exposureMode: WebMcpExposureMode
+  exposureMode: WebCliExposureMode
   groupAttr: string
-  emitTrackingAttr: WebMcpEmitTrackingAttr
-  declarativeCompat: WebMcpDeclarativeCompat
-  click: WebMcpRuntimeOptions
+  emitTrackingAttr: WebCliEmitTrackingAttr
+  declarativeCompat: WebCliDeclarativeCompat
+  click: WebCliRuntimeOptions
 }
 
 export const DEFAULT_INCLUDE = ['**/*.{html,htm,js,jsx,ts,tsx,vue,svelte}']
 
 export function resolveOptions(
-  input: WebMcpDomPluginOptions = {},
-): ResolvedWebMcpDomOptions {
+  input: WebCliDomPluginOptions = {},
+): ResolvedWebCliDomOptions {
   return {
     include: input.include ?? DEFAULT_INCLUDE,
     exclude: input.exclude ?? ['**/node_modules/**', '**/.git/**'],
@@ -37,7 +37,7 @@ export function resolveOptions(
     exposureMode: input.exposureMode ?? 'grouped',
     groupAttr: input.groupAttr ?? 'data-webcli-group',
     emitTrackingAttr: input.emitTrackingAttr ?? 'debug',
-    declarativeCompat: input.declarativeCompat ?? 'webmcp-form-draft-2025-10',
+    declarativeCompat: input.declarativeCompat ?? 'webcli-form-draft-2025-10',
     click: {
       clickAutoScroll: input.click?.autoScroll ?? true,
       clickRetryCount: input.click?.retryCount ?? 2,

@@ -1,6 +1,6 @@
 import { webCliDomUnplugin } from './plugin/index'
-import type { WebMcpDomPluginOptions } from './types'
+import type { WebCliDomPluginOptions } from './types'
 
-export default function webMcpDomWebpackPlugin(options?: WebMcpDomPluginOptions): any {
+export default function webCliDomWebpackPlugin(options?: WebCliDomPluginOptions): any {
   return webCliDomUnplugin.webpack(options) as any
 }

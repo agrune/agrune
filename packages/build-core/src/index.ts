@@ -6,17 +6,17 @@ export { webCliDomUnplugin } from './plugin/index'
 
 export type {
   UnsupportedActionHandling,
-  WebMcpDeclarativeCompat,
-  WebMcpDiagnostic,
-  WebMcpDomPluginOptions,
-  WebMcpEmitTrackingAttr,
-  WebMcpExposureMode,
-  WebMcpGroupEntry,
-  WebMcpManifest,
-  WebMcpRuntimeOptions,
-  WebMcpToolEntry,
-  WebMcpToolStatus,
-  WebMcpTargetEntry,
+  WebCliDeclarativeCompat,
+  WebCliDiagnostic,
+  WebCliDomPluginOptions,
+  WebCliEmitTrackingAttr,
+  WebCliExposureMode,
+  WebCliGroupEntry,
+  WebCliManifest,
+  WebCliRuntimeOptions,
+  WebCliToolEntry,
+  WebCliToolStatus,
+  WebCliTargetEntry,
 } from './types'
 
 export {

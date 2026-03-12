@@ -4,7 +4,7 @@ import fg from 'fast-glob'
 import { promises as fs, existsSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
-import type { WebMcpDomPluginOptions } from '../types'
+import type { WebCliDomPluginOptions } from '../types'
 import { compileSource } from './compiler'
 import {
   reportCompileDiagnostics,
@@ -19,7 +19,7 @@ const COMPAT_MANIFEST_ID = 'webcli-dom/manifest'
 const PACKAGE_MANIFEST_ID = '@webcli-dom/build-core/manifest'
 const RESOLVED_VIRTUAL_MANIFEST_ID = 'webcli-dom:manifest'
 
-export const webCliDomUnplugin = createUnplugin<WebMcpDomPluginOptions | undefined>(
+export const webCliDomUnplugin = createUnplugin<WebCliDomPluginOptions | undefined>(
   (rawOptions, meta) => {
     const options = resolveOptions(rawOptions)
     const manifestStore = createManifestStore(options)

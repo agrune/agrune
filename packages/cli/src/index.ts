@@ -179,7 +179,7 @@ async function runTui(): Promise<void> {
   const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..')
   const child = spawn(
     'pnpm',
-    ['--dir', rootDir, '--filter', '@webcli-dom/companion', 'run', 'start'],
+    ['--dir', rootDir, '--reporter', 'silent', '--filter', '@webcli-dom/companion', 'run', 'start'],
     {
       stdio: 'inherit',
       env: process.env,

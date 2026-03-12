@@ -2,11 +2,11 @@ import { parse as babelParse } from '@babel/parser'
 import traverseModule from '@babel/traverse'
 import type { JSXOpeningElement } from '@babel/types'
 import type {
-  WebMcpCompiledTarget,
-  WebMcpDiagnostic,
-  WebMcpToolStatus,
+  WebCliCompiledTarget,
+  WebCliDiagnostic,
+  WebCliToolStatus,
 } from '../../types'
-import type { ResolvedWebMcpDomOptions } from '../options'
+import type { ResolvedWebCliDomOptions } from '../options'
 import { planJsxNodeAttrStripEdits, planJsxTrackingAttrEdit, applyEdits } from './edit-planner'
 import { resolveJsxGroupContext } from './group-resolver'
 import { toCompiledTarget } from './target-builder'
@@ -30,11 +30,11 @@ const traverse: TraverseFn =
 export function jsxCompile(
   code: string,
   relativePath: string,
-  options: ResolvedWebMcpDomOptions,
+  options: ResolvedWebCliDomOptions,
   emitTrackingAttr: boolean,
 ): CompileResult {
-  const diagnostics: WebMcpDiagnostic[] = []
-  const entries: WebMcpCompiledTarget[] = []
+  const diagnostics: WebCliDiagnostic[] = []
+  const entries: WebCliCompiledTarget[] = []
   const edits: Edit[] = []
   const attrsToStrip = new Set<string>([...WEBCLI_ATTRS, options.groupAttr])
 
@@ -52,7 +52,7 @@ export function jsxCompile(
     diagnostics.push(
       buildDiagnostic(
         'error',
-        'WMCP_COMPILE_PARSE_ERROR',
+        'WCLI_COMPILE_PARSE_ERROR',
         `JSX 파싱 실패: ${err instanceof Error ? err.message : String(err)}`,
         relativePath,
         1,
@@ -88,7 +88,7 @@ export function jsxCompile(
         diagnostics.push(
           buildDiagnostic(
             'error',
-            'WMCP_COMPILE_MISSING_ATTR',
+            'WCLI_COMPILE_MISSING_ATTR',
             'emitTrackingAttr=none 사용 시 data-webcli-key를 명시하고 preserveSourceAttrs=true 여야 합니다.',
             relativePath,
             validated.line,
@@ -108,7 +108,7 @@ export function jsxCompile(
       }
 
       const supported = validated.action === 'click' || validated.action === 'fill'
-      const status: WebMcpToolStatus = supported ? 'active' : 'skipped_unsupported_action'
+      const status: WebCliToolStatus = supported ? 'active' : 'skipped_unsupported_action'
 
       if (!supported) {
         const diagLevel =
@@ -116,7 +116,7 @@ export function jsxCompile(
         diagnostics.push(
           buildDiagnostic(
             diagLevel,
-            'WMCP_COMPILE_UNSUPPORTED_ACTION',
+            'WCLI_COMPILE_UNSUPPORTED_ACTION',
             `지원하지 않는 action '${validated.action}' 입니다. v1에서는 click과 fill만 활성화됩니다.`,
             relativePath,
             validated.line,

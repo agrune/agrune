@@ -4,7 +4,7 @@
 
 ## 1. 아키텍처 결정
 
-- 목표는 MCP 노출이 아니라 `CLI + local companion + TUI` 조합이다.
+- 목표는 `CLI + local companion + TUI` 조합이다.
 - 브라우저 페이지와 companion 사이 transport는 유지한다.
   - `/page/connect`
   - `/page/sync`
@@ -15,7 +15,7 @@
 
 ## 2. DSL / Runtime 결정
 
-- `data-mcp-*`는 버리고 `data-webcli-*`로 바꿨다.
+- DOM 선언 속성은 `data-webcli-*`로 통일했다.
 - 현재 DSL 주요 속성:
   - `data-webcli-action`
   - `data-webcli-name`
@@ -132,8 +132,8 @@ pnpm --filter @webcli-dom/companion run start
 ## 10. 문서/코드 정리 메모
 
 - `docs/README.md`, `docs/RUNBOOK.md`, `docs/CHECKLIST.md`는 현재 기준으로 추가했다.
-- 패키지별 README는 아직 과거 `webmcp` 문구가 남아 있을 수 있다.
-- `packages/companion/src/admin-*`, `mcp-router.ts` 같은 예전 잔재 파일이 저장소에는 남아 있지만, 현재 companion 빌드 경로의 핵심은 아니다.
+- 최근 TUI 작업 내역과 남은 과제 요약은 `docs/WORKLOG.md`에 이어서 기록한다.
+- 패키지 README와 companion 관련 레거시 명칭은 `webcli` 기준으로 정리했다.
 
 ## 11. 다음 담당자가 우선 봐야 할 파일
 
