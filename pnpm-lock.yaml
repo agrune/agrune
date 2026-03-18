@@ -93,6 +93,9 @@ importers:
       '@webcli-dom/core':
         specifier: workspace:*
         version: link:../core
+      ai-motion:
+        specifier: 0.4.8
+        version: 0.4.8
       fast-glob:
         specifier: ^3.3.3
         version: 3.3.3
@@ -138,7 +141,7 @@ importers:
         version: 4.0.18(@types/node@24.12.0)(jsdom@27.4.0)(terser@5.46.0)(tsx@4.21.0)
       webpack:
         specifier: ^5.105.4
-        version: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+        version: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
       webpack-cli:
         specifier: ^6.0.1
         version: 6.0.1(webpack@5.105.4)
@@ -1026,6 +1029,9 @@ packages:
   agent-base@7.1.4:
     resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
     engines: {node: '>= 14'}
+
+  ai-motion@0.4.8:
+    resolution: {integrity: sha512-9nQVjf8lrYQWSW0sZdb9bES4x8Ei1w9C0S62po2KvRbMjslmjm0WMeszyW771SEauDnu4YGWqurLZ/gCkCTosQ==}
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
@@ -3084,17 +3090,17 @@ snapshots:
 
   '@webpack-cli/configtest@3.0.1(webpack-cli@6.0.1)(webpack@5.105.4)':
     dependencies:
-      webpack: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+      webpack: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
       webpack-cli: 6.0.1(webpack@5.105.4)
 
   '@webpack-cli/info@3.0.1(webpack-cli@6.0.1)(webpack@5.105.4)':
     dependencies:
-      webpack: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+      webpack: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
       webpack-cli: 6.0.1(webpack@5.105.4)
 
   '@webpack-cli/serve@3.0.1(webpack-cli@6.0.1)(webpack@5.105.4)':
     dependencies:
-      webpack: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+      webpack: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
       webpack-cli: 6.0.1(webpack@5.105.4)
 
   '@xtuc/ieee754@1.2.0': {}
@@ -3112,6 +3118,8 @@ snapshots:
   acorn@8.16.0: {}
 
   agent-base@7.1.4: {}
+
+  ai-motion@0.4.8: {}
 
   ajv-formats@2.1.1(ajv@8.18.0):
     optionalDependencies:
@@ -4072,15 +4080,16 @@ snapshots:
 
   tapable@2.3.0: {}
 
-  terser-webpack-plugin@5.4.0(@swc/core@1.15.18)(webpack@5.105.4):
+  terser-webpack-plugin@5.4.0(@swc/core@1.15.18)(esbuild@0.27.3)(webpack@5.105.4):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
       jest-worker: 27.5.1
       schema-utils: 4.3.3
       terser: 5.46.0
-      webpack: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+      webpack: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
     optionalDependencies:
       '@swc/core': 1.15.18
+      esbuild: 0.27.3
 
   terser@5.46.0:
     dependencies:
@@ -4289,7 +4298,7 @@ snapshots:
       import-local: 3.2.0
       interpret: 3.1.1
       rechoir: 0.8.0
-      webpack: 5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1)
+      webpack: 5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1)
       webpack-merge: 6.0.1
 
   webpack-merge@6.0.1:
@@ -4302,7 +4311,7 @@ snapshots:
 
   webpack-virtual-modules@0.6.2: {}
 
-  webpack@5.105.4(@swc/core@1.15.18)(webpack-cli@6.0.1):
+  webpack@5.105.4(@swc/core@1.15.18)(esbuild@0.27.3)(webpack-cli@6.0.1):
     dependencies:
       '@types/eslint-scope': 3.7.7
       '@types/estree': 1.0.8
@@ -4326,7 +4335,7 @@ snapshots:
       neo-async: 2.6.2
       schema-utils: 4.3.3
       tapable: 2.3.0
-      terser-webpack-plugin: 5.4.0(@swc/core@1.15.18)(webpack@5.105.4)
+      terser-webpack-plugin: 5.4.0(@swc/core@1.15.18)(esbuild@0.27.3)(webpack@5.105.4)
       watchpack: 2.5.1
       webpack-sources: 3.3.4
     optionalDependencies:

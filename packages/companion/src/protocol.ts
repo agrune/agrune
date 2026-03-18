@@ -36,6 +36,12 @@ export function sanitizeConfigPatch(input: unknown): Partial<CompanionConfig> {
   if (typeof payload.autoScroll === 'boolean') {
     patch.autoScroll = payload.autoScroll
   }
+  if (typeof payload.cursorName === 'string' && payload.cursorName.trim()) {
+    patch.cursorName = payload.cursorName.trim()
+  }
+  if (typeof payload.auroraGlow === 'boolean') {
+    patch.auroraGlow = payload.auroraGlow
+  }
   return patch
 }
 

@@ -14,9 +14,13 @@ type StatusPayload = {
     clickDelayMs: number
     pointerAnimation: boolean
     autoScroll: boolean
+    cursorName: string
+    auroraGlow: boolean
   }
   sessionCount: number
 }
+
+const CURSOR_NAMES = ['default', 'orb']
 
 type TuiData = {
   status: StatusPayload | null
@@ -354,6 +358,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   const [actionViewFrames, setActionViewFrames] = useState<ActionViewFrame[]>([])
   const selectedSessionIdRef = useRef<string | null>(selectedSessionId)
   const commandInFlightRef = useRef(false)
+  const lastDataSignatureRef = useRef<string>('')
   const panelLabels = ['Sessions', 'Live Actions', 'Details', 'Settings'] as const
 
   const selectedSessionIndex = Math.max(
@@ -590,12 +595,17 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       '/api/logs?limit=20',
     )
 
-    setData({
+    const nextData: TuiData = {
       status,
       sessions: sessionsPayload.sessions,
       snapshot: snapshotPayload.snapshot,
       logs: logsPayload.logs,
-    })
+    }
+    const signature = JSON.stringify(nextData)
+    if (signature !== lastDataSignatureRef.current) {
+      lastDataSignatureRef.current = signature
+      setData(nextData)
+    }
   }
 
   useEffect(() => {
@@ -961,6 +971,13 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           targetId: selectedTarget.targetId,
           expectedVersion: data.snapshot?.version,
         })
+      } else if (key.return && selectedTarget?.actionKind === 'fill') {
+        if (!canExecuteTarget(selectedTarget)) {
+          describeBlockedTarget(selectedTarget)
+          return
+        }
+        clearActionSearch()
+        setFillDraft({ targetId: selectedTarget.targetId, value: '' })
       } else if (input === 'g' && selectedTarget?.actionKind === 'click') {
         if (!canExecuteTarget(selectedTarget)) {
           describeBlockedTarget(selectedTarget)
@@ -986,7 +1003,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       if (key.upArrow) {
         setSelectedSetting(current => Math.max(0, current - 1))
       } else if (key.downArrow) {
-        setSelectedSetting(current => Math.min(2, current + 1))
+        setSelectedSetting(current => Math.min(4, current + 1))
       } else if (selectedSetting === 0 && (key.leftArrow || key.rightArrow)) {
         const delta = key.rightArrow ? 50 : -50
         void updateConfig({
@@ -999,6 +1016,17 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       } else if (selectedSetting === 2 && (key.return || key.leftArrow || key.rightArrow)) {
         void updateConfig({
           autoScroll: !(data.status?.config.autoScroll ?? true),
+        })
+      } else if (selectedSetting === 3 && (key.leftArrow || key.rightArrow)) {
+        const current = data.status?.config.cursorName ?? 'default'
+        const idx = CURSOR_NAMES.indexOf(current)
+        const next = key.rightArrow
+          ? CURSOR_NAMES[(idx + 1) % CURSOR_NAMES.length]
+          : CURSOR_NAMES[(idx - 1 + CURSOR_NAMES.length) % CURSOR_NAMES.length]
+        void updateConfig({ cursorName: next })
+      } else if (selectedSetting === 4 && (key.return || key.leftArrow || key.rightArrow)) {
+        void updateConfig({
+          auroraGlow: !(data.status?.config.auroraGlow ?? true),
         })
       }
     }
@@ -1099,6 +1127,12 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           </Text>
           <Text color={selectedSetting === 2 ? 'green' : undefined}>
             {selectedSetting === 2 ? '>' : ' '} autoScroll: {String(data.status?.config.autoScroll ?? true)}
+          </Text>
+          <Text color={selectedSetting === 3 ? 'green' : undefined}>
+            {selectedSetting === 3 ? '>' : ' '} cursorName: {data.status?.config.cursorName ?? 'default'} {'</>'}
+          </Text>
+          <Text color={selectedSetting === 4 ? 'green' : undefined}>
+            {selectedSetting === 4 ? '>' : ' '} auroraGlow: {String(data.status?.config.auroraGlow ?? true)}
           </Text>
         </Box>
 

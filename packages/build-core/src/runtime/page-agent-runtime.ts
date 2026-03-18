@@ -6,6 +6,8 @@ import {
   type PageSnapshot,
   type PageTarget,
 } from '@webcli-dom/core'
+import { getCursorMeta, DEFAULT_CURSOR_NAME, POINTER_FILL_SVG, POINTER_BORDER_MASK_SVG } from './cursors/index'
+import { Motion } from 'ai-motion'
 import type {
   WebCliManifest,
   WebCliRuntimeOptions,
@@ -22,6 +24,8 @@ const DEFAULT_EXECUTION_CONFIG: CompanionConfig = {
   autoScroll: true,
   clickDelayMs: 0,
   pointerAnimation: false,
+  cursorName: DEFAULT_CURSOR_NAME,
+  auroraGlow: true,
 }
 
 type ActionKind = 'click' | 'fill'
@@ -66,6 +70,7 @@ export interface PageAgentRuntime {
     commandId?: string
     targetId: string
     expectedVersion?: number
+    config?: Partial<CompanionConfig>
   }) => Promise<CommandResult>
 }
 
@@ -382,27 +387,17 @@ function buildSuccessResult(
 }
 
 // ---------------------------------------------------------------------------
-// Cursor animation system
+// Cursor animation system (page-agent style)
 // ---------------------------------------------------------------------------
 
-const CURSOR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-  <g filter="url(#shadow)">
-    <path d="M5 3L5 21L9.5 16.5L13.5 22L16 20.5L12 14.5L18 14.5L5 3Z" fill="white" stroke="black" stroke-width="1.2" stroke-linejoin="round"/>
-  </g>
-  <defs>
-    <filter id="shadow" x="0" y="0" width="24" height="28" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="1" stdDeviation="0.8" flood-opacity="0.35"/>
-    </filter>
-  </defs>
-</svg>`
-
+const CURSOR_STYLE_ID = 'webcli-cursor-style'
 const CURSOR_ANIMATION_DURATION_MS = 600
 const CURSOR_CLICK_PRESS_MS = 100
-const CURSOR_CLICK_RING_MS = 300
 const CURSOR_POST_ANIMATION_DELAY_MS = 200
 
 interface CursorState {
   element: HTMLDivElement
+  cursorName: string
   lastX: number | null
   lastY: number | null
 }
@@ -413,32 +408,79 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3)
 }
 
-function getOrCreateCursorElement(): CursorState {
-  if (cursorState) {
-    // Ensure it's still in the DOM (might have been removed)
-    if (!cursorState.element.parentElement) {
-      document.body.appendChild(cursorState.element)
-    }
-    return cursorState
-  }
+function ensureCursorStyles(): void {
+  if (document.getElementById(CURSOR_STYLE_ID)) return
+  const style = document.createElement('style')
+  style.id = CURSOR_STYLE_ID
+  style.textContent = `
+.webcli-cursor{position:fixed;top:0;left:0;width:75px;height:75px;pointer-events:none;z-index:2147483647;will-change:transform;display:none}
+.webcli-cursor-filling{position:absolute;width:100%;height:100%;background-image:url("${POINTER_FILL_SVG}");background-size:100% 100%;background-repeat:no-repeat;filter:drop-shadow(3px 4px 4px rgba(0,0,0,0.4));transform-origin:center;transform:rotate(-135deg) scale(1.2);margin-left:-10px;margin-top:-18px}
+.webcli-cursor-border{position:absolute;width:100%;height:100%;background:linear-gradient(45deg,rgb(57,182,255),rgb(189,69,251));-webkit-mask-image:url("${POINTER_BORDER_MASK_SVG}");mask-image:url("${POINTER_BORDER_MASK_SVG}");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;transform-origin:center;transform:rotate(-135deg) scale(1.2);margin-left:-10px;margin-top:-18px}
+.webcli-cursor-ripple{position:absolute;width:100%;height:100%;pointer-events:none;margin-left:-50%;margin-top:-50%}
+.webcli-cursor-ripple::after{content:"";opacity:0;position:absolute;inset:0;border:4px solid rgba(57,182,255,1);border-radius:50%}
+.webcli-cursor.clicking .webcli-cursor-ripple::after{animation:webcli-ripple 300ms ease-out forwards}
+@keyframes webcli-ripple{0%{transform:scale(0);opacity:1}100%{transform:scale(2);opacity:0}}
+`
+  document.head.appendChild(style)
+}
 
+function createPointerCursorElement(): HTMLDivElement {
+  ensureCursorStyles()
+  const el = document.createElement('div')
+  el.className = 'webcli-cursor'
+  el.setAttribute('data-webcli-pointer', 'true')
+
+  const ripple = document.createElement('div')
+  ripple.className = 'webcli-cursor-ripple'
+  const filling = document.createElement('div')
+  filling.className = 'webcli-cursor-filling'
+  const border = document.createElement('div')
+  border.className = 'webcli-cursor-border'
+
+  el.appendChild(ripple)
+  el.appendChild(filling)
+  el.appendChild(border)
+  return el
+}
+
+function createSvgCursorElement(meta: import('./cursors/index').CursorMeta): HTMLDivElement {
   const el = document.createElement('div')
   el.setAttribute('data-webcli-pointer', 'true')
-  el.innerHTML = CURSOR_SVG
+  el.innerHTML = meta.svg ?? ''
   Object.assign(el.style, {
     position: 'fixed',
     top: '0px',
     left: '0px',
-    width: '24px',
-    height: '24px',
+    width: `${meta.width}px`,
+    height: `${meta.height}px`,
     pointerEvents: 'none',
     zIndex: '2147483647',
     willChange: 'transform',
     display: 'none',
   })
+  return el
+}
 
+function getOrCreateCursorElement(cursorName: string): CursorState {
+  const meta = getCursorMeta(cursorName)
+
+  if (cursorState) {
+    if (!cursorState.element.parentElement) {
+      document.body.appendChild(cursorState.element)
+    }
+    if (cursorState.cursorName !== cursorName) {
+      cursorState.element.remove()
+      const el = meta.kind === 'css-layers' ? createPointerCursorElement() : createSvgCursorElement(meta)
+      document.body.appendChild(el)
+      cursorState.element = el
+      cursorState.cursorName = cursorName
+    }
+    return cursorState
+  }
+
+  const el = meta.kind === 'css-layers' ? createPointerCursorElement() : createSvgCursorElement(meta)
   document.body.appendChild(el)
-  cursorState = { element: el, lastX: null, lastY: null }
+  cursorState = { element: el, cursorName, lastX: null, lastY: null }
   return cursorState
 }
 
@@ -462,97 +504,137 @@ function animateWithRAF(
   })
 }
 
-function createClickRing(x: number, y: number): HTMLDivElement {
-  const ring = document.createElement('div')
-  ring.setAttribute('data-webcli-pointer', 'true')
-  Object.assign(ring.style, {
-    position: 'fixed',
-    left: `${x}px`,
-    top: `${y}px`,
-    width: '0px',
-    height: '0px',
-    borderRadius: '50%',
-    border: '2px solid #ff5a36',
-    pointerEvents: 'none',
-    zIndex: '2147483647',
-    transform: 'translate(-50%, -50%)',
-    opacity: '1',
-    boxSizing: 'border-box',
-  })
-  document.body.appendChild(ring)
-  return ring
+async function smoothScrollIntoView(element: HTMLElement): Promise<void> {
+  if (isInViewport(element.getBoundingClientRect())) {
+    return
+  }
+  element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+  const deadline = performance.now() + 800
+  let lastScrollX = window.scrollX
+  let lastScrollY = window.scrollY
+  let stableFrames = 0
+  while (performance.now() < deadline) {
+    await new Promise<void>(r => requestAnimationFrame(() => r()))
+    const sx = window.scrollX
+    const sy = window.scrollY
+    if (sx === lastScrollX && sy === lastScrollY) {
+      stableFrames++
+      if (stableFrames >= 3) break
+    } else {
+      stableFrames = 0
+      lastScrollX = sx
+      lastScrollY = sy
+    }
+  }
 }
 
-async function animateCursorTo(element: HTMLElement): Promise<void> {
-  const state = getOrCreateCursorElement()
+function triggerCursorClick(el: HTMLDivElement): void {
+  el.classList.remove('clicking')
+  void el.offsetHeight
+  el.classList.add('clicking')
+}
+
+async function animateCursorTo(element: HTMLElement, cursorName: string): Promise<void> {
+  const meta = getCursorMeta(cursorName)
+  const state = getOrCreateCursorElement(cursorName)
   const el = state.element
 
-  // Determine end position: center of the target element
   const rect = element.getBoundingClientRect()
-  const endX = rect.left + rect.width / 2
-  const endY = rect.top + rect.height / 2
+  const endX = rect.left + rect.width / 2 - meta.hotspotX
+  const endY = rect.top + rect.height / 2 - meta.hotspotY
 
-  // Determine start position
   let startX: number
   let startY: number
   if (state.lastX !== null && state.lastY !== null) {
     startX = state.lastX
     startY = state.lastY
   } else {
-    // Start from right edge, vertically centered
     startX = window.innerWidth + 20
     startY = window.innerHeight / 2
   }
 
-  // Show cursor at start position
   el.style.display = 'block'
   el.style.transform = `translate(${startX}px, ${startY}px)`
 
-  // Animate from start to end
   await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
     const t = easeOutCubic(raw)
-    const currentX = startX + (endX - startX) * t
-    const currentY = startY + (endY - startY) * t
-    el.style.transform = `translate(${currentX}px, ${currentY}px)`
+    const cx = startX + (endX - startX) * t
+    const cy = startY + (endY - startY) * t
+    el.style.transform = `translate(${cx}px, ${cy}px)`
   })
 
-  // Click effect: scale-down (press)
-  el.style.transform = `translate(${endX}px, ${endY}px) scale(0.75)`
+  // Click press effect
+  el.style.transform = `translate(${endX}px, ${endY}px) scale(0.85)`
   el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
-
-  // Pulse ring on target
-  const ring = createClickRing(endX, endY)
-
-  await Promise.all([
-    sleep(CURSOR_CLICK_PRESS_MS),
-    animateWithRAF(CURSOR_CLICK_RING_MS, raw => {
-      const size = raw * 40
-      ring.style.width = `${size}px`
-      ring.style.height = `${size}px`
-      ring.style.opacity = `${1 - raw}`
-    }),
-  ])
-
-  ring.remove()
-
-  // Scale cursor back to normal
-  el.style.transform = `translate(${endX}px, ${endY}px) scale(1)`
+  triggerCursorClick(el)
   await sleep(CURSOR_CLICK_PRESS_MS)
 
-  // Clear transition so future RAF animations aren't affected
+  // Release
+  el.style.transform = `translate(${endX}px, ${endY}px) scale(1)`
+  await sleep(CURSOR_CLICK_PRESS_MS)
   el.style.transition = ''
 
-  // Save final position
   state.lastX = endX
   state.lastY = endY
 }
 
-/**
- * Legacy pointer overlay. Now delegates to the cursor animation system.
- * Kept for backward compatibility.
- */
-async function flashPointerOverlay(element: HTMLElement): Promise<void> {
-  await animateCursorTo(element)
+// ---------------------------------------------------------------------------
+// Aurora glow border effect (ai-motion WebGL)
+// ---------------------------------------------------------------------------
+
+let motionInstance: Motion | null = null
+let motionWrapper: HTMLDivElement | null = null
+
+function showAuroraGlow(): void {
+  if (motionInstance) return
+
+  try {
+    const wrapper = document.createElement('div')
+    wrapper.setAttribute('data-webcli-aurora', 'true')
+    Object.assign(wrapper.style, {
+      position: 'fixed',
+      inset: '0',
+      zIndex: '2147483646',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+    })
+    document.body.appendChild(wrapper)
+
+    const motion = new Motion({
+      mode: 'dark',
+      borderWidth: 2,
+      glowWidth: 800,
+      borderRadius: 0,
+      styles: { position: 'absolute', inset: '0' },
+    })
+
+    wrapper.appendChild(motion.element)
+    motion.autoResize(wrapper)
+    motion.start()
+    motion.fadeIn()
+
+    motionInstance = motion
+    motionWrapper = wrapper
+  } catch {
+    // WebGL2 not available — silently skip
+  }
+}
+
+function hideAuroraGlow(): void {
+  if (!motionInstance || !motionWrapper) return
+  try {
+    motionInstance.fadeOut()
+  } catch { /* ignore */ }
+  const wrapper = motionWrapper
+  motionInstance = null
+  motionWrapper = null
+  setTimeout(() => wrapper.remove(), 500)
+}
+
+async function flashPointerOverlay(element: HTMLElement, config: CompanionConfig): Promise<void> {
+  if (config.auroraGlow) showAuroraGlow()
+  await animateCursorTo(element, config.cursorName ?? DEFAULT_CURSOR_NAME)
+  // Aurora stays visible while pointer mode is active
 }
 
 function setElementValue(
@@ -650,9 +732,7 @@ export function createPageAgentRuntime(
         }
 
         const config = normalizeExecutionConfig(runtimeOptions, input.config)
-        if (config.autoScroll && !isInViewport(element.getBoundingClientRect())) {
-          element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' })
-        }
+        await smoothScrollIntoView(element)
 
         if (!isInViewport(element.getBoundingClientRect())) {
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
@@ -665,7 +745,7 @@ export function createPageAgentRuntime(
         }
 
         if (config.pointerAnimation) {
-          await flashPointerOverlay(element)
+          await flashPointerOverlay(element, config)
         }
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
@@ -692,9 +772,7 @@ export function createPageAgentRuntime(
         }
 
         const config = normalizeExecutionConfig(runtimeOptions, input.config)
-        if (config.autoScroll && !isInViewport(element.getBoundingClientRect())) {
-          element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' })
-        }
+        await smoothScrollIntoView(element)
 
         if (!isInViewport(element.getBoundingClientRect())) {
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
@@ -707,7 +785,7 @@ export function createPageAgentRuntime(
         }
 
         if (config.pointerAnimation) {
-          await flashPointerOverlay(element)
+          await flashPointerOverlay(element, config)
         }
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
@@ -781,9 +859,7 @@ export function createPageAgentRuntime(
         }
 
         // Always auto-scroll for guide mode
-        if (!isInViewport(element.getBoundingClientRect())) {
-          element.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' })
-        }
+        await smoothScrollIntoView(element)
 
         if (!isInViewport(element.getBoundingClientRect())) {
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
@@ -796,8 +872,11 @@ export function createPageAgentRuntime(
         }
 
         // Always perform cursor animation in guide mode (ignore config.pointerAnimation)
-        await animateCursorTo(element)
+        const guideConfig = normalizeExecutionConfig(runtimeOptions, input.config)
+        if (guideConfig.auroraGlow) showAuroraGlow()
+        await animateCursorTo(element, guideConfig.cursorName ?? DEFAULT_CURSOR_NAME)
         await sleep(CURSOR_POST_ANIMATION_DELAY_MS)
+        if (guideConfig.auroraGlow) hideAuroraGlow()
 
         element.click()
         const nextSnapshot = captureSnapshot()

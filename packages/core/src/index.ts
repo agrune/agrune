@@ -20,12 +20,16 @@ export interface CompanionConfig {
   clickDelayMs: number
   pointerAnimation: boolean
   autoScroll: boolean
+  cursorName: string
+  auroraGlow: boolean
 }
 
 export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   clickDelayMs: 0,
   pointerAnimation: false,
   autoScroll: true,
+  cursorName: 'default',
+  auroraGlow: true,
 }
 
 export interface PageSnapshotGroup {
@@ -193,6 +197,8 @@ export function mergeCompanionConfig(
     clickDelayMs: patch.clickDelayMs ?? base.clickDelayMs,
     pointerAnimation: patch.pointerAnimation ?? base.pointerAnimation,
     autoScroll: patch.autoScroll ?? base.autoScroll,
+    cursorName: patch.cursorName ?? base.cursorName,
+    auroraGlow: patch.auroraGlow ?? base.auroraGlow,
   })
 }
 
@@ -214,6 +220,14 @@ export function normalizeCompanionConfig(
       typeof input?.autoScroll === 'boolean'
         ? input.autoScroll
         : DEFAULT_COMPANION_CONFIG.autoScroll,
+    cursorName:
+      typeof input?.cursorName === 'string' && input.cursorName.trim()
+        ? input.cursorName.trim()
+        : DEFAULT_COMPANION_CONFIG.cursorName,
+    auroraGlow:
+      typeof input?.auroraGlow === 'boolean'
+        ? input.auroraGlow
+        : DEFAULT_COMPANION_CONFIG.auroraGlow,
   }
 }
 

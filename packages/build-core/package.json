@@ -51,11 +51,12 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@webcli-dom/core": "workspace:*",
     "@babel/generator": "^7.28.5",
     "@babel/parser": "^7.28.5",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
+    "@webcli-dom/core": "workspace:*",
+    "ai-motion": "0.4.8",
     "fast-glob": "^3.3.3",
     "magic-string": "^0.30.21",
     "parse5": "^8.0.0",

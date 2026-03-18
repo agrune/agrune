@@ -175,6 +175,9 @@ export function createApiRoutes({
           return true
         }
         const session = sessionManager.getActiveApprovedSession()
+        const commandConfig = payload?.config && typeof payload.config === 'object'
+          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
           kind: 'act',
@@ -182,9 +185,7 @@ export function createApiRoutes({
           ...(typeof payload?.expectedVersion === 'number'
             ? { expectedVersion: payload.expectedVersion }
             : {}),
-          ...(payload?.config && typeof payload.config === 'object'
-            ? { config: payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean } }
-            : {}),
+          config: commandConfig,
         })
         writeJson(res, 200, result)
         return true
@@ -198,6 +199,9 @@ export function createApiRoutes({
           return true
         }
         const session = sessionManager.getActiveApprovedSession()
+        const commandConfig = payload?.config && typeof payload.config === 'object'
+          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
           kind: 'guide',
@@ -205,9 +209,7 @@ export function createApiRoutes({
           ...(typeof payload?.expectedVersion === 'number'
             ? { expectedVersion: payload.expectedVersion }
             : {}),
-          ...(payload?.config && typeof payload.config === 'object'
-            ? { config: payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean } }
-            : {}),
+          config: commandConfig,
         })
         writeJson(res, 200, result)
         return true
@@ -222,6 +224,9 @@ export function createApiRoutes({
           return true
         }
         const session = sessionManager.getActiveApprovedSession()
+        const commandConfig = payload?.config && typeof payload.config === 'object'
+          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
           kind: 'fill',
@@ -230,9 +235,7 @@ export function createApiRoutes({
           ...(typeof payload?.expectedVersion === 'number'
             ? { expectedVersion: payload.expectedVersion }
             : {}),
-          ...(payload?.config && typeof payload.config === 'object'
-            ? { config: payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean } }
-            : {}),
+          config: commandConfig,
         })
         writeJson(res, 200, result)
         return true

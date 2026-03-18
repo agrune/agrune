@@ -18,6 +18,8 @@ describe('core helpers', () => {
       clickDelayMs: 240,
       pointerAnimation: true,
       autoScroll: true,
+      cursorName: 'default',
+      auroraGlow: true,
     })
   })
 
