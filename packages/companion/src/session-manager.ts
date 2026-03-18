@@ -113,6 +113,7 @@ export function createSessionManager(options: CreateSessionManagerOptions): Sess
     status: session.approvalStatus,
     active: isSessionActive(session),
     pendingCommands: collectPendingCommands(session),
+    config: { ...store.persisted.config },
   })
 
   const removeSession = (sessionId: string, reason: string): boolean => {

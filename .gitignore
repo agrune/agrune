@@ -4,3 +4,4 @@ dist/
 *.tsbuildinfo
 .vite/
 coverage/
+testbeds/

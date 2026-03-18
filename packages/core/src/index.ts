@@ -15,6 +15,13 @@ export type ApprovalStatus = 'pending' | 'approved' | 'denied'
 export type ActionKind = 'click' | 'fill'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 export type CommandKind = 'act' | 'fill' | 'wait' | 'guide'
+export type PageTargetReason =
+  | 'ready'
+  | 'hidden'
+  | 'offscreen'
+  | 'covered'
+  | 'disabled'
+  | 'sensitive'
 
 export interface CompanionConfig {
   clickDelayMs: number
@@ -53,6 +60,7 @@ export interface PageTarget {
   enabled: boolean
   covered: boolean
   actionableNow: boolean
+  reason: PageTargetReason
   overlay: boolean
   sensitive: boolean
   textContent?: string
@@ -164,6 +172,7 @@ export interface SyncResponse {
   status?: ApprovalStatus
   active?: boolean
   pendingCommands?: CommandRequest[]
+  config?: CompanionConfig
 }
 
 export interface ServerWsMessage {
@@ -171,6 +180,7 @@ export interface ServerWsMessage {
   status?: ApprovalStatus
   active?: boolean
   pendingCommands?: CommandRequest[]
+  config?: CompanionConfig
   message?: string
 }
 

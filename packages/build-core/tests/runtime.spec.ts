@@ -118,6 +118,7 @@ describe('page agent runtime', () => {
         expect.objectContaining({
           actionKind: 'click',
           enabled: true,
+          reason: 'ready',
           sensitive: false,
           targetId: 'login',
           visible: true,
@@ -126,6 +127,7 @@ describe('page agent runtime', () => {
         }),
         expect.objectContaining({
           actionKind: 'fill',
+          reason: 'covered',
           sensitive: true,
           targetId: 'email',
           visible: true,
@@ -159,6 +161,7 @@ describe('page agent runtime', () => {
         expect.objectContaining({
           targetId: 'login',
           enabled: false,
+          reason: 'disabled',
           actionableNow: false,
           overlay: false,
         }),
@@ -166,6 +169,7 @@ describe('page agent runtime', () => {
           targetId: 'email',
           visible: false,
           inViewport: false,
+          reason: 'hidden',
           actionableNow: false,
           overlay: false,
         }),
@@ -192,6 +196,7 @@ describe('page agent runtime', () => {
         expect.objectContaining({
           targetId: 'login',
           covered: true,
+          reason: 'covered',
           actionableNow: false,
           overlay: false,
         }),
@@ -242,6 +247,7 @@ describe('page agent runtime', () => {
       expect.objectContaining({
         targetId: 'login',
         enabled: false,
+        reason: 'disabled',
         actionableNow: false,
         overlay: false,
       }),
@@ -272,7 +278,61 @@ describe('page agent runtime', () => {
       expect.arrayContaining([
         expect.objectContaining({
           targetId: 'login',
+          reason: 'ready',
           overlay: true,
+          actionableNow: true,
+        }),
+      ]),
+    )
+  })
+
+  it('viewport 밖 target은 offscreen reason으로 표시된다', () => {
+    const button = document.createElement('button')
+    button.textContent = '로그인'
+    button.setAttribute('data-webcli-key', 'login')
+    button.getBoundingClientRect = () =>
+      ({
+        ...mockRect(),
+        top: window.innerHeight + 20,
+        bottom: window.innerHeight + 60,
+      }) as DOMRect
+
+    document.body.appendChild(button)
+    ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
+
+    const runtime = createPageAgentRuntime(makeManifest())
+    const snapshot = runtime.getSnapshot()
+
+    expect(snapshot.targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'login',
+          inViewport: false,
+          reason: 'offscreen',
+          actionableNow: true,
+        }),
+      ]),
+    )
+  })
+
+  it('민감한 fill target은 sensitive reason으로 표시된다', () => {
+    const input = document.createElement('input')
+    input.setAttribute('data-webcli-key', 'email')
+    input.setAttribute('data-webcli-sensitive', 'true')
+    input.getBoundingClientRect = () => mockRect()
+
+    document.body.appendChild(input)
+    ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => input)
+
+    const runtime = createPageAgentRuntime(makeManifest())
+    const snapshot = runtime.getSnapshot()
+
+    expect(snapshot.targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'email',
+          sensitive: true,
+          reason: 'sensitive',
           actionableNow: true,
         }),
       ]),
@@ -304,6 +364,12 @@ describe('page agent runtime', () => {
     expect(input.value).toBe('hello@example.com')
     expect(onInput).toHaveBeenCalled()
     expect(onChange).toHaveBeenCalled()
+    expect(result.snapshot?.targets.find(target => target.targetId === 'email')).toEqual(
+      expect.objectContaining({
+        targetId: 'email',
+        reason: 'ready',
+      }),
+    )
   })
 
   it('expectedVersion이 다르면 STALE_SNAPSHOT 오류를 반환한다', async () => {

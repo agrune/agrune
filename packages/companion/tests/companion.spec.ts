@@ -49,6 +49,7 @@ function makeSnapshot(version = 1) {
         enabled: true,
         covered: false,
         actionableNow: true,
+        reason: 'ready',
         overlay: false,
         sensitive: false,
         textContent: '로그인',
@@ -70,6 +71,7 @@ function makeSnapshot(version = 1) {
         enabled: true,
         covered: false,
         actionableNow: true,
+        reason: 'ready',
         overlay: false,
         sensitive: false,
         textContent: '',
@@ -228,6 +230,7 @@ describe('companion', () => {
     )
     expect(snapshotRes.status).toBe(200)
     expect(snapshotRes.body.snapshot.version).toBe(1)
+    expect(snapshotRes.body.snapshot.targets[0].reason).toBe('ready')
 
     const commandPromise = postJson(
       'http://127.0.0.1:19440/api/commands/act',
@@ -269,6 +272,67 @@ describe('companion', () => {
     const commandRes = await commandPromise
     expect(commandRes.status).toBe(200)
     expect(commandRes.body.ok).toBe(true)
+  })
+
+  it('blocked target reason도 snapshot api에서 그대로 보존한다', async () => {
+    const handle = await startCompanionServer({
+      host: '127.0.0.1',
+      port: 19442,
+      homeDir: makeHomeDir(),
+    })
+    handles.push(handle)
+
+    const origin = 'http://example.local'
+    const connectRes = await postJson(
+      'http://127.0.0.1:19442/page/connect',
+      {
+        appId: 'test-app',
+        clientId: 'client-2',
+        url: 'http://example.local/',
+        title: 'Example',
+        clientVersion: '0.0.1',
+      },
+      { origin },
+    )
+    expect(connectRes.status).toBe(200)
+
+    const sessionId = connectRes.body.sessionId as string
+    const sessionToken = connectRes.body.sessionToken as string
+    const blockedSnapshot = makeSnapshot(3)
+    blockedSnapshot.targets[0] = {
+      ...blockedSnapshot.targets[0],
+      covered: true,
+      actionableNow: false,
+      reason: 'covered',
+    }
+
+    const syncRes = await postJson(
+      'http://127.0.0.1:19442/page/sync',
+      {
+        sessionId,
+        snapshot: blockedSnapshot,
+        completedCommands: [],
+        timestamp: Date.now(),
+      },
+      pageHeaders(origin, sessionToken),
+    )
+    expect(syncRes.status).toBe(200)
+
+    const authHeaders = agentHeaders(handle)
+    const snapshotRes = await getJson(
+      `http://127.0.0.1:19442/api/snapshot?sessionId=${encodeURIComponent(sessionId)}`,
+      authHeaders,
+    )
+
+    expect(snapshotRes.status).toBe(200)
+    expect(snapshotRes.body.snapshot.targets[0]).toEqual(
+      expect.objectContaining({
+        targetId: 'login',
+        covered: true,
+        actionableNow: false,
+        reason: 'covered',
+      }),
+    )
   })
 
   it('config api가 clickDelayMs와 pointerAnimation을 저장한다', async () => {

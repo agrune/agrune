@@ -181,6 +181,13 @@ export function initializeBrowserClient(
         })
       }
 
+      if (message.config && typeof message.config === 'object') {
+        const runtime = getPageRuntime()
+        if (runtime && typeof (runtime as any).applyConfig === 'function') {
+          ;(runtime as any).applyConfig(message.config)
+        }
+      }
+
       if (message.type === 'error') {
         statusMachine.setCompanionUnavailable(
           connection.sessionId,
@@ -268,6 +275,12 @@ export function initializeBrowserClient(
       status: syncRes.status,
       active: Boolean(syncRes.active),
     })
+
+    if (syncRes.config && typeof syncRes.config === 'object') {
+      if (typeof (runtime as any).applyConfig === 'function') {
+        ;(runtime as any).applyConfig(syncRes.config)
+      }
+    }
 
     if (Array.isArray(syncRes.pendingCommands) && syncRes.pendingCommands.length > 0) {
       await processPendingCommands(syncRes.pendingCommands, runtime, completedCommands)

@@ -39,28 +39,42 @@ export async function processPendingCommands(
 ): Promise<void> {
   for (const command of commands) {
     try {
-      const result =
-        command.kind === 'act'
-          ? await runtime.act({
-              commandId: command.commandId,
-              targetId: command.targetId,
-              expectedVersion: command.expectedVersion,
-              config: command.config,
-            })
-          : command.kind === 'fill'
-            ? await runtime.fill({
-                commandId: command.commandId,
-                targetId: command.targetId,
-                value: command.value,
-                expectedVersion: command.expectedVersion,
-                config: command.config,
-              })
-            : await runtime.wait({
-                commandId: command.commandId,
-                targetId: command.targetId,
-                state: command.state,
-                timeoutMs: command.timeoutMs,
-              })
+      let result: CommandResult
+
+      if (command.kind === 'act') {
+        result = await runtime.act({
+          commandId: command.commandId,
+          targetId: command.targetId,
+          expectedVersion: command.expectedVersion,
+          config: command.config,
+        })
+      } else if (command.kind === 'guide') {
+        if (!runtime.guide) {
+          throw new Error('guide command is not supported by this runtime')
+        }
+
+        result = await runtime.guide({
+          commandId: command.commandId,
+          targetId: command.targetId,
+          expectedVersion: command.expectedVersion,
+          config: command.config,
+        })
+      } else if (command.kind === 'fill') {
+        result = await runtime.fill({
+          commandId: command.commandId,
+          targetId: command.targetId,
+          value: command.value,
+          expectedVersion: command.expectedVersion,
+          config: command.config,
+        })
+      } else {
+        result = await runtime.wait({
+          commandId: command.commandId,
+          targetId: command.targetId,
+          state: command.state,
+          timeoutMs: command.timeoutMs,
+        })
+      }
 
       completedCommands.push(result)
     } catch (error) {

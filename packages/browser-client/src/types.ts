@@ -55,6 +55,12 @@ export interface PageRuntimeLike {
     state: 'visible' | 'hidden' | 'enabled' | 'disabled'
     timeoutMs?: number
   }) => Promise<CommandResult>
+  guide?: (input: {
+    commandId?: string
+    targetId: string
+    expectedVersion?: number
+    config?: Record<string, unknown>
+  }) => Promise<CommandResult>
 }
 
 export interface BrowserClientStatus {

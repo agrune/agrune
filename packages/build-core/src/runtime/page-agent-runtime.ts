@@ -5,6 +5,7 @@ import {
   type CompanionConfig,
   type PageSnapshot,
   type PageTarget,
+  type PageTargetReason,
 } from '@webcli-dom/core'
 import { getCursorMeta, DEFAULT_CURSOR_NAME, POINTER_FILL_SVG, POINTER_BORDER_MASK_SVG } from './cursors/index'
 import { Motion } from 'ai-motion'
@@ -45,6 +46,17 @@ interface MutableSnapshotStore {
   latest: PageSnapshot | null
 }
 
+interface TargetState {
+  visible: boolean
+  inViewport: boolean
+  enabled: boolean
+  covered: boolean
+  actionableNow: boolean
+  overlay: boolean
+  sensitive: boolean
+  reason: PageTargetReason
+}
+
 export interface PageAgentRuntime {
   getSnapshot: () => PageSnapshot
   act: (input: {
@@ -72,6 +84,7 @@ export interface PageAgentRuntime {
     expectedVersion?: number
     config?: Partial<CompanionConfig>
   }) => Promise<CommandResult>
+  applyConfig: (config: Partial<CompanionConfig>) => void
 }
 
 export interface PageAgentRuntimeHandle extends PageAgentRuntime {
@@ -244,15 +257,34 @@ function normalizeExecutionConfig(
   )
 }
 
-function captureTarget(descriptor: TargetDescriptor): PageTarget {
-  const element = findElement(descriptor)
-  if (!element) {
-    throw new Error(`missing element for target ${descriptor.target.targetId}`)
+function resolveTargetReason(input: {
+  actionKind: ActionKind
+  visible: boolean
+  inViewport: boolean
+  enabled: boolean
+  covered: boolean
+  sensitive: boolean
+}): PageTargetReason {
+  if (!input.visible) {
+    return 'hidden'
   }
-  const sensitive = element ? isSensitive(element) : false
-  const textContent = element.textContent?.trim() ?? ''
-  const valuePreview =
-    isFillableElement(element) && !sensitive ? element.value : null
+  if (!input.inViewport) {
+    return 'offscreen'
+  }
+  if (input.covered) {
+    return 'covered'
+  }
+  if (!input.enabled) {
+    return 'disabled'
+  }
+  if (input.actionKind === 'fill' && input.sensitive) {
+    return 'sensitive'
+  }
+  return 'ready'
+}
+
+function captureTargetState(actionKind: ActionKind, element: HTMLElement): TargetState {
+  const sensitive = isSensitive(element)
   const rect = element.getBoundingClientRect()
   const visible = isVisible(element)
   const inViewport = visible && isInViewport(rect)
@@ -262,21 +294,51 @@ function captureTarget(descriptor: TargetDescriptor): PageTarget {
   const overlay = isOverlayElement(element)
 
   return {
+    visible,
+    inViewport,
+    enabled,
+    covered,
+    actionableNow,
+    overlay,
+    sensitive,
+    reason: resolveTargetReason({
+      actionKind,
+      visible,
+      inViewport,
+      enabled,
+      covered,
+      sensitive,
+    }),
+  }
+}
+
+function captureTarget(descriptor: TargetDescriptor): PageTarget {
+  const element = findElement(descriptor)
+  if (!element) {
+    throw new Error(`missing element for target ${descriptor.target.targetId}`)
+  }
+  const state = captureTargetState(descriptor.actionKind, element)
+  const textContent = element.textContent?.trim() ?? ''
+  const valuePreview =
+    isFillableElement(element) && !state.sensitive ? element.value : null
+
+  return {
     actionKind: descriptor.actionKind,
     description: descriptor.target.desc,
-    enabled,
+    enabled: state.enabled,
     groupId: descriptor.groupId,
     groupName: descriptor.groupName,
     groupDesc: descriptor.groupDesc,
     name: descriptor.target.name,
+    reason: state.reason,
     selector: descriptor.target.selector,
-    sensitive,
+    sensitive: state.sensitive,
     targetId: descriptor.target.targetId,
-    visible,
-    inViewport,
-    covered,
-    actionableNow,
-    overlay,
+    visible: state.visible,
+    inViewport: state.inViewport,
+    covered: state.covered,
+    actionableNow: state.actionableNow,
+    overlay: state.overlay,
     textContent,
     valuePreview,
     sourceFile: descriptor.target.sourceFile,
@@ -320,6 +382,7 @@ function makeSnapshot(
       covered: target.covered,
       enabled: target.enabled,
       inViewport: target.inViewport,
+      reason: target.reason,
       sensitive: target.sensitive,
       targetId: target.targetId,
       textContent: target.textContent,
@@ -534,7 +597,7 @@ function triggerCursorClick(el: HTMLDivElement): void {
   el.classList.add('clicking')
 }
 
-async function animateCursorTo(element: HTMLElement, cursorName: string): Promise<void> {
+async function animateCursorTo(element: HTMLElement, cursorName: string, onPress?: () => void): Promise<void> {
   const meta = getCursorMeta(cursorName)
   const state = getOrCreateCursorElement(cursorName)
   const el = state.element
@@ -563,15 +626,26 @@ async function animateCursorTo(element: HTMLElement, cursorName: string): Promis
     el.style.transform = `translate(${cx}px, ${cy}px)`
   })
 
-  // Click press effect
-  el.style.transform = `translate(${endX}px, ${endY}px) scale(0.85)`
+  // Press down: cursor shrinks
   el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
+  el.style.transform = `translate(${endX}px, ${endY}px) scale(0.85)`
+  await new Promise<void>(r => {
+    const done = () => { el.removeEventListener('transitionend', done); r() }
+    el.addEventListener('transitionend', done, { once: true })
+    setTimeout(done, CURSOR_CLICK_PRESS_MS + 50) // fallback
+  })
+
+  // Cursor fully pressed — fire ripple + action at the impact moment
   triggerCursorClick(el)
-  await sleep(CURSOR_CLICK_PRESS_MS)
+  onPress?.()
 
   // Release
   el.style.transform = `translate(${endX}px, ${endY}px) scale(1)`
-  await sleep(CURSOR_CLICK_PRESS_MS)
+  await new Promise<void>(r => {
+    const done = () => { el.removeEventListener('transitionend', done); r() }
+    el.addEventListener('transitionend', done, { once: true })
+    setTimeout(done, CURSOR_CLICK_PRESS_MS + 50)
+  })
   el.style.transition = ''
 
   state.lastX = endX
@@ -631,10 +705,8 @@ function hideAuroraGlow(): void {
   setTimeout(() => wrapper.remove(), 500)
 }
 
-async function flashPointerOverlay(element: HTMLElement, config: CompanionConfig): Promise<void> {
-  if (config.auroraGlow) showAuroraGlow()
-  await animateCursorTo(element, config.cursorName ?? DEFAULT_CURSOR_NAME)
-  // Aurora stays visible while pointer mode is active
+async function flashPointerOverlay(element: HTMLElement, config: CompanionConfig, onPress?: () => void): Promise<void> {
+  await animateCursorTo(element, config.cursorName ?? DEFAULT_CURSOR_NAME, onPress)
 }
 
 function setElementValue(
@@ -744,14 +816,16 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'DISABLED', `target is disabled: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        if (config.pointerAnimation) {
-          await flashPointerOverlay(element, config)
-        }
+        showAuroraGlow()
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
         }
 
-        element.click()
+        if (config.pointerAnimation) {
+          await flashPointerOverlay(element, config, () => element.click())
+        } else {
+          element.click()
+        }
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'click',
@@ -784,14 +858,16 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'DISABLED', `target is disabled: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        if (config.pointerAnimation) {
-          await flashPointerOverlay(element, config)
-        }
+        showAuroraGlow()
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
         }
 
-        setElementValue(element, input.value)
+        if (config.pointerAnimation) {
+          await flashPointerOverlay(element, config, () => setElementValue(element, input.value))
+        } else {
+          setElementValue(element, input.value)
+        }
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'fill',
@@ -873,18 +949,23 @@ export function createPageAgentRuntime(
 
         // Always perform cursor animation in guide mode (ignore config.pointerAnimation)
         const guideConfig = normalizeExecutionConfig(runtimeOptions, input.config)
-        if (guideConfig.auroraGlow) showAuroraGlow()
-        await animateCursorTo(element, guideConfig.cursorName ?? DEFAULT_CURSOR_NAME)
-        await sleep(CURSOR_POST_ANIMATION_DELAY_MS)
-        if (guideConfig.auroraGlow) hideAuroraGlow()
-
-        element.click()
+        showAuroraGlow()
+        await animateCursorTo(element, guideConfig.cursorName ?? DEFAULT_CURSOR_NAME, () => element.click())
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'guide',
           targetId: descriptor.target.targetId,
         })
       }),
+
+    applyConfig: (config: Partial<CompanionConfig>) => {
+      if (config.pointerAnimation === false && cursorState?.element) {
+        cursorState.element.style.display = 'none'
+      }
+      if (config.cursorName && cursorState && config.cursorName !== cursorState.cursorName) {
+        getOrCreateCursorElement(config.cursorName)
+      }
+    },
   }
 }
 

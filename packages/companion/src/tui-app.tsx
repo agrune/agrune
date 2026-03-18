@@ -285,7 +285,10 @@ function toPreviewLines(value: string, maxLines = 6, maxWidth = 62): string[] {
   return [...rawLines.slice(0, maxLines - 1), '...']
 }
 
-function getTargetStatus(target: PageTarget): string {
+export function getTargetStatus(target: PageTarget): string {
+  if (typeof target.reason === 'string' && target.reason.length > 0) {
+    return target.reason
+  }
   if (!target.visible) return 'hidden'
   if ((target.inViewport ?? target.visible) === false) return 'offscreen'
   if ((target.covered ?? false) === true) return 'covered'
@@ -300,6 +303,18 @@ function canExecuteTarget(target: PageTarget): boolean {
       target.enabled &&
       !(target.covered ?? false))
   )
+}
+
+export function buildBlockedTargetDetails(target: PageTarget): {
+  targetId: string
+  reason: string
+  actionableNow: boolean
+} {
+  return {
+    targetId: target.targetId,
+    reason: getTargetStatus(target),
+    actionableNow: canExecuteTarget(target),
+  }
 }
 
 async function apiRequest<T>(
@@ -811,15 +826,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
 
   const describeBlockedTarget = (target: PageTarget) => {
     setLastResult(
-      JSON.stringify(
-        {
-          targetId: target.targetId,
-          status: getTargetStatus(target),
-          actionableNow: canExecuteTarget(target),
-        },
-        null,
-        2,
-      ),
+      JSON.stringify(buildBlockedTargetDetails(target), null, 2),
     )
   }
 
@@ -1003,7 +1010,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       if (key.upArrow) {
         setSelectedSetting(current => Math.max(0, current - 1))
       } else if (key.downArrow) {
-        setSelectedSetting(current => Math.min(4, current + 1))
+        setSelectedSetting(current => Math.min(3, current + 1))
       } else if (selectedSetting === 0 && (key.leftArrow || key.rightArrow)) {
         const delta = key.rightArrow ? 50 : -50
         void updateConfig({
@@ -1024,10 +1031,6 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           ? CURSOR_NAMES[(idx + 1) % CURSOR_NAMES.length]
           : CURSOR_NAMES[(idx - 1 + CURSOR_NAMES.length) % CURSOR_NAMES.length]
         void updateConfig({ cursorName: next })
-      } else if (selectedSetting === 4 && (key.return || key.leftArrow || key.rightArrow)) {
-        void updateConfig({
-          auroraGlow: !(data.status?.config.auroraGlow ?? true),
-        })
       }
     }
   })
@@ -1101,7 +1104,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           </Text>
           {selectedTarget ? (
             <Text wrap="truncate-end">
-              state: {getTargetStatus(selectedTarget)} | actionable: {String(selectedTarget.actionableNow)}
+              reason: {getTargetStatus(selectedTarget)} | actionable: {String(selectedTarget.actionableNow)}
             </Text>
           ) : null}
           {selectedTarget ? (
@@ -1130,9 +1133,6 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           </Text>
           <Text color={selectedSetting === 3 ? 'green' : undefined}>
             {selectedSetting === 3 ? '>' : ' '} cursorName: {data.status?.config.cursorName ?? 'default'} {'</>'}
-          </Text>
-          <Text color={selectedSetting === 4 ? 'green' : undefined}>
-            {selectedSetting === 4 ? '>' : ' '} auroraGlow: {String(data.status?.config.auroraGlow ?? true)}
           </Text>
         </Box>
 

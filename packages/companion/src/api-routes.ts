@@ -20,6 +20,7 @@ interface ApiRoutesOptions {
   store: RuntimeStore
   sessionManager: SessionManager
   callQueue: CallQueue
+  onConfigChanged?: () => void
 }
 
 function isAuthorized(req: http.IncomingMessage, agentToken: string): boolean {
@@ -34,6 +35,7 @@ export function createApiRoutes({
   store,
   sessionManager,
   callQueue,
+  onConfigChanged,
 }: ApiRoutesOptions): ApiRoutes {
   const handleApi = async (
     req: http.IncomingMessage,
@@ -127,6 +129,7 @@ export function createApiRoutes({
       if (req.method === 'PUT' && pathname === '/api/config') {
         const payload = parseJson(await readBody(req))
         const next = store.updateConfig(sanitizeConfigPatch(payload))
+        onConfigChanged?.()
         writeJson(res, 200, next)
         return true
       }

@@ -108,6 +108,7 @@ export async function startCompanionServer(
     store,
     sessionManager,
     callQueue,
+    onConfigChanged: () => pageWs?.pushStatusUpdates(),
   })
 
   const server = http.createServer(async (req, res) => {
