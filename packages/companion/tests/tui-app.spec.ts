@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { PageTarget } from '../src/types'
 import {
   buildBlockedTargetDetails,
+  buildActionGroups,
+  buildDragDestinationGroups,
+  buildActionRenderLines,
   createActionViewFrame,
   getNextDragPlacement,
+  isLikelyDragDestinationTarget,
+  isLikelyDragTarget,
   reconcileActionViewFrames,
 } from '../src/tui-app'
 
@@ -130,5 +135,171 @@ describe('reconcileActionViewFrames', () => {
     expect(frames).toHaveLength(1)
     expect(frames[0]?.selectedActionKey).toBe('target:orders-open')
     expect(frames[0]?.collapsedGroups).toEqual({ orders: false })
+  })
+})
+
+describe('buildActionGroups', () => {
+  it('overlay view에서는 overlay target만 노출한다', () => {
+    const baseTarget = makeTarget({
+      targetId: 'assignee-trigger',
+      groupId: 'wizard-step-basic',
+      groupName: '기본 정보',
+      name: '담당자 선택',
+      actionableNow: false,
+      covered: true,
+      reason: 'covered',
+    })
+    const overlayTarget = makeTarget({
+      targetId: 'assignee-alice',
+      groupId: 'wizard-step-basic',
+      groupName: '기본 정보',
+      name: 'Alice Chen',
+      overlay: true,
+    })
+
+    const groups = buildActionGroups(
+      {
+        version: 1,
+        capturedAt: Date.now(),
+        url: 'http://example.local',
+        title: 'Example',
+        groups: [
+          {
+            groupId: 'wizard-step-basic',
+            groupName: '기본 정보',
+            targetIds: [baseTarget.targetId, overlayTarget.targetId],
+          },
+        ],
+        targets: [baseTarget, overlayTarget],
+      },
+      'overlay',
+    )
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]?.targets.map(target => target.targetId)).toEqual(['assignee-alice'])
+  })
+})
+
+describe('buildActionRenderLines', () => {
+  it('kanban-cards 그룹 target은 2열 그리드로 묶는다', () => {
+    const group = {
+      groupId: 'kanban-cards',
+      label: '칸반 카드',
+      targets: [],
+      actionableCount: 3,
+    }
+
+    const lines = buildActionRenderLines([
+      { type: 'group', group },
+      {
+        type: 'target',
+        group,
+        target: makeTarget({ targetId: 'task-1', groupId: 'kanban-cards', name: 'Task 1' }),
+      },
+      {
+        type: 'target',
+        group,
+        target: makeTarget({ targetId: 'task-2', groupId: 'kanban-cards', name: 'Task 2' }),
+      },
+      {
+        type: 'target',
+        group,
+        target: makeTarget({ targetId: 'task-3', groupId: 'kanban-cards', name: 'Task 3' }),
+      },
+    ])
+
+    expect(lines).toHaveLength(3)
+    expect(lines[0]).toMatchObject({ type: 'group', group: { groupId: 'kanban-cards' } })
+    expect(lines[1]).toMatchObject({
+      type: 'grid',
+      cells: [{ targetId: 'task-1' }, { targetId: 'task-2' }],
+    })
+    expect(lines[2]).toMatchObject({
+      type: 'grid',
+      cells: [{ targetId: 'task-3' }],
+    })
+  })
+})
+
+describe('buildDragDestinationGroups', () => {
+  it('드롭다운 트리거는 drag target으로 오인하지 않는다', () => {
+    const dropdownTrigger = makeTarget({
+      targetId: 'assignee-trigger',
+      name: '담당자 선택',
+      description: '태스크 담당자 드롭다운 열기',
+    })
+
+    expect(isLikelyDragTarget(dropdownTrigger)).toBe(false)
+    expect(isLikelyDragDestinationTarget(dropdownTrigger)).toBe(false)
+  })
+
+  it('drag 모드에서는 dnd 관련 target만 남긴다', () => {
+    const cardGroup = {
+      groupId: 'kanban-cards',
+      label: '칸반 카드',
+      targets: [
+        makeTarget({
+          targetId: 'task-1',
+          groupId: 'kanban-cards',
+          name: 'Task 1',
+          description: '이 카드를 드래그하여 이동',
+        }),
+        makeTarget({
+          targetId: 'task-2',
+          groupId: 'kanban-cards',
+          name: 'Task 2',
+          description: '이 카드를 드래그하여 이동',
+        }),
+      ],
+      actionableCount: 2,
+    }
+    const columnGroup = {
+      groupId: 'kanban-columns',
+      label: '칸반 컬럼',
+      targets: [
+        makeTarget({
+          targetId: 'done-column',
+          groupId: 'kanban-columns',
+          name: 'Done 컬럼',
+          description: '이 컬럼으로 카드를 이동',
+        }),
+      ],
+      actionableCount: 1,
+    }
+    const actionGroup = {
+      groupId: 'kanban-card-actions',
+      label: '카드 액션',
+      targets: [
+        makeTarget({
+          targetId: 'task-1-delete',
+          groupId: 'kanban-card-actions',
+          name: 'Task 1 삭제',
+          description: '이 태스크를 삭제',
+        }),
+      ],
+      actionableCount: 1,
+    }
+    const toolGroup = {
+      groupId: 'kanban-toolbar',
+      label: '칸반 도구',
+      targets: [
+        makeTarget({
+          targetId: 'new-task',
+          groupId: 'kanban-toolbar',
+          name: 'New Task',
+          description: '새 태스크 생성 위자드 열기',
+        }),
+      ],
+      actionableCount: 1,
+    }
+
+    const groups = buildDragDestinationGroups(
+      [cardGroup, columnGroup, actionGroup, toolGroup],
+      'task-1',
+    )
+
+    expect(groups.map(group => group.groupId)).toEqual(['kanban-cards', 'kanban-columns'])
+    expect(groups[0]?.targets.map(target => target.targetId)).toEqual(['task-2'])
+    expect(groups[1]?.targets.map(target => target.targetId)).toEqual(['done-column'])
   })
 })

@@ -6,6 +6,7 @@ import type { RuntimeStore } from './runtime-store.js'
 import type { SessionRuntime } from './runtime-types.js'
 import type {
   ApprovalStatus,
+  CompanionConfig,
   CommandRequest,
   PageSyncPayload,
   SessionSnapshot,
@@ -28,9 +29,18 @@ export interface SessionManager {
   countSessions: () => number
   isSessionActive: (session: SessionRuntime) => boolean
   collectPendingCommands: (session: SessionRuntime) => CommandRequest[]
+  isAgentActive: (session: SessionRuntime) => boolean
+  beginAgentActivity: (session: SessionRuntime) => void
+  endAgentActivity: (session: SessionRuntime) => void
   buildPageSyncResponse: (
     session: SessionRuntime,
-  ) => { status: ApprovalStatus; active: boolean; pendingCommands: CommandRequest[] }
+  ) => {
+    status: ApprovalStatus
+    active: boolean
+    agentActive: boolean
+    pendingCommands: CommandRequest[]
+    config: CompanionConfig
+  }
   connectSession: (input: PageSessionConnectInput) => SessionRuntime
   applyPageSyncPayload: (session: SessionRuntime, payload: PageSyncPayload) => void
   pruneExpiredSessions: (now?: number, preserveSessionId?: string) => void
@@ -90,11 +100,29 @@ export function createSessionManager(options: CreateSessionManagerOptions): Sess
 
   const setActiveSession = (sessionId: string | null): void => {
     store.setActiveSessionId(sessionId)
+    for (const session of sessions.values()) {
+      if (session.id !== sessionId) {
+        session.manualAgentActivity = false
+      }
+    }
     onStatusChanged()
   }
 
   const isSessionActive = (session: SessionRuntime): boolean =>
     store.persisted.activeSessionId === session.id && session.approvalStatus === 'approved'
+
+  const isAgentActive = (session: SessionRuntime): boolean =>
+    session.manualAgentActivity || session.agentActivityUntil > Date.now()
+
+  const beginAgentActivity = (session: SessionRuntime): void => {
+    session.manualAgentActivity = true
+    onStatusChanged()
+  }
+
+  const endAgentActivity = (session: SessionRuntime): void => {
+    session.manualAgentActivity = false
+    onStatusChanged()
+  }
 
   const collectPendingCommands = (session: SessionRuntime): CommandRequest[] => {
     if (!isSessionActive(session)) return []
@@ -112,6 +140,7 @@ export function createSessionManager(options: CreateSessionManagerOptions): Sess
   const buildPageSyncResponse = (session: SessionRuntime) => ({
     status: session.approvalStatus,
     active: isSessionActive(session),
+    agentActive: isSessionActive(session) && isAgentActive(session),
     pendingCommands: collectPendingCommands(session),
     config: { ...store.persisted.config },
   })
@@ -224,6 +253,8 @@ export function createSessionManager(options: CreateSessionManagerOptions): Sess
       connectedAt: now,
       lastSeenAt: now,
       approvalStatus: approval,
+      agentActivityUntil: 0,
+      manualAgentActivity: false,
       snapshot: null,
       outbox: new Map(),
     }
@@ -359,6 +390,9 @@ export function createSessionManager(options: CreateSessionManagerOptions): Sess
     listSessionSnapshots,
     countSessions: () => sessions.size,
     isSessionActive,
+    isAgentActive,
+    beginAgentActivity,
+    endAgentActivity,
     collectPendingCommands,
     buildPageSyncResponse,
     connectSession,

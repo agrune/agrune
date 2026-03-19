@@ -22,7 +22,9 @@
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-progress": "^1.1.2"
+    "@radix-ui/react-progress": "^1.1.2",
+    "@webcli-dom/browser-client": "workspace:*",
+    "@webcli-dom/build-core": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

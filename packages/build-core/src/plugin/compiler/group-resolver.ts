@@ -54,16 +54,7 @@ function readHtmlOptionalMeta(
   }
 
   if (isLikelyDynamicExpression(attr.value)) {
-    diagnostics.push(
-      buildDiagnostic(
-        'error',
-        'WCLI_COMPILE_DYNAMIC_ATTR',
-        `${attrName}는 정적 문자열이어야 합니다.`,
-        relativePath,
-        line,
-        column,
-      ),
-    )
+    // 동적 표현식 — 런타임에서 DOM에서 읽음
     return undefined
   }
 
@@ -166,16 +157,7 @@ function readJsxOptionalMeta(
   const parsed = jsxAttrToStaticString(attr)
 
   if (!parsed.isStatic) {
-    diagnostics.push(
-      buildDiagnostic(
-        'error',
-        'WCLI_COMPILE_DYNAMIC_ATTR',
-        `${attrName}는 정적 문자열이어야 합니다.`,
-        relativePath,
-        line,
-        column,
-      ),
-    )
+    // 동적 표현식 — 런타임에서 DOM에서 읽음
     return undefined
   }
 

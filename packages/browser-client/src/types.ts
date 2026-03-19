@@ -36,6 +36,8 @@ export type GuideReason =
 
 export interface PageRuntimeLike {
   getSnapshot: () => PageSnapshot
+  beginAgentActivity?: () => void
+  endAgentActivity?: () => void
   act: (input: {
     commandId?: string
     targetId: string

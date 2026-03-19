@@ -76,6 +76,7 @@ export function createPageWebSocketServer({
         type: 'status',
         status: session.approvalStatus,
         active: sessionManager.isSessionActive(session),
+        agentActive: sessionManager.isAgentActive(session),
         config: { ...store.persisted.config },
       })
       if (sessionManager.isSessionActive(session)) {

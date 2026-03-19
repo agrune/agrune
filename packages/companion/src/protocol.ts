@@ -42,6 +42,9 @@ export function sanitizeConfigPatch(input: unknown): Partial<CompanionConfig> {
   if (typeof payload.auroraGlow === 'boolean') {
     patch.auroraGlow = payload.auroraGlow
   }
+  if (payload.auroraTheme === 'light' || payload.auroraTheme === 'dark') {
+    patch.auroraTheme = payload.auroraTheme
+  }
   return patch
 }
 

@@ -1,5 +1,29 @@
 # Worklog
 
+## 2026-03-19
+
+### 어노테이션 실수 기록
+
+- `TaskWizard` 드롭다운 옵션 어노테이션
+  - 실수: 상태/우선순위/담당자 `SelectContent`에 `data-webcli-group*`를 달지 않음.
+  - 결과: 드롭다운 옵션이 상위 그룹에 섞여 노출됨.
+  - 수정: `wizard-status-options`, `wizard-priority-options`, `wizard-assignee-options` 추가.
+
+- `KanbanBoard` 그룹 어노테이션 누락
+  - 실수: 툴바, 컬럼, 카드, 카드 삭제 버튼, 빈 컬럼 드롭존에 `data-webcli-group*`를 달지 않음.
+  - 결과: TUI에서 칸반 액션이 `default` 그룹으로 뭉침.
+  - 수정: `kanban-toolbar`, `kanban-columns`, `kanban-cards`, `kanban-card-actions` 추가.
+
+- `KanbanBoard` 빈 컬럼 드롭존 그룹 분리
+  - 실수: 빈 컬럼 드롭존을 `kanban-empty-columns` 별도 그룹으로 분리함.
+  - 결과: DnD 목적지가 `칸반 컬럼`과 따로 놀아서 탐색 구조가 어색해짐.
+  - 수정: 빈 컬럼 드롭존을 `kanban-columns`로 합침.
+
+- `Dialog` 공통 닫기 버튼 어노테이션 누락
+  - 실수: 공통 `DialogPrimitive.Close` 버튼에 `data-webcli-*`를 달지 않음.
+  - 결과: 모달이 열려도 닫기 액션이 목록에 나타나지 않음.
+  - 수정: `닫기` 클릭 어노테이션 추가.
+
 ## 2026-03-13
 
 ### TUI 실행 화면 정리

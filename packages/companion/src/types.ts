@@ -50,6 +50,7 @@ export interface CompanionServerOptions {
   heartbeatTimeoutMs?: number
   callTimeoutMs?: number
   pollIntervalMs?: number
+  agentActivityLeaseMs?: number
   logger?: (message: string) => void
 }
 

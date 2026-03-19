@@ -132,6 +132,34 @@ describe('compiler', () => {
     expect(result.code).toContain('data-webcli-desc={dynamicDesc}')
   })
 
+  it('jsx에서 group 경계와 같은 노드의 동적 name/desc도 보존한다', () => {
+    const source = `
+      const App = ({ task }) => (
+        <button
+          data-webcli-group="kanban-card-actions"
+          data-webcli-group-name="카드 액션"
+          data-webcli-group-desc="개별 카드 관리 액션"
+          data-webcli-action="click"
+          data-webcli-name={\`\${task.title} 삭제\`}
+          data-webcli-desc="이 태스크를 삭제"
+        >
+          <Trash2 />
+        </button>
+      )
+    `
+
+    const result = compileSource(source, 'src/App.tsx', resolveOptions())
+
+    expect(result.diagnostics.filter(d => d.level === 'error')).toHaveLength(0)
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].target.name).toBeNull()
+    expect(result.entries[0].target.desc).toBe('이 태스크를 삭제')
+    expect(result.entries[0].groupId).toBe('kanban-card-actions')
+    expect(result.code).toContain('data-webcli-name={`${task.title} 삭제`}')
+    expect(result.code).not.toContain('data-webcli-desc="이 태스크를 삭제"')
+    expect(result.code).not.toContain('data-webcli-group="kanban-card-actions"')
+  })
+
   it('html non-strict에서는 invalid node 진단 시 source attrs를 보존한다', () => {
     const source =
       '<button data-webcli-action="click" data-webcli-name="valid" data-webcli-desc="ok">OK</button><button data-webcli-action="click">Broken</button>'

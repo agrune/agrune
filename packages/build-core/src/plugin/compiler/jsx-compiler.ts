@@ -107,7 +107,8 @@ export function jsxCompile(
         if (validated.targetDesc === null) nodeAttrsToStrip.delete('data-webcli-desc')
         edits.push(...planJsxNodeAttrStripEdits(node, nodeAttrsToStrip))
         for (const stripOpening of group.stripOpenings) {
-          edits.push(...planJsxNodeAttrStripEdits(stripOpening, attrsToStrip))
+          const stripAttrs = stripOpening === node ? nodeAttrsToStrip : attrsToStrip
+          edits.push(...planJsxNodeAttrStripEdits(stripOpening, stripAttrs))
         }
       }
 

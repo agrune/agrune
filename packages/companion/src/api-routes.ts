@@ -6,7 +6,7 @@ import { CompanionApiError, sanitizeConfigPatch } from './protocol.js'
 import type { CallQueue } from './call-queue.js'
 import type { RuntimeStore } from './runtime-store.js'
 import type { SessionManager } from './session-manager.js'
-import type { CompanionPaths } from './types.js'
+import type { CompanionConfig, CompanionPaths } from './types.js'
 
 export interface ApiRoutes {
   handleApi: (req: http.IncomingMessage, res: http.ServerResponse, url: URL) => Promise<boolean>
@@ -179,7 +179,7 @@ export function createApiRoutes({
         }
         const session = sessionManager.getActiveApprovedSession()
         const commandConfig = payload?.config && typeof payload.config === 'object'
-          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          ? payload.config as Partial<CompanionConfig>
           : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
@@ -203,7 +203,7 @@ export function createApiRoutes({
         }
         const session = sessionManager.getActiveApprovedSession()
         const commandConfig = payload?.config && typeof payload.config === 'object'
-          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          ? payload.config as Partial<CompanionConfig>
           : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
@@ -242,7 +242,7 @@ export function createApiRoutes({
         }
         const session = sessionManager.getActiveApprovedSession()
         const commandConfig = payload?.config && typeof payload.config === 'object'
-          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          ? payload.config as Partial<CompanionConfig>
           : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
@@ -269,7 +269,7 @@ export function createApiRoutes({
         }
         const session = sessionManager.getActiveApprovedSession()
         const commandConfig = payload?.config && typeof payload.config === 'object'
-          ? payload.config as { clickDelayMs?: number; pointerAnimation?: boolean; autoScroll?: boolean }
+          ? payload.config as Partial<CompanionConfig>
           : store.persisted.config
         const result = await callQueue.queueCommandForSession(session, {
           commandId: randomUUID(),
@@ -302,6 +302,28 @@ export function createApiRoutes({
           ...(typeof payload?.timeoutMs === 'number' ? { timeoutMs: payload.timeoutMs } : {}),
         })
         writeJson(res, 200, result)
+        return true
+      }
+
+      if (req.method === 'POST' && pathname === '/api/agent-activity/start') {
+        const session = sessionManager.getActiveApprovedSession()
+        sessionManager.beginAgentActivity(session)
+        writeJson(res, 200, {
+          ok: true,
+          sessionId: session.id,
+          agentActive: true,
+        })
+        return true
+      }
+
+      if (req.method === 'POST' && pathname === '/api/agent-activity/end') {
+        const session = sessionManager.getActiveApprovedSession()
+        sessionManager.endAgentActivity(session)
+        writeJson(res, 200, {
+          ok: true,
+          sessionId: session.id,
+          agentActive: false,
+        })
         return true
       }
     } catch (error) {

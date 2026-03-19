@@ -207,6 +207,7 @@ describe('companion', () => {
       port: 19440,
       homeDir: makeHomeDir(),
       callTimeoutMs: 5_000,
+      agentActivityLeaseMs: 50,
     })
     handles.push(handle)
 
@@ -277,6 +278,7 @@ describe('companion', () => {
       pageHeaders(origin, sessionToken),
     )
     expect(syncPull.body.pendingCommands).toHaveLength(1)
+    expect(syncPull.body.agentActive).toBe(true)
 
     const commandId = syncPull.body.pendingCommands[0].commandId as string
     await postJson(
@@ -300,6 +302,21 @@ describe('companion', () => {
     const commandRes = await commandPromise
     expect(commandRes.status).toBe(200)
     expect(commandRes.body.ok).toBe(true)
+
+    await new Promise(resolve => setTimeout(resolve, 80))
+
+    const idleSync = await postJson(
+      'http://127.0.0.1:19440/page/sync',
+      {
+        sessionId,
+        snapshot: makeSnapshot(3),
+        completedCommands: [],
+        timestamp: Date.now(),
+      },
+      pageHeaders(origin, sessionToken),
+    )
+    expect(idleSync.status).toBe(200)
+    expect(idleSync.body.agentActive).toBe(false)
   })
 
   it('blocked target reason도 snapshot api에서 그대로 보존한다', async () => {
@@ -467,7 +484,7 @@ describe('companion', () => {
     expect(commandRes.body.ok).toBe(true)
   })
 
-  it('config api가 clickDelayMs와 pointerAnimation을 저장한다', async () => {
+  it('config api가 clickDelayMs와 auroraTheme를 저장한다', async () => {
     const handle = await startCompanionServer({
       host: '127.0.0.1',
       port: 19441,
@@ -485,6 +502,7 @@ describe('companion', () => {
       body: JSON.stringify({
         clickDelayMs: 180,
         pointerAnimation: true,
+        auroraTheme: 'light',
       }),
     })
     expect(setRes.status).toBe(200)
@@ -493,5 +511,97 @@ describe('companion', () => {
     expect(getRes.body.clickDelayMs).toBe(180)
     expect(getRes.body.pointerAnimation).toBe(true)
     expect(getRes.body.autoScroll).toBe(true)
+    expect(getRes.body.auroraTheme).toBe('light')
+  })
+
+  it('agent activity begin/end api가 제어 상태를 명시적으로 토글한다', async () => {
+    const handle = await startCompanionServer({
+      host: '127.0.0.1',
+      port: 19444,
+      homeDir: makeHomeDir(),
+    })
+    handles.push(handle)
+
+    const origin = 'http://example.local'
+    const connectRes = await postJson(
+      'http://127.0.0.1:19444/page/connect',
+      {
+        appId: 'test-app',
+        clientId: 'client-agent-1',
+        url: 'http://example.local/',
+        title: 'Example',
+        clientVersion: '0.0.1',
+      },
+      { origin },
+    )
+    expect(connectRes.status).toBe(200)
+
+    const sessionId = connectRes.body.sessionId as string
+    const sessionToken = connectRes.body.sessionToken as string
+
+    await postJson(
+      'http://127.0.0.1:19444/page/sync',
+      {
+        sessionId,
+        snapshot: makeSnapshot(1),
+        completedCommands: [],
+        timestamp: Date.now(),
+      },
+      pageHeaders(origin, sessionToken),
+    )
+
+    const authHeaders = agentHeaders(handle)
+    await postJson(
+      'http://127.0.0.1:19444/api/origins/approve',
+      { origin },
+      authHeaders,
+    )
+    await postJson(
+      'http://127.0.0.1:19444/api/sessions/activate',
+      { sessionId },
+      authHeaders,
+    )
+
+    const startRes = await postJson(
+      'http://127.0.0.1:19444/api/agent-activity/start',
+      {},
+      authHeaders,
+    )
+    expect(startRes.status).toBe(200)
+    expect(startRes.body.agentActive).toBe(true)
+
+    const activeSync = await postJson(
+      'http://127.0.0.1:19444/page/sync',
+      {
+        sessionId,
+        snapshot: makeSnapshot(2),
+        completedCommands: [],
+        timestamp: Date.now(),
+      },
+      pageHeaders(origin, sessionToken),
+    )
+    expect(activeSync.status).toBe(200)
+    expect(activeSync.body.agentActive).toBe(true)
+
+    const endRes = await postJson(
+      'http://127.0.0.1:19444/api/agent-activity/end',
+      {},
+      authHeaders,
+    )
+    expect(endRes.status).toBe(200)
+    expect(endRes.body.agentActive).toBe(false)
+
+    const idleSync = await postJson(
+      'http://127.0.0.1:19444/page/sync',
+      {
+        sessionId,
+        snapshot: makeSnapshot(3),
+        completedCommands: [],
+        timestamp: Date.now(),
+      },
+      pageHeaders(origin, sessionToken),
+    )
+    expect(idleSync.status).toBe(200)
+    expect(idleSync.body.agentActive).toBe(false)
   })
 })

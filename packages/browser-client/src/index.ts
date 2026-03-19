@@ -76,6 +76,7 @@ export function initializeBrowserClient(
 
   let stopped = false
   let inflight = false
+  let serverAgentActivityActive = false
   const connection: SessionConnectionState = {
     sessionId: null,
     sessionToken: null,
@@ -100,6 +101,36 @@ export function initializeBrowserClient(
   const discardConnection = () => {
     connection.sessionId = null
     resetSessionToken()
+  }
+
+  const syncServerAgentActivity = (
+    runtime: PageRuntimeLike | null,
+    nextActive: boolean | undefined,
+  ) => {
+    if (nextActive === undefined || !runtime) {
+      return
+    }
+
+    if (nextActive && !serverAgentActivityActive) {
+      runtime.beginAgentActivity?.()
+      serverAgentActivityActive = true
+      return
+    }
+
+    if (!nextActive && serverAgentActivityActive) {
+      runtime.endAgentActivity?.()
+      serverAgentActivityActive = false
+    }
+  }
+
+  const clearServerAgentActivity = () => {
+    const runtime = getPageRuntime()
+    if (!runtime || !serverAgentActivityActive) {
+      serverAgentActivityActive = false
+      return
+    }
+    runtime.endAgentActivity?.()
+    serverAgentActivityActive = false
   }
 
   const hasExpiredSessionToken = () =>
@@ -144,9 +175,14 @@ export function initializeBrowserClient(
       return
     }
 
-    await processPendingCommands(pending, runtime, completedCommands)
-    if (completedCommands.hasEntries()) {
-      void sendSocketSync(runtime)
+    runtime.beginAgentActivity?.()
+    try {
+      await processPendingCommands(pending, runtime, completedCommands)
+      if (completedCommands.hasEntries()) {
+        void sendSocketSync(runtime)
+      }
+    } finally {
+      runtime.endAgentActivity?.()
     }
   }
 
@@ -181,14 +217,17 @@ export function initializeBrowserClient(
         })
       }
 
+      const runtime = getPageRuntime()
+      syncServerAgentActivity(runtime, message.agentActive)
+
       if (message.config && typeof message.config === 'object') {
-        const runtime = getPageRuntime()
         if (runtime && typeof (runtime as any).applyConfig === 'function') {
           ;(runtime as any).applyConfig(message.config)
         }
       }
 
       if (message.type === 'error') {
+        clearServerAgentActivity()
         statusMachine.setCompanionUnavailable(
           connection.sessionId,
           message.message ?? 'websocket error',
@@ -204,11 +243,13 @@ export function initializeBrowserClient(
     },
     onAuthFailure(reason) {
       if (stopped) return
+      clearServerAgentActivity()
       discardConnection()
       statusMachine.setConnecting(null, reason)
     },
     onTransportClose(reason, enabled) {
       if (stopped) return
+      clearServerAgentActivity()
       if (enabled) {
         statusMachine.setConnecting(connection.sessionId, reason)
         return
@@ -281,9 +322,15 @@ export function initializeBrowserClient(
         ;(runtime as any).applyConfig(syncRes.config)
       }
     }
+    syncServerAgentActivity(runtime, syncRes.agentActive)
 
     if (Array.isArray(syncRes.pendingCommands) && syncRes.pendingCommands.length > 0) {
-      await processPendingCommands(syncRes.pendingCommands, runtime, completedCommands)
+      runtime.beginAgentActivity?.()
+      try {
+        await processPendingCommands(syncRes.pendingCommands, runtime, completedCommands)
+      } finally {
+        runtime.endAgentActivity?.()
+      }
     }
   }
 
@@ -311,12 +358,14 @@ export function initializeBrowserClient(
     } catch (error) {
       if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
         transport.close()
+        clearServerAgentActivity()
         discardConnection()
         statusMachine.setConnecting(null, error.message)
         return
       }
 
       transport.close()
+      clearServerAgentActivity()
       statusMachine.setCompanionUnavailable(
         connection.sessionId,
         error instanceof Error ? error.message : String(error),
@@ -336,6 +385,7 @@ export function initializeBrowserClient(
       stopped = true
       windowRef.clearInterval(timer)
       transport.close()
+      clearServerAgentActivity()
       statusMachine.setStopped(connection.sessionId)
     },
   }

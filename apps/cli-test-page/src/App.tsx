@@ -50,16 +50,39 @@ function App() {
       {/* Main Content */}
       <main className="max-w-[1400px] mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="board" className="gap-1.5">
+          <TabsList
+            className="grid w-full max-w-md grid-cols-3"
+            data-webcli-group="main-tabs"
+            data-webcli-group-name="메인 탭 네비게이션"
+            data-webcli-group-desc="페이지 간 이동 탭"
+          >
+            <TabsTrigger
+              value="board"
+              className="gap-1.5"
+              data-webcli-action="click"
+              data-webcli-name="Board 탭"
+              data-webcli-desc="칸반 보드 페이지로 이동"
+            >
               <KanbanSquare className="h-4 w-4" />
               Board
             </TabsTrigger>
-            <TabsTrigger value="members" className="gap-1.5">
+            <TabsTrigger
+              value="members"
+              className="gap-1.5"
+              data-webcli-action="click"
+              data-webcli-name="Members 탭"
+              data-webcli-desc="팀 멤버 페이지로 이동"
+            >
               <Users className="h-4 w-4" />
               Members
             </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-1.5">
+            <TabsTrigger
+              value="docs"
+              className="gap-1.5"
+              data-webcli-action="click"
+              data-webcli-name="Docs 탭"
+              data-webcli-desc="문서 페이지로 이동"
+            >
               <FileText className="h-4 w-4" />
               Docs
             </TabsTrigger>

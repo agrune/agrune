@@ -187,6 +187,7 @@ async function runConfig(args: string[]): Promise<void> {
     const clickDelayMs = parseFlag(args, '--click-delay-ms')
     const pointerAnimation = parseFlag(args, '--pointer-animation')
     const autoScroll = parseFlag(args, '--auto-scroll')
+    const auroraTheme = parseFlag(args, '--aurora-theme')
 
     if (clickDelayMs !== undefined) {
       payload.clickDelayMs = Number(clickDelayMs)
@@ -197,12 +198,31 @@ async function runConfig(args: string[]): Promise<void> {
     if (autoScroll !== undefined) {
       payload.autoScroll = autoScroll === 'on'
     }
+    if (auroraTheme === 'dark' || auroraTheme === 'light') {
+      payload.auroraTheme = auroraTheme
+    }
 
     printJson(await requestApi('PUT', '/api/config', payload))
     return
   }
 
   throw new Error(`unsupported config subcommand: ${sub}`)
+}
+
+async function runAgent(args: string[]): Promise<void> {
+  const sub = args[0] ?? 'begin'
+
+  if (sub === 'begin' || sub === 'start') {
+    printJson(await requestApi('POST', '/api/agent-activity/start'))
+    return
+  }
+
+  if (sub === 'end' || sub === 'stop') {
+    printJson(await requestApi('POST', '/api/agent-activity/end'))
+    return
+  }
+
+  throw new Error(`unsupported agent subcommand: ${sub}`)
 }
 
 async function runTui(): Promise<void> {
@@ -240,8 +260,10 @@ function printHelp(): void {
       'webcli drag --source <targetId> --destination <targetId> [--placement <before|inside|after>] [--expected-version <n>]',
       'webcli fill --target <targetId> --value <text> [--expected-version <n>]',
       'webcli wait --target <targetId> --state <visible|hidden|enabled|disabled> [--timeout-ms <n>]',
+      'webcli agent begin',
+      'webcli agent end',
       'webcli config get',
-      'webcli config set --click-delay-ms <n> --pointer-animation <on|off> --auto-scroll <on|off>',
+      'webcli config set --click-delay-ms <n> --pointer-animation <on|off> --auto-scroll <on|off> --aurora-theme <dark|light>',
       'webcli tui',
     ],
   })
@@ -290,6 +312,10 @@ async function main(): Promise<void> {
   }
   if (command === 'config') {
     await runConfig(args.slice(1))
+    return
+  }
+  if (command === 'agent') {
+    await runAgent(args.slice(1))
     return
   }
   if (command === 'tui') {

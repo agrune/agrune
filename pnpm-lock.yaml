@@ -31,6 +31,12 @@ importers:
       '@radix-ui/react-tabs':
         specifier: ^1.1.3
         version: 1.1.13(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@webcli-dom/browser-client':
+        specifier: workspace:*
+        version: link:../../packages/browser-client
+      '@webcli-dom/build-core':
+        specifier: workspace:*
+        version: link:../../packages/build-core
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

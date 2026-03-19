@@ -92,7 +92,8 @@ export function htmlCompile(
       if (validated.targetDesc === null) nodeAttrsToStrip.delete('data-webcli-desc')
       edits.push(...planHtmlNodeAttrStripEdits(node, nodeAttrsToStrip))
       for (const stripNode of group.stripNodes) {
-        edits.push(...planHtmlNodeAttrStripEdits(stripNode, attrsToStrip))
+        const stripAttrs = stripNode === node ? nodeAttrsToStrip : attrsToStrip
+        edits.push(...planHtmlNodeAttrStripEdits(stripNode, stripAttrs))
       }
     }
 

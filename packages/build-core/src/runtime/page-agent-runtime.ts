@@ -1,6 +1,7 @@
 import {
   createCommandError,
   mergeCompanionConfig,
+  type AuroraTheme,
   type CommandResult,
   type CompanionConfig,
   type DragPlacement,
@@ -28,6 +29,7 @@ const DEFAULT_EXECUTION_CONFIG: CompanionConfig = {
   pointerAnimation: false,
   cursorName: DEFAULT_CURSOR_NAME,
   auroraGlow: true,
+  auroraTheme: 'dark',
 }
 
 type ActionKind = 'click' | 'fill'
@@ -39,6 +41,12 @@ interface TargetDescriptor {
   groupName?: string
   groupDesc?: string
   target: WebCliTargetEntry
+}
+
+interface RuntimeTargetMatch {
+  descriptor: TargetDescriptor
+  element: HTMLElement
+  targetId: string
 }
 
 interface MutableSnapshotStore {
@@ -60,6 +68,8 @@ interface TargetState {
 
 export interface PageAgentRuntime {
   getSnapshot: () => PageSnapshot
+  beginAgentActivity: () => void
+  endAgentActivity: () => void
   act: (input: {
     commandId?: string
     targetId: string
@@ -150,12 +160,7 @@ function isPointInsideViewport(x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x <= window.innerWidth && y <= window.innerHeight
 }
 
-function isTopmostInteractable(element: HTMLElement): boolean {
-  if (typeof document.elementFromPoint !== 'function') {
-    return true
-  }
-
-  const rect = element.getBoundingClientRect()
+function getVisibleSamplePoints(rect: DOMRect): PointerCoords[] {
   const vw = window.innerWidth
   const vh = window.innerHeight
 
@@ -166,28 +171,73 @@ function isTopmostInteractable(element: HTMLElement): boolean {
   const visBottom = Math.min(rect.bottom, vh)
 
   if (visRight - visLeft < 1 || visBottom - visTop < 1) {
-    return false
+    return []
   }
 
-  const samplePoints = [
-    [(visLeft + visRight) / 2, (visTop + visBottom) / 2],
-    [visLeft + 4, visTop + 4],
-    [visRight - 4, visTop + 4],
-    [visLeft + 4, visBottom - 4],
-    [visRight - 4, visBottom - 4],
+  const insetX = Math.min(18, Math.max(4, (visRight - visLeft) * 0.15))
+  const insetY = Math.min(18, Math.max(4, (visBottom - visTop) * 0.15))
+  const left = visLeft + insetX
+  const centerX = (visLeft + visRight) / 2
+  const right = visRight - insetX
+  const top = visTop + insetY
+  const centerY = (visTop + visBottom) / 2
+  const bottom = visBottom - insetY
+
+  const orderedPoints: PointerCoords[] = [
+    { clientX: centerX, clientY: centerY },
+    { clientX: left, clientY: centerY },
+    { clientX: right, clientY: centerY },
+    { clientX: centerX, clientY: top },
+    { clientX: centerX, clientY: bottom },
+    { clientX: left, clientY: top },
+    { clientX: right, clientY: top },
+    { clientX: left, clientY: bottom },
+    { clientX: right, clientY: bottom },
   ]
 
-  for (const [x, y] of samplePoints) {
-    if (!Number.isFinite(x) || !Number.isFinite(y) || !isPointInsideViewport(x, y)) {
-      continue
-    }
-    const topmost = document.elementFromPoint(x, y)
-    if (topmost && (topmost === element || element.contains(topmost))) {
-      return true
+  const uniquePoints = new Map<string, PointerCoords>()
+  for (const point of orderedPoints) {
+    const key = `${Math.round(point.clientX * 100) / 100}:${Math.round(point.clientY * 100) / 100}`
+    if (!uniquePoints.has(key)) {
+      uniquePoints.set(key, point)
     }
   }
 
-  return false
+  return Array.from(uniquePoints.values())
+}
+
+function findInteractablePoint(element: HTMLElement): PointerCoords | null {
+  if (typeof document.elementFromPoint !== 'function') {
+    return getElementCenter(element)
+  }
+
+  const samplePoints = getVisibleSamplePoints(element.getBoundingClientRect())
+  for (const point of samplePoints) {
+    if (
+      !Number.isFinite(point.clientX) ||
+      !Number.isFinite(point.clientY) ||
+      !isPointInsideViewport(point.clientX, point.clientY)
+    ) {
+      continue
+    }
+    const topmost = document.elementFromPoint(point.clientX, point.clientY)
+    if (topmost && (topmost === element || element.contains(topmost))) {
+      return point
+    }
+  }
+
+  return null
+}
+
+function isTopmostInteractable(element: HTMLElement): boolean {
+  if (typeof document.elementFromPoint !== 'function') {
+    return true
+  }
+  return findInteractablePoint(element) !== null
+}
+
+function getInteractablePoint(element: HTMLElement): PointerCoords {
+  return findInteractablePoint(element) ?? getElementCenter(element)
 }
 
 function isSensitive(element: HTMLElement): boolean {
@@ -249,8 +299,72 @@ function collectDescriptors(manifest: WebCliManifest): TargetDescriptor[] {
   return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
 }
 
-function findElement(descriptor: TargetDescriptor): HTMLElement | null {
-  return document.querySelector<HTMLElement>(descriptor.target.selector)
+const REPEATED_TARGET_ID_DELIMITER = '__wcli_idx_'
+
+function findElements(descriptor: TargetDescriptor): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>(descriptor.target.selector))
+}
+
+function toRuntimeTargetId(baseTargetId: string, index: number, total: number): string {
+  if (total <= 1) {
+    return baseTargetId
+  }
+  return `${baseTargetId}${REPEATED_TARGET_ID_DELIMITER}${index}`
+}
+
+function parseRuntimeTargetId(targetId: string): {
+  baseTargetId: string
+  index: number
+  hasExplicitIndex: boolean
+} {
+  const markerIndex = targetId.lastIndexOf(REPEATED_TARGET_ID_DELIMITER)
+  if (markerIndex < 0) {
+    return {
+      baseTargetId: targetId,
+      index: 0,
+      hasExplicitIndex: false,
+    }
+  }
+
+  const baseTargetId = targetId.slice(0, markerIndex)
+  const indexText = targetId.slice(markerIndex + REPEATED_TARGET_ID_DELIMITER.length)
+  const index = Number(indexText)
+  if (!baseTargetId || !Number.isInteger(index) || index < 0) {
+    return {
+      baseTargetId: targetId,
+      index: 0,
+      hasExplicitIndex: false,
+    }
+  }
+
+  return {
+    baseTargetId,
+    index,
+    hasExplicitIndex: true,
+  }
+}
+
+function resolveRuntimeTarget(
+  descriptors: TargetDescriptor[],
+  requestedTargetId: string,
+): RuntimeTargetMatch | null {
+  const { baseTargetId, index } = parseRuntimeTargetId(requestedTargetId)
+  const descriptor = descriptors.find(entry => entry.target.targetId === baseTargetId)
+  if (!descriptor) {
+    return null
+  }
+
+  const elements = findElements(descriptor)
+  const element = elements[index]
+  if (!element) {
+    return null
+  }
+
+  return {
+    descriptor,
+    element,
+    targetId: toRuntimeTargetId(baseTargetId, index, elements.length),
+  }
 }
 
 function normalizeExecutionConfig(
@@ -321,11 +435,11 @@ function captureTargetState(actionKind: ActionKind, element: HTMLElement): Targe
   }
 }
 
-function captureTarget(descriptor: TargetDescriptor): PageTarget {
-  const element = findElement(descriptor)
-  if (!element) {
-    throw new Error(`missing element for target ${descriptor.target.targetId}`)
-  }
+function captureTarget(
+  descriptor: TargetDescriptor,
+  element: HTMLElement,
+  targetId: string,
+): PageTarget {
   const state = captureTargetState(descriptor.actionKind, element)
   const textContent = element.textContent?.trim() ?? ''
   const valuePreview =
@@ -346,7 +460,7 @@ function captureTarget(descriptor: TargetDescriptor): PageTarget {
     reason: state.reason,
     selector: descriptor.target.selector,
     sensitive: state.sensitive,
-    targetId: descriptor.target.targetId,
+    targetId,
     visible: state.visible,
     inViewport: state.inViewport,
     covered: state.covered,
@@ -365,11 +479,14 @@ function makeSnapshot(
   store: MutableSnapshotStore,
 ): PageSnapshot {
   const targets = descriptors.flatMap(descriptor => {
-    const element = findElement(descriptor)
-    if (!element) {
-      return []
-    }
-    return [captureTarget(descriptor)]
+    const elements = findElements(descriptor)
+    return elements.map((element, index) =>
+      captureTarget(
+        descriptor,
+        element,
+        toRuntimeTargetId(descriptor.target.targetId, index, elements.length),
+      ),
+    )
   })
 
   const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targetIds: string[] }>()
@@ -472,6 +589,7 @@ const CURSOR_CLICK_PRESS_MS = 100
 const CURSOR_POST_ANIMATION_DELAY_MS = 200
 const DRAG_POINTER_ID = 1
 const DRAG_MOVE_STEPS = 12
+const VISUAL_IDLE_HIDE_DELAY_MS = 2_000
 
 interface CursorState {
   element: HTMLDivElement
@@ -486,6 +604,15 @@ interface PointerCoords {
 }
 
 let cursorState: CursorState | null = null
+
+function hidePointerOverlay(): void {
+  if (!cursorState) return
+  cursorState.element.style.display = 'none'
+  cursorState.element.style.transition = ''
+  cursorState.element.classList.remove('clicking')
+  cursorState.lastX = null
+  cursorState.lastY = null
+}
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3)
@@ -588,25 +715,45 @@ function animateWithRAF(
 }
 
 async function smoothScrollIntoView(element: HTMLElement): Promise<void> {
-  if (isInViewport(element.getBoundingClientRect())) {
+  const isReadyForInteraction = () => {
+    const rect = element.getBoundingClientRect()
+    return isInViewport(rect) && isTopmostInteractable(element)
+  }
+
+  if (isReadyForInteraction()) {
     return
   }
-  element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
-  const deadline = performance.now() + 800
-  let lastScrollX = window.scrollX
-  let lastScrollY = window.scrollY
+
+  element.scrollIntoView({ block: 'center', inline: 'center' })
+  const deadline = performance.now() + 400
+  let lastRect = element.getBoundingClientRect()
   let stableFrames = 0
   while (performance.now() < deadline) {
     await new Promise<void>(r => requestAnimationFrame(() => r()))
-    const sx = window.scrollX
-    const sy = window.scrollY
-    if (sx === lastScrollX && sy === lastScrollY) {
+
+    const nextRect = element.getBoundingClientRect()
+    const moved =
+      Math.abs(nextRect.top - lastRect.top) > 0.5 ||
+      Math.abs(nextRect.left - lastRect.left) > 0.5 ||
+      Math.abs(nextRect.bottom - lastRect.bottom) > 0.5 ||
+      Math.abs(nextRect.right - lastRect.right) > 0.5
+
+    if (!moved) {
       stableFrames++
-      if (stableFrames >= 3) break
     } else {
       stableFrames = 0
-      lastScrollX = sx
-      lastScrollY = sy
+      lastRect = nextRect
+    }
+
+    if (isReadyForInteraction()) {
+      if (stableFrames >= 1) {
+        break
+      }
+      continue
+    }
+
+    if (stableFrames >= 3) {
+      break
     }
   }
 }
@@ -617,59 +764,239 @@ function triggerCursorClick(el: HTMLDivElement): void {
   el.classList.add('clicking')
 }
 
+function setCursorTransform(
+  el: HTMLDivElement,
+  x: number,
+  y: number,
+  scale = 1,
+): void {
+  el.style.transform =
+    scale === 1
+      ? `translate(${x}px, ${y}px)`
+      : `translate(${x}px, ${y}px) scale(${scale})`
+}
+
+async function waitForCursorTransition(el: HTMLDivElement): Promise<void> {
+  await new Promise<void>(r => {
+    const done = () => { el.removeEventListener('transitionend', done); r() }
+    el.addEventListener('transitionend', done, { once: true })
+    setTimeout(done, CURSOR_CLICK_PRESS_MS + 50)
+  })
+}
+
+function getCursorStartPosition(state: CursorState): { x: number; y: number } {
+  if (state.lastX !== null && state.lastY !== null) {
+    return {
+      x: state.lastX,
+      y: state.lastY,
+    }
+  }
+
+  return {
+    x: window.innerWidth + 20,
+    y: window.innerHeight / 2,
+  }
+}
+
+function getCursorTranslatePosition(
+  coords: PointerCoords,
+  meta: import('./cursors/index').CursorMeta,
+): { x: number; y: number } {
+  return {
+    x: coords.clientX - meta.hotspotX,
+    y: coords.clientY - meta.hotspotY,
+  }
+}
+
 async function animateCursorTo(element: HTMLElement, cursorName: string, onPress?: () => void): Promise<void> {
   const meta = getCursorMeta(cursorName)
   const state = getOrCreateCursorElement(cursorName)
   const el = state.element
 
-  const rect = element.getBoundingClientRect()
-  const endX = rect.left + rect.width / 2 - meta.hotspotX
-  const endY = rect.top + rect.height / 2 - meta.hotspotY
-
-  let startX: number
-  let startY: number
-  if (state.lastX !== null && state.lastY !== null) {
-    startX = state.lastX
-    startY = state.lastY
-  } else {
-    startX = window.innerWidth + 20
-    startY = window.innerHeight / 2
-  }
+  const { x: endX, y: endY } = getCursorTranslatePosition(getInteractablePoint(element), meta)
+  const { x: startX, y: startY } = getCursorStartPosition(state)
 
   el.style.display = 'block'
-  el.style.transform = `translate(${startX}px, ${startY}px)`
+  setCursorTransform(el, startX, startY)
 
   await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
     const t = easeOutCubic(raw)
     const cx = startX + (endX - startX) * t
     const cy = startY + (endY - startY) * t
-    el.style.transform = `translate(${cx}px, ${cy}px)`
+    setCursorTransform(el, cx, cy)
   })
 
   // Press down: cursor shrinks
   el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
-  el.style.transform = `translate(${endX}px, ${endY}px) scale(0.85)`
-  await new Promise<void>(r => {
-    const done = () => { el.removeEventListener('transitionend', done); r() }
-    el.addEventListener('transitionend', done, { once: true })
-    setTimeout(done, CURSOR_CLICK_PRESS_MS + 50) // fallback
-  })
+  setCursorTransform(el, endX, endY, 0.85)
+  await waitForCursorTransition(el)
 
   // Cursor fully pressed — fire ripple + action at the impact moment
   triggerCursorClick(el)
   onPress?.()
 
   // Release
-  el.style.transform = `translate(${endX}px, ${endY}px) scale(1)`
-  await new Promise<void>(r => {
-    const done = () => { el.removeEventListener('transitionend', done); r() }
-    el.addEventListener('transitionend', done, { once: true })
-    setTimeout(done, CURSOR_CLICK_PRESS_MS + 50)
-  })
+  setCursorTransform(el, endX, endY, 1)
+  await waitForCursorTransition(el)
   el.style.transition = ''
 
   state.lastX = endX
   state.lastY = endY
+}
+
+async function animatePointerDragWithCursor(
+  sourceElement: HTMLElement,
+  destinationElement: HTMLElement,
+  placement: DragPlacement,
+  cursorName: string,
+): Promise<void> {
+  const meta = getCursorMeta(cursorName)
+  const state = getOrCreateCursorElement(cursorName)
+  const el = state.element
+
+  const sourceCoords = getInteractablePoint(sourceElement)
+  const destinationCoords = getDragPlacementCoords(destinationElement, placement)
+  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
+  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
+  const { x: startX, y: startY } = getCursorStartPosition(state)
+
+  el.style.display = 'block'
+  setCursorTransform(el, startX, startY)
+
+  await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
+    const t = easeOutCubic(raw)
+    const cx = startX + (sourceX - startX) * t
+    const cy = startY + (sourceY - startY) * t
+    setCursorTransform(el, cx, cy)
+  })
+
+  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
+  dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
+  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
+  setCursorTransform(el, sourceX, sourceY, 0.85)
+  await waitForCursorTransition(el)
+
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
+
+  let previousHover = pressTarget
+  el.style.transition = ''
+  await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
+    const t = raw
+    const coords = {
+      clientX:
+        sourceCoords.clientX +
+        (destinationCoords.clientX - sourceCoords.clientX) * t,
+      clientY:
+        sourceCoords.clientY +
+        (destinationCoords.clientY - sourceCoords.clientY) * t,
+    }
+    const { x, y } = getCursorTranslatePosition(coords, meta)
+    setCursorTransform(el, x, y, 0.85)
+
+    const nextHover = getEventTargetAtPoint(destinationElement, coords)
+    dispatchHoverTransition(previousHover, nextHover, coords, 1)
+    dispatchDragMove(sourceElement, nextHover, coords)
+    previousHover = nextHover
+  })
+
+  const dropTarget = getEventTargetAtPoint(destinationElement, destinationCoords)
+  dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
+  dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
+
+  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-out`
+  setCursorTransform(el, destinationX, destinationY, 1)
+  await waitForCursorTransition(el)
+  el.style.transition = ''
+
+  state.lastX = destinationX
+  state.lastY = destinationY
+}
+
+async function animateHtmlDragWithCursor(
+  sourceElement: HTMLElement,
+  destinationElement: HTMLElement,
+  placement: DragPlacement,
+  cursorName: string,
+): Promise<void> {
+  const dataTransfer = createSyntheticDataTransfer()
+  const sourceCoords = getInteractablePoint(sourceElement)
+  const destinationCoords = getDragPlacementCoords(destinationElement, placement)
+  const meta = getCursorMeta(cursorName)
+  const state = getOrCreateCursorElement(cursorName)
+  const el = state.element
+  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
+  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
+  const { x: startX, y: startY } = getCursorStartPosition(state)
+
+  el.style.display = 'block'
+  setCursorTransform(el, startX, startY)
+
+  await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
+    const t = easeOutCubic(raw)
+    const cx = startX + (sourceX - startX) * t
+    const cy = startY + (sourceY - startY) * t
+    setCursorTransform(el, cx, cy)
+  })
+
+  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
+  dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
+  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
+  setCursorTransform(el, sourceX, sourceY, 0.85)
+  await waitForCursorTransition(el)
+
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
+  dispatchDragLikeEvent(sourceElement, 'dragstart', sourceCoords, dataTransfer)
+  await sleep(0)
+
+  let previousHover = pressTarget
+  let previousDropTarget: HTMLElement | null = null
+  el.style.transition = ''
+  await animateWithRAF(CURSOR_ANIMATION_DURATION_MS, raw => {
+    const t = raw
+    const coords = {
+      clientX:
+        sourceCoords.clientX +
+        (destinationCoords.clientX - sourceCoords.clientX) * t,
+      clientY:
+        sourceCoords.clientY +
+        (destinationCoords.clientY - sourceCoords.clientY) * t,
+    }
+    const { x, y } = getCursorTranslatePosition(coords, meta)
+    setCursorTransform(el, x, y, 0.85)
+
+    const nextHover = getEventTargetAtPoint(destinationElement, coords)
+    dispatchHoverTransition(previousHover, nextHover, coords, 1)
+    if (nextHover !== previousDropTarget) {
+      dispatchDragLikeEvent(nextHover, 'dragenter', coords, dataTransfer)
+      previousDropTarget = nextHover
+    }
+    dispatchDragLikeEvent(nextHover, 'dragover', coords, dataTransfer)
+    previousHover = nextHover
+  })
+
+  const dropTarget = getEventTargetAtPoint(destinationElement, destinationCoords)
+  dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
+  if (dropTarget !== previousDropTarget) {
+    dispatchDragLikeEvent(dropTarget, 'dragenter', destinationCoords, dataTransfer)
+  }
+  dispatchDragLikeEvent(dropTarget, 'dragover', destinationCoords, dataTransfer)
+  dispatchDragLikeEvent(dropTarget, 'drop', destinationCoords, dataTransfer)
+  await sleep(0)
+  dispatchDragLikeEvent(sourceElement, 'dragend', destinationCoords, dataTransfer)
+
+  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-out`
+  setCursorTransform(el, destinationX, destinationY, 1)
+  await waitForCursorTransition(el)
+  el.style.transition = ''
+
+  state.lastX = destinationX
+  state.lastY = destinationY
 }
 
 // ---------------------------------------------------------------------------
@@ -678,11 +1005,29 @@ async function animateCursorTo(element: HTMLElement, cursorName: string, onPress
 
 let motionInstance: Motion | null = null
 let motionWrapper: HTMLDivElement | null = null
+let currentAuroraTheme: AuroraTheme = 'dark'
 
-function showAuroraGlow(): void {
-  if (motionInstance) return
+function showAuroraGlow(theme: AuroraTheme): void {
+  if (motionInstance && motionWrapper?.isConnected && currentAuroraTheme === theme) return
+  if (motionInstance && !motionWrapper?.isConnected) {
+    motionInstance = null
+    motionWrapper = null
+  }
+  if (motionWrapper && currentAuroraTheme !== theme) {
+    const staleWrapper = motionWrapper
+    try {
+      motionInstance?.fadeOut()
+    } catch {
+      // ignore
+    }
+    staleWrapper.remove()
+    motionInstance = null
+    motionWrapper = null
+  }
 
   try {
+    if (!document.body) return
+
     const wrapper = document.createElement('div')
     wrapper.setAttribute('data-webcli-aurora', 'true')
     Object.assign(wrapper.style, {
@@ -695,7 +1040,7 @@ function showAuroraGlow(): void {
     document.body.appendChild(wrapper)
 
     const motion = new Motion({
-      mode: 'dark',
+      mode: theme,
       borderWidth: 2,
       glowWidth: 800,
       borderRadius: 0,
@@ -709,6 +1054,7 @@ function showAuroraGlow(): void {
 
     motionInstance = motion
     motionWrapper = wrapper
+    currentAuroraTheme = theme
   } catch {
     // WebGL2 not available — silently skip
   }
@@ -833,6 +1179,100 @@ function dispatchPointerLikeEvent(
   target.dispatchEvent(event)
 }
 
+function createSyntheticDataTransfer(): DataTransfer {
+  if (typeof DataTransfer === 'function') {
+    return new DataTransfer()
+  }
+
+  const store = new Map<string, string>()
+  const dataTransfer = {
+    dropEffect: 'move',
+    effectAllowed: 'all',
+    files: [] as unknown as FileList,
+    items: [] as unknown as DataTransferItemList,
+    types: [] as string[],
+    clearData(format?: string) {
+      if (typeof format === 'string' && format) {
+        store.delete(format)
+      } else {
+        store.clear()
+      }
+      this.types = Array.from(store.keys())
+    },
+    getData(format: string) {
+      return store.get(format) ?? ''
+    },
+    setData(format: string, data: string) {
+      store.set(format, data)
+      this.types = Array.from(store.keys())
+    },
+    setDragImage() {
+      // noop
+    },
+  } satisfies Partial<DataTransfer> & {
+    clearData: (format?: string) => void
+    getData: (format: string) => string
+    setData: (format: string, data: string) => void
+    setDragImage: DataTransfer['setDragImage']
+    types: string[]
+  }
+
+  return dataTransfer as DataTransfer
+}
+
+function dispatchDragLikeEvent(
+  target: EventTarget,
+  type: string,
+  coords: PointerCoords,
+  dataTransfer: DataTransfer,
+): void {
+  const event =
+    typeof window.DragEvent === 'function'
+      ? new window.DragEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          clientX: coords.clientX,
+          clientY: coords.clientY,
+          screenX: coords.clientX,
+          screenY: coords.clientY,
+        })
+      : new Event(type, {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        })
+
+  for (const [key, value] of Object.entries({
+    clientX: coords.clientX,
+    clientY: coords.clientY,
+    screenX: coords.clientX,
+    screenY: coords.clientY,
+    dataTransfer,
+  })) {
+    if (key in event) continue
+    Object.defineProperty(event, key, {
+      configurable: true,
+      enumerable: true,
+      value,
+    })
+  }
+
+  if ('dataTransfer' in event) {
+    try {
+      Object.defineProperty(event, 'dataTransfer', {
+        configurable: true,
+        enumerable: true,
+        value: dataTransfer,
+      })
+    } catch {
+      // noop
+    }
+  }
+
+  target.dispatchEvent(event)
+}
+
 function dispatchHoverTransition(
   previousTarget: HTMLElement | null,
   nextTarget: HTMLElement | null,
@@ -850,6 +1290,44 @@ function dispatchHoverTransition(
     dispatchPointerLikeEvent(nextTarget, 'pointerover', coords, buttons, true)
     dispatchMouseLikeEvent(nextTarget, 'mouseover', coords, buttons, true)
   }
+}
+
+function performPointerClickSequence(element: HTMLElement): void {
+  const coords = getInteractablePoint(element)
+  const pressTarget = getEventTargetAtPoint(element, coords)
+
+  dispatchHoverTransition(null, pressTarget, coords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointermove', coords, 0, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousemove', coords, 0, true)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 1, true)
+  const releaseTarget = getEventTargetAtPoint(element, coords)
+  dispatchPointerLikeEvent(releaseTarget, 'pointerup', coords, 0, true)
+  dispatchMouseLikeEvent(releaseTarget, 'mouseup', coords, 0, true)
+  element.click()
+}
+
+async function performHtmlDragSequence(
+  sourceElement: HTMLElement,
+  destinationElement: HTMLElement,
+  placement: DragPlacement,
+): Promise<void> {
+  const dataTransfer = createSyntheticDataTransfer()
+  const sourceCoords = getElementCenter(sourceElement)
+  const destinationCoords = getDragPlacementCoords(destinationElement, placement)
+
+  dispatchHoverTransition(null, sourceElement, sourceCoords, 0)
+  dispatchDragLikeEvent(sourceElement, 'dragstart', sourceCoords, dataTransfer)
+  await sleep(0)
+
+  dispatchDragLikeEvent(destinationElement, 'dragenter', destinationCoords, dataTransfer)
+  dispatchDragLikeEvent(destinationElement, 'dragover', destinationCoords, dataTransfer)
+  await sleep(0)
+
+  dispatchDragLikeEvent(destinationElement, 'drop', destinationCoords, dataTransfer)
+  await sleep(0)
+
+  dispatchDragLikeEvent(sourceElement, 'dragend', destinationCoords, dataTransfer)
 }
 
 function dispatchDragMove(
@@ -941,8 +1419,61 @@ export function createPageAgentRuntime(
     signature: null,
     version: 0,
   }
+  let currentConfig = normalizeExecutionConfig(runtimeOptions)
+  let activeVisualEffectCount = 0
+  let agentActivityCount = 0
+  let visualIdleTeardownTimer: number | null = null
 
   const captureSnapshot = () => makeSnapshot(descriptors, snapshotStore)
+
+  const resolveExecutionConfig = (
+    patch?: Partial<CompanionConfig>,
+  ): CompanionConfig => mergeCompanionConfig(currentConfig, patch)
+
+  const stopIdleVisualEffects = () => {
+    hideAuroraGlow()
+    hidePointerOverlay()
+  }
+
+  const cancelVisualIdleTeardown = () => {
+    if (visualIdleTeardownTimer === null) return
+    window.clearTimeout(visualIdleTeardownTimer)
+    visualIdleTeardownTimer = null
+  }
+
+  const shouldKeepVisualEffects = () =>
+    activeVisualEffectCount > 0 || agentActivityCount > 0
+
+  const scheduleVisualIdleTeardown = () => {
+    if (shouldKeepVisualEffects()) return
+    cancelVisualIdleTeardown()
+    visualIdleTeardownTimer = window.setTimeout(() => {
+      visualIdleTeardownTimer = null
+      if (!shouldKeepVisualEffects()) {
+        stopIdleVisualEffects()
+      }
+    }, VISUAL_IDLE_HIDE_DELAY_MS)
+  }
+
+  const withExecutionVisualEffects = async <T>(
+    config: CompanionConfig,
+    effect: () => Promise<T>,
+  ): Promise<T> => {
+    cancelVisualIdleTeardown()
+    activeVisualEffectCount += 1
+    if (config.auroraGlow) {
+      showAuroraGlow(config.auroraTheme)
+    }
+
+    try {
+      return await effect()
+    } finally {
+      activeVisualEffectCount = Math.max(0, activeVisualEffectCount - 1)
+      if (!shouldKeepVisualEffects()) {
+        scheduleVisualIdleTeardown()
+      }
+    }
+  }
 
   const withDescriptor = async (
     commandId: string,
@@ -969,27 +1500,28 @@ export function createPageAgentRuntime(
       )
     }
 
-    const descriptor = descriptors.find(entry => entry.target.targetId === targetId)
-    if (!descriptor) {
+    const resolvedTarget = resolveRuntimeTarget(descriptors, targetId)
+    if (!resolvedTarget) {
       return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${targetId}`, currentSnapshot, targetId)
     }
 
-    const element = findElement(descriptor)
-    if (!element) {
-      return buildErrorResult(
-        commandId,
-        'TARGET_NOT_FOUND',
-        `element not found: ${descriptor.target.selector}`,
-        currentSnapshot,
-        targetId,
-      )
-    }
-
-    return effect(descriptor, element, currentSnapshot)
+    return effect(resolvedTarget.descriptor, resolvedTarget.element, currentSnapshot)
   }
 
   return {
     getSnapshot: captureSnapshot,
+
+    beginAgentActivity: () => {
+      agentActivityCount += 1
+      cancelVisualIdleTeardown()
+    },
+
+    endAgentActivity: () => {
+      agentActivityCount = Math.max(0, agentActivityCount - 1)
+      if (!shouldKeepVisualEffects()) {
+        scheduleVisualIdleTeardown()
+      }
+    },
 
     act: async input =>
       withDescriptor(input.commandId ?? input.targetId, input.targetId, input.expectedVersion, async (descriptor, element, snapshot) => {
@@ -1001,7 +1533,7 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is not visible: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        const config = normalizeExecutionConfig(runtimeOptions, input.config)
+        const config = resolveExecutionConfig(input.config)
         await smoothScrollIntoView(element)
 
         if (!isInViewport(element.getBoundingClientRect())) {
@@ -1014,20 +1546,25 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'DISABLED', `target is disabled: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        showAuroraGlow()
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
         }
 
-        if (config.pointerAnimation) {
-          await flashPointerOverlay(element, config, () => element.click())
+        if (config.pointerAnimation || config.auroraGlow) {
+          await withExecutionVisualEffects(config, async () => {
+            if (config.pointerAnimation) {
+              await flashPointerOverlay(element, config, () => performPointerClickSequence(element))
+            } else {
+              performPointerClickSequence(element)
+            }
+          })
         } else {
-          element.click()
+          performPointerClickSequence(element)
         }
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'click',
-          targetId: descriptor.target.targetId,
+          targetId: input.targetId,
         })
       }),
 
@@ -1047,10 +1584,8 @@ export function createPageAgentRuntime(
             )
           }
 
-          const destinationDescriptor = descriptors.find(
-            entry => entry.target.targetId === input.destinationTargetId,
-          )
-          if (!destinationDescriptor) {
+          const destinationTarget = resolveRuntimeTarget(descriptors, input.destinationTargetId)
+          if (!destinationTarget) {
             return buildErrorResult(
               input.commandId ?? input.sourceTargetId,
               'TARGET_NOT_FOUND',
@@ -1060,16 +1595,8 @@ export function createPageAgentRuntime(
             )
           }
 
-          const destinationElement = findElement(destinationDescriptor)
-          if (!destinationElement) {
-            return buildErrorResult(
-              input.commandId ?? input.sourceTargetId,
-              'TARGET_NOT_FOUND',
-              `element not found: ${destinationDescriptor.target.selector}`,
-              snapshot,
-              input.destinationTargetId,
-            )
-          }
+          const destinationDescriptor = destinationTarget.descriptor
+          const destinationElement = destinationTarget.element
 
           if (!isVisible(sourceElement)) {
             return buildErrorResult(
@@ -1081,7 +1608,7 @@ export function createPageAgentRuntime(
             )
           }
 
-          const config = normalizeExecutionConfig(runtimeOptions, input.config)
+          const config = resolveExecutionConfig(input.config)
           await smoothScrollIntoView(sourceElement)
 
           if (!isInViewport(sourceElement.getBoundingClientRect())) {
@@ -1147,8 +1674,35 @@ export function createPageAgentRuntime(
             )
           }
 
-          showAuroraGlow()
-          await performPointerDragSequence(sourceElement, destinationElement, placement)
+          if (config.pointerAnimation || config.auroraGlow) {
+            await withExecutionVisualEffects(config, async () => {
+              if (config.pointerAnimation) {
+                if (sourceElement.draggable) {
+                  await animateHtmlDragWithCursor(
+                    sourceElement,
+                    destinationElement,
+                    placement,
+                    config.cursorName ?? DEFAULT_CURSOR_NAME,
+                  )
+                } else {
+                  await animatePointerDragWithCursor(
+                    sourceElement,
+                    destinationElement,
+                    placement,
+                    config.cursorName ?? DEFAULT_CURSOR_NAME,
+                  )
+                }
+              } else if (sourceElement.draggable) {
+                await performHtmlDragSequence(sourceElement, destinationElement, placement)
+              } else {
+                await performPointerDragSequence(sourceElement, destinationElement, placement)
+              }
+            })
+          } else if (sourceElement.draggable) {
+            await performHtmlDragSequence(sourceElement, destinationElement, placement)
+          } else {
+            await performPointerDragSequence(sourceElement, destinationElement, placement)
+          }
           const nextSnapshot = captureSnapshot()
           return buildSuccessResult(input.commandId ?? input.sourceTargetId, nextSnapshot, {
             actionKind: 'drag',
@@ -1171,7 +1725,7 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is not visible: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        const config = normalizeExecutionConfig(runtimeOptions, input.config)
+        const config = resolveExecutionConfig(input.config)
         await smoothScrollIntoView(element)
 
         if (!isInViewport(element.getBoundingClientRect())) {
@@ -1184,20 +1738,25 @@ export function createPageAgentRuntime(
           return buildErrorResult(input.commandId ?? input.targetId, 'DISABLED', `target is disabled: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
-        showAuroraGlow()
         if (config.clickDelayMs > 0) {
           await sleep(config.clickDelayMs)
         }
 
-        if (config.pointerAnimation) {
-          await flashPointerOverlay(element, config, () => setElementValue(element, input.value))
+        if (config.pointerAnimation || config.auroraGlow) {
+          await withExecutionVisualEffects(config, async () => {
+            if (config.pointerAnimation) {
+              await flashPointerOverlay(element, config, () => setElementValue(element, input.value))
+            } else {
+              setElementValue(element, input.value)
+            }
+          })
         } else {
           setElementValue(element, input.value)
         }
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'fill',
-          targetId: descriptor.target.targetId,
+          targetId: input.targetId,
           value: input.value,
         })
       }),
@@ -1206,7 +1765,8 @@ export function createPageAgentRuntime(
       const timeoutMs =
         typeof input.timeoutMs === 'number' && input.timeoutMs > 0 ? input.timeoutMs : 5_000
       const startedAt = Date.now()
-      const descriptor = descriptors.find(entry => entry.target.targetId === input.targetId)
+      const { baseTargetId } = parseRuntimeTargetId(input.targetId)
+      const descriptor = descriptors.find(entry => entry.target.targetId === baseTargetId)
 
       if (!descriptor) {
         const snapshot = captureSnapshot()
@@ -1221,7 +1781,17 @@ export function createPageAgentRuntime(
 
       for (;;) {
         const snapshot = captureSnapshot()
-        const target = captureTarget(descriptor)
+        const resolvedTarget = resolveRuntimeTarget(descriptors, input.targetId)
+        if (!resolvedTarget) {
+          return buildErrorResult(
+            input.commandId ?? input.targetId,
+            'TARGET_NOT_FOUND',
+            `target not found: ${input.targetId}`,
+            snapshot,
+            input.targetId,
+          )
+        }
+        const target = captureTarget(descriptor, resolvedTarget.element, resolvedTarget.targetId)
 
         const matched =
           (input.state === 'visible' && target.visible) ||
@@ -1274,22 +1844,28 @@ export function createPageAgentRuntime(
         }
 
         // Always perform cursor animation in guide mode (ignore config.pointerAnimation)
-        const guideConfig = normalizeExecutionConfig(runtimeOptions, input.config)
-        showAuroraGlow()
-        await animateCursorTo(element, guideConfig.cursorName ?? DEFAULT_CURSOR_NAME, () => element.click())
+        const guideConfig = resolveExecutionConfig(input.config)
+        await withExecutionVisualEffects(guideConfig, async () => {
+          await animateCursorTo(
+            element,
+            guideConfig.cursorName ?? DEFAULT_CURSOR_NAME,
+            () => performPointerClickSequence(element),
+          )
+        })
         const nextSnapshot = captureSnapshot()
         return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
           actionKind: 'guide',
-          targetId: descriptor.target.targetId,
+          targetId: input.targetId,
         })
       }),
 
     applyConfig: (config: Partial<CompanionConfig>) => {
-      if (config.pointerAnimation === false && cursorState?.element) {
-        cursorState.element.style.display = 'none'
-      }
+      currentConfig = mergeCompanionConfig(currentConfig, config)
       if (config.cursorName && cursorState && config.cursorName !== cursorState.cursorName) {
         getOrCreateCursorElement(config.cursorName)
+      }
+      if (!shouldKeepVisualEffects() && visualIdleTeardownTimer === null) {
+        stopIdleVisualEffects()
       }
     },
   }
@@ -1310,6 +1886,8 @@ export function installPageAgentRuntime(
   const handle: PageAgentRuntimeHandle = {
     ...runtime,
     dispose() {
+      hideAuroraGlow()
+      hidePointerOverlay()
       const current = getGlobalRuntimeStore()
       if (current.active === handle) {
         current.active = undefined

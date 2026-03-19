@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import type {
   CommandResult,
+  CompanionConfig,
   DragPlacement,
   PageSnapshot,
   PageTarget,
@@ -16,17 +17,12 @@ type TuiAppProps = {
 
 type StatusPayload = {
   activeSessionId: string | null
-  config: {
-    clickDelayMs: number
-    pointerAnimation: boolean
-    autoScroll: boolean
-    cursorName: string
-    auroraGlow: boolean
-  }
+  config: CompanionConfig
   sessionCount: number
 }
 
 const CURSOR_NAMES = ['default', 'orb']
+const AURORA_THEMES = ['dark', 'light'] as const
 
 type TuiData = {
   status: StatusPayload | null
@@ -46,6 +42,11 @@ type ActionGroupModel = {
 type ActionRow =
   | { type: 'group'; group: ActionGroupModel }
   | { type: 'target'; group: ActionGroupModel; target: PageTarget }
+
+type ActionRenderLine =
+  | { type: 'group'; group: ActionGroupModel }
+  | { type: 'target'; group: ActionGroupModel; target: PageTarget }
+  | { type: 'grid'; group: ActionGroupModel; cells: PageTarget[] }
 
 type ViewPresentation = 'base' | 'overlay'
 
@@ -85,6 +86,129 @@ export function getNextDragPlacement(
 
 function getActionRowKey(row: ActionRow): string {
   return row.type === 'group' ? `group:${row.group.groupId}` : `target:${row.target.targetId}`
+}
+
+function isCompactGridGroup(group: ActionGroupModel): boolean {
+  return group.groupId === 'kanban-cards'
+}
+
+export function buildActionRenderLines(
+  rows: ActionRow[],
+  gridColumnCount = 2,
+): ActionRenderLine[] {
+  const lines: ActionRenderLine[] = []
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index]
+    if (!row) {
+      continue
+    }
+
+    if (row.type === 'group') {
+      lines.push(row)
+      continue
+    }
+
+    if (!isCompactGridGroup(row.group)) {
+      lines.push(row)
+      continue
+    }
+
+    const cells: PageTarget[] = [row.target]
+    while (cells.length < gridColumnCount && index + 1 < rows.length) {
+      const nextRow = rows[index + 1]
+      if (
+        !nextRow ||
+        nextRow.type !== 'target' ||
+        nextRow.group.groupId !== row.group.groupId
+      ) {
+        break
+      }
+
+      cells.push(nextRow.target)
+      index += 1
+    }
+
+    lines.push({
+      type: 'grid',
+      group: row.group,
+      cells,
+    })
+  }
+
+  return lines
+}
+
+function normalizeDragHeuristicText(target: PageTarget): string {
+  return `${target.name} ${target.description}`
+    .toLowerCase()
+    .replaceAll('드롭다운', ' ')
+    .replaceAll('dropdown', ' ')
+    .replaceAll('drop-down', ' ')
+}
+
+export function isLikelyDragTarget(target: PageTarget): boolean {
+  const text = normalizeDragHeuristicText(target)
+  return (
+    text.includes('drag') ||
+    text.includes('drop') ||
+    text.includes('드래그') ||
+    text.includes('드롭') ||
+    text.includes('놓기') ||
+    text.includes('컬럼') ||
+    text.includes('column')
+  )
+}
+
+function isLikelyDragSourceTarget(target: PageTarget): boolean {
+  const text = normalizeDragHeuristicText(target)
+  return text.includes('드래그') || text.includes('drag')
+}
+
+export function isLikelyDragDestinationTarget(target: PageTarget): boolean {
+  const text = normalizeDragHeuristicText(target)
+  return (
+    text.includes('놓기') ||
+    text.includes('drop') ||
+    text.includes('컬럼') ||
+    text.includes('column')
+  )
+}
+
+export function buildDragDestinationGroups(
+  groups: ActionGroupModel[],
+  sourceTargetId: string,
+): ActionGroupModel[] {
+  const toGroupModels = (
+    predicate: (target: PageTarget) => boolean,
+  ): ActionGroupModel[] =>
+    groups.flatMap(group => {
+      const targets = group.targets.filter(
+        target =>
+          target.actionKind === 'click' &&
+          target.targetId !== sourceTargetId &&
+          predicate(target),
+      )
+
+      if (targets.length === 0) {
+        return []
+      }
+
+      return [
+        {
+          ...group,
+          targets,
+          actionableCount: targets.filter(canExecuteTarget).length,
+        },
+      ]
+    })
+
+  const likelyTargets = toGroupModels(isLikelyDragTarget)
+  if (likelyTargets.length > 0) {
+    return likelyTargets
+  }
+
+  return toGroupModels(() => true)
 }
 
 function buildActionGroupModels(
@@ -130,7 +254,7 @@ function buildActionGroupModels(
     .filter(group => group.targets.length > 0)
 }
 
-function buildActionGroups(
+export function buildActionGroups(
   snapshot: PageSnapshot | null,
   presentation: ViewPresentation,
 ): ActionGroupModel[] {
@@ -146,11 +270,7 @@ function buildActionGroups(
       return []
     }
 
-    const overlayGroupIds = new Set(overlayTargets.map(target => target.groupId))
-    return buildActionGroupModels(
-      snapshot,
-      snapshot.targets.filter(target => overlayGroupIds.has(target.groupId)),
-    )
+    return buildActionGroupModels(snapshot, overlayTargets)
   }
 
   return buildActionGroupModels(snapshot, snapshot.targets)
@@ -311,6 +431,32 @@ function toPreviewLines(value: string, maxLines = 6, maxWidth = 62): string[] {
   return [...rawLines.slice(0, maxLines - 1), '...']
 }
 
+function formatTargetRowLabel(
+  target: PageTarget,
+  dragDraft: DragDraft | null,
+  compact = false,
+): string {
+  const actionLabel =
+    target.actionKind === 'click' && isLikelyDragTarget(target)
+      ? isLikelyDragDestinationTarget(target)
+        ? 'drop'
+        : 'drag'
+      : target.actionKind
+  const base = compact
+    ? `${target.name} [${getTargetStatus(target)}]`
+    : `${target.name} (${actionLabel}) [${getTargetStatus(target)}]`
+
+  if (dragDraft?.sourceTargetId === target.targetId) {
+    return `${base} <source>`
+  }
+
+  if (dragDraft?.destinationTargetId === target.targetId) {
+    return `${base} <destination:${dragDraft.placement}>`
+  }
+
+  return base
+}
+
 export function getTargetStatus(target: PageTarget): string {
   if (typeof target.reason === 'string' && target.reason.length > 0) {
     return target.reason
@@ -441,7 +587,16 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     (visibleActionView ? createActionViewFrame(visibleActionView) : null)
   const currentActionFilter = currentActionFrame?.actionFilter ?? ''
   const normalizedActionFilter = normalizeSearchTerm(currentActionFilter)
-  const currentActionGroups = visibleActionView?.groups ?? []
+  const currentActionGroups = useMemo(
+    () =>
+      dragDraft
+        ? buildDragDestinationGroups(
+            visibleActionView?.groups ?? [],
+            dragDraft.sourceTargetId,
+          )
+        : (visibleActionView?.groups ?? []),
+    [dragDraft, visibleActionView?.groups],
+  )
   const filteredActionGroups = useMemo<ActionGroupModel[]>(() => {
     if (!normalizedActionFilter) {
       return currentActionGroups
@@ -506,7 +661,12 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
   const visibleClickTargets = useMemo(
     () =>
       filteredActionGroups.flatMap(group =>
-        group.targets.filter(target => target.actionKind === 'click' && canExecuteTarget(target)),
+        group.targets.filter(
+          target =>
+            target.actionKind === 'click' &&
+            !isLikelyDragTarget(target) &&
+            canExecuteTarget(target),
+        ),
       ),
     [filteredActionGroups],
   )
@@ -516,8 +676,12 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     [data.sessions, selectedSessionIndex],
   )
   const actionWindow = useMemo(
-    () => sliceWindow(actionRows, selectedActionRow, 14),
+    () => sliceWindow(actionRows, selectedActionRow, 18),
     [actionRows, selectedActionRow],
+  )
+  const actionRenderLines = useMemo(
+    () => buildActionRenderLines(actionWindow, 1),
+    [actionWindow],
   )
   const logRows = useMemo(() => data.logs.slice(0, 8), [data.logs])
   const detailRows = useMemo(() => toPreviewLines(lastResult), [lastResult])
@@ -1124,9 +1288,30 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           describeBlockedTarget(selectedTarget)
           return
         }
+        if (!isLikelyDragTarget(selectedTarget)) {
+          setLastResult(`drag 대상이 아닙니다: ${selectedTarget.name}`)
+          return
+        }
         beginDragDraft(selectedTarget)
       } else if (dragDraft && key.return && selectedTarget) {
         selectDragDestination(selectedTarget)
+      } else if (
+        key.return &&
+        selectedTarget?.actionKind === 'click' &&
+        isLikelyDragSourceTarget(selectedTarget)
+      ) {
+        if (!canExecuteTarget(selectedTarget)) {
+          describeBlockedTarget(selectedTarget)
+          return
+        }
+        clearActionSearch()
+        beginDragDraft(selectedTarget)
+      } else if (
+        key.return &&
+        selectedTarget?.actionKind === 'click' &&
+        isLikelyDragDestinationTarget(selectedTarget)
+      ) {
+        setLastResult('드롭 대상입니다. 먼저 카드에서 Enter 또는 d로 drag source를 선택하세요.')
       } else if (key.return && selectedTarget?.actionKind === 'click') {
         if (!canExecuteTarget(selectedTarget)) {
           describeBlockedTarget(selectedTarget)
@@ -1149,6 +1334,10 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           describeBlockedTarget(selectedTarget)
           return
         }
+        if (isLikelyDragTarget(selectedTarget)) {
+          setLastResult('drag 대상입니다. guide 대신 Enter 또는 d로 drag를 시작하세요.')
+          return
+        }
         clearActionSearch()
         void executeCommand('/api/commands/guide', {
           targetId: selectedTarget.targetId,
@@ -1169,7 +1358,7 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       if (key.upArrow) {
         setSelectedSetting(current => Math.max(0, current - 1))
       } else if (key.downArrow) {
-        setSelectedSetting(current => Math.min(3, current + 1))
+        setSelectedSetting(current => Math.min(4, current + 1))
       } else if (selectedSetting === 0 && (key.leftArrow || key.rightArrow)) {
         const delta = key.rightArrow ? 50 : -50
         void updateConfig({
@@ -1190,6 +1379,13 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           ? CURSOR_NAMES[(idx + 1) % CURSOR_NAMES.length]
           : CURSOR_NAMES[(idx - 1 + CURSOR_NAMES.length) % CURSOR_NAMES.length]
         void updateConfig({ cursorName: next })
+      } else if (selectedSetting === 4 && (key.leftArrow || key.rightArrow)) {
+        const current = data.status?.config.auroraTheme ?? 'dark'
+        const idx = AURORA_THEMES.indexOf(current)
+        const next = key.rightArrow
+          ? AURORA_THEMES[(idx + 1) % AURORA_THEMES.length]
+          : AURORA_THEMES[(idx - 1 + AURORA_THEMES.length) % AURORA_THEMES.length]
+        void updateConfig({ auroraTheme: next })
       }
     }
   })
@@ -1198,10 +1394,15 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
     <Box flexDirection="column">
       <Box marginBottom={1}>
         <Text color="cyanBright">webcli-dom companion</Text>
-        <Text>  Tab 전환  Enter 실행/토글  d drag  ←→ placement  g guide  좌우 접기  / 검색  Esc 검색해제  a 승인  e fill  r 새로고침  q 종료</Text>
+        <Text>  Tab 전환  Enter 실행/drag  d drag  ←→ placement  g guide  좌우 접기  / 검색  Esc 검색해제  a 승인  e fill  r 새로고침  q 종료</Text>
       </Box>
       <Box marginBottom={1}>
         <Text color="yellow">focus: {panelLabels[activePanel]}</Text>
+        <Text>
+          {' '}| session: {selectedSessionItem?.title || selectedSessionItem?.appId || '-'}
+          {selectedSessionItem ? ` [${selectedSessionItem.approvalStatus}]` : ''}
+          {' '}| total: {data.sessions.length}
+        </Text>
         {dragDraft ? (
           <Text color="yellow">
             {' '}| drag: {dragDraft.sourceTargetName}
@@ -1213,21 +1414,14 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       </Box>
 
       <Box>
-        <Box flexDirection="column" width="25%" marginRight={1} borderStyle="round" borderColor={activePanel === 0 ? 'cyan' : 'gray'}>
-          <Text>Sessions</Text>
-          {data.sessions.length === 0 ? <Text color="gray">연결된 세션 없음</Text> : null}
-          {sessionRows.map(session => {
-            const isSelected = session.id === selectedSessionItem?.id
-            return (
-              <Text key={session.id} color={isSelected ? 'green' : undefined} wrap="truncate-end">
-                {isSelected ? '>' : ' '} {session.title || session.appId} [{session.approvalStatus}]
-              </Text>
-            )
-          })}
-          {data.sessions.length > sessionRows.length ? <Text color="gray">... {data.sessions.length} sessions</Text> : null}
-        </Box>
-
-        <Box flexDirection="column" width="35%" marginRight={1} borderStyle="round" borderColor={activePanel === 1 ? 'cyan' : 'gray'}>
+        <Box
+          flexDirection="column"
+          flexGrow={3}
+          flexBasis={0}
+          marginRight={1}
+          borderStyle="round"
+          borderColor={activePanel === 1 ? 'cyan' : 'gray'}
+        >
           <Text>Live Actions</Text>
           <Text color={editingActionFilter ? 'yellow' : currentActionFilter ? 'cyan' : 'gray'} wrap="truncate-end">
             {editingActionFilter
@@ -1240,45 +1434,85 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           {currentActionGroups.length > 0 && normalizedActionFilter && filteredActionGroups.length === 0 ? (
             <Text color="gray">검색 결과 없음</Text>
           ) : null}
-          {actionWindow.map(row => {
-            const rowKey = getActionRowKey(row)
-            const isSelected = rowKey === currentActionFrame?.selectedActionKey
-
-            if (row.type === 'group') {
-              const collapsed = currentCollapsedGroups[row.group.groupId] ?? true
+          {actionRenderLines.map((line, index) => {
+            if (line.type === 'group') {
+              const rowKey = getActionRowKey(line)
+              const isSelected = rowKey === currentActionFrame?.selectedActionKey
+              const collapsed = currentCollapsedGroups[line.group.groupId] ?? true
               return (
-                <Text key={`group:${row.group.groupId}`} color={isSelected ? 'green' : 'cyan'}>
-                  {isSelected ? '>' : ' '} {collapsed ? '▸' : '▾'} {row.group.label} [{row.group.actionableCount}/{row.group.targets.length}]
+                <Text key={`group:${line.group.groupId}:${index}`} color={isSelected ? 'green' : 'cyan'}>
+                  {isSelected ? '>' : ' '} {collapsed ? '▸' : '▾'} {line.group.label} [{line.group.actionableCount}/{line.group.targets.length}]
                 </Text>
               )
             }
 
+            if (line.type === 'grid') {
+              return (
+                <Box key={`grid:${line.group.groupId}:${index}`}>
+                  {line.cells.map((target, cellIndex) => {
+                    const rowKey = getActionRowKey({
+                      type: 'target',
+                      group: line.group,
+                      target,
+                    })
+                    const isSelected = rowKey === currentActionFrame?.selectedActionKey
+                    return (
+                      <Box
+                        key={`target:${target.targetId}`}
+                        width={line.cells.length === 1 ? '100%' : '50%'}
+                        paddingRight={cellIndex === 0 && line.cells.length > 1 ? 1 : 0}
+                      >
+                        <Text
+                          color={
+                            isSelected
+                              ? 'green'
+                              : dragDraft?.destinationTargetId === target.targetId
+                                ? 'cyan'
+                              : dragDraft?.sourceTargetId === target.targetId
+                                ? 'yellow'
+                                : undefined
+                          }
+                          wrap="truncate-end"
+                        >
+                          {isSelected ? '>' : ' '}   {formatTargetRowLabel(target, dragDraft, true)}
+                        </Text>
+                      </Box>
+                    )
+                  })}
+                </Box>
+              )
+            }
+
+            const rowKey = getActionRowKey(line)
+            const isSelected = rowKey === currentActionFrame?.selectedActionKey
             return (
               <Text
-                key={`target:${row.target.targetId}`}
+                key={`target:${line.target.targetId}:${index}`}
                 color={
                   isSelected
                     ? 'green'
-                    : dragDraft?.destinationTargetId === row.target.targetId
+                    : dragDraft?.destinationTargetId === line.target.targetId
                       ? 'cyan'
-                    : dragDraft?.sourceTargetId === row.target.targetId
+                    : dragDraft?.sourceTargetId === line.target.targetId
                       ? 'yellow'
                       : undefined
                 }
                 wrap="truncate-end"
               >
-                {isSelected ? '>' : ' '}   {row.target.name} ({row.target.actionKind}) [{getTargetStatus(row.target)}]
-                {dragDraft?.sourceTargetId === row.target.targetId ? ' <source>' : ''}
-                {dragDraft?.destinationTargetId === row.target.targetId
-                  ? ` <destination:${dragDraft.placement}>`
-                  : ''}
+                {isSelected ? '>' : ' '}   {formatTargetRowLabel(line.target, dragDraft)}
               </Text>
             )
           })}
           {actionRows.length > actionWindow.length ? <Text color="gray">... {actionRows.length} rows</Text> : null}
         </Box>
 
-        <Box flexDirection="column" width="40%" borderStyle="round" borderColor={activePanel === 2 ? 'cyan' : 'gray'}>
+        <Box
+          flexDirection="column"
+          flexGrow={2}
+          flexBasis={0}
+          borderStyle="round"
+          borderColor={activePanel === 2 ? 'cyan' : 'gray'}
+        >
           <Text>Details / Result</Text>
           <Text wrap="truncate-end">session: {selectedSessionItem?.id ?? '-'}</Text>
           <Text>snapshot: {data.snapshot?.version ?? '-'}</Text>
@@ -1313,7 +1547,35 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
       </Box>
 
       <Box marginTop={1}>
-        <Box flexDirection="column" width="50%" marginRight={1} borderStyle="round" borderColor={activePanel === 3 ? 'cyan' : 'gray'}>
+        <Box
+          flexDirection="column"
+          flexGrow={2}
+          flexBasis={0}
+          marginRight={1}
+          borderStyle="round"
+          borderColor={activePanel === 0 ? 'cyan' : 'gray'}
+        >
+          <Text>Sessions</Text>
+          {data.sessions.length === 0 ? <Text color="gray">연결된 세션 없음</Text> : null}
+          {sessionRows.map(session => {
+            const isSelected = session.id === selectedSessionItem?.id
+            return (
+              <Text key={session.id} color={isSelected ? 'green' : undefined} wrap="truncate-end">
+                {isSelected ? '>' : ' '} {session.title || session.appId} [{session.approvalStatus}]
+              </Text>
+            )
+          })}
+          {data.sessions.length > sessionRows.length ? <Text color="gray">... {data.sessions.length} sessions</Text> : null}
+        </Box>
+
+        <Box
+          flexDirection="column"
+          flexGrow={2}
+          flexBasis={0}
+          marginRight={1}
+          borderStyle="round"
+          borderColor={activePanel === 3 ? 'cyan' : 'gray'}
+        >
           <Text>Settings</Text>
           <Text color={selectedSetting === 0 ? 'green' : undefined}>
             {selectedSetting === 0 ? '>' : ' '} clickDelayMs: {data.status?.config.clickDelayMs ?? 0}
@@ -1327,9 +1589,12 @@ export function CompanionTuiApp({ baseUrl, token, onExit }: TuiAppProps) {
           <Text color={selectedSetting === 3 ? 'green' : undefined}>
             {selectedSetting === 3 ? '>' : ' '} cursorName: {data.status?.config.cursorName ?? 'default'} {'</>'}
           </Text>
+          <Text color={selectedSetting === 4 ? 'green' : undefined}>
+            {selectedSetting === 4 ? '>' : ' '} auroraTheme: {data.status?.config.auroraTheme ?? 'dark'}
+          </Text>
         </Box>
 
-        <Box flexDirection="column" width="50%" borderStyle="round" borderColor="gray">
+        <Box flexDirection="column" flexGrow={3} flexBasis={0} borderStyle="round" borderColor="gray">
           <Text>Logs</Text>
           {logRows.map(log => (
             <Text key={`${log.at}:${log.message}`} wrap="truncate-end">

@@ -16,6 +16,7 @@ export type ActionKind = 'click' | 'fill'
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide'
+export type AuroraTheme = 'dark' | 'light'
 export type PageTargetReason =
   | 'ready'
   | 'hidden'
@@ -30,6 +31,7 @@ export interface CompanionConfig {
   autoScroll: boolean
   cursorName: string
   auroraGlow: boolean
+  auroraTheme: AuroraTheme
 }
 
 export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
@@ -38,6 +40,7 @@ export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
   autoScroll: true,
   cursorName: 'default',
   auroraGlow: true,
+  auroraTheme: 'dark',
 }
 
 export interface PageSnapshotGroup {
@@ -185,6 +188,7 @@ export interface PageSyncPayload {
 export interface SyncResponse {
   status?: ApprovalStatus
   active?: boolean
+  agentActive?: boolean
   pendingCommands?: CommandRequest[]
   config?: CompanionConfig
 }
@@ -193,6 +197,7 @@ export interface ServerWsMessage {
   type?: string
   status?: ApprovalStatus
   active?: boolean
+  agentActive?: boolean
   pendingCommands?: CommandRequest[]
   config?: CompanionConfig
   message?: string
@@ -223,6 +228,7 @@ export function mergeCompanionConfig(
     autoScroll: patch.autoScroll ?? base.autoScroll,
     cursorName: patch.cursorName ?? base.cursorName,
     auroraGlow: patch.auroraGlow ?? base.auroraGlow,
+    auroraTheme: patch.auroraTheme ?? base.auroraTheme,
   })
 }
 
@@ -252,6 +258,10 @@ export function normalizeCompanionConfig(
       typeof input?.auroraGlow === 'boolean'
         ? input.auroraGlow
         : DEFAULT_COMPANION_CONFIG.auroraGlow,
+    auroraTheme:
+      input?.auroraTheme === 'light' || input?.auroraTheme === 'dark'
+        ? input.auroraTheme
+        : DEFAULT_COMPANION_CONFIG.auroraTheme,
   }
 }
 

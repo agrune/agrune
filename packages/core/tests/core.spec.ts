@@ -20,6 +20,7 @@ describe('core helpers', () => {
       autoScroll: true,
       cursorName: 'default',
       auroraGlow: true,
+      auroraTheme: 'dark',
     })
   })
 
