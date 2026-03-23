@@ -288,3 +288,5 @@ export function isCommandErrorCode(value: unknown): value is CommandErrorCode {
 export function isCommandResultOk(result: CommandResult): result is CommandResultSuccess {
   return result.ok
 }
+
+export * from './native-messages'
