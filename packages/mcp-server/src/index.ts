@@ -134,9 +134,6 @@ export function createMcpServer() {
       }
 
       case 'webcli_config': {
-        if (!nativeTransport) {
-          return textResult('No native messaging connection.', true)
-        }
         const config: Partial<CompanionConfig> = {}
         if (typeof args.pointerAnimation === 'boolean') config.pointerAnimation = args.pointerAnimation
         if (typeof args.auroraGlow === 'boolean') config.auroraGlow = args.auroraGlow
@@ -144,7 +141,14 @@ export function createMcpServer() {
         if (typeof args.clickDelayMs === 'number') config.clickDelayMs = args.clickDelayMs
         if (typeof args.autoScroll === 'boolean') config.autoScroll = args.autoScroll
 
-        nativeTransport.send({ type: 'config_update', config } as NativeMessage)
+        // Send via commands sender (TCP socket) or native transport
+        const msg = { type: 'config_update', config } as NativeMessage
+        if (nativeTransport) {
+          nativeTransport.send(msg)
+        } else {
+          // Use the sender that's set up by the TCP socket connection
+          commands.sendRaw(msg)
+        }
         return textResult('Configuration updated.')
       }
 

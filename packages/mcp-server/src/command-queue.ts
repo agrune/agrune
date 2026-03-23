@@ -16,6 +16,10 @@ export class CommandQueue {
     this.sender = sender
   }
 
+  sendRaw(msg: NativeMessage): void {
+    if (this.sender) this.sender(msg)
+  }
+
   enqueue(
     tabId: number,
     command: Record<string, unknown> & { kind: string },
