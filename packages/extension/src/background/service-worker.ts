@@ -4,20 +4,22 @@ let nativePort: chrome.runtime.Port | null = null
 
 function ensureNativeConnection(): chrome.runtime.Port {
   if (nativePort) return nativePort
+  console.log('[webcli-sw] connecting to native host...')
   nativePort = chrome.runtime.connectNative(NATIVE_HOST_NAME)
 
   nativePort.onMessage.addListener((msg) => {
-    // Native Host → Extension: forward command_request and config_update to the right tab
+    console.log('[webcli-sw] native host message:', msg.type)
     if ((msg.type === 'command_request' || msg.type === 'config_update') && msg.tabId) {
       chrome.tabs.sendMessage(msg.tabId, msg)
     }
   })
 
   nativePort.onDisconnect.addListener(() => {
+    console.log('[webcli-sw] native host disconnected:', chrome.runtime.lastError?.message)
     nativePort = null
-    console.log('Native host disconnected:', chrome.runtime.lastError?.message)
   })
 
+  console.log('[webcli-sw] native host port created')
   return nativePort
 }
 

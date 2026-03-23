@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { createServer as createNetServer, connect as netConnect } from 'node:net'
-import { existsSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 
 const args = process.argv.slice(2)
-const SOCKET_PATH = join(homedir(), '.webcli-dom', 'webcli.sock')
+const WEBCLI_HOME = join(homedir(), '.webcli-dom')
+const PORT_FILE = join(WEBCLI_HOME, 'port')
 
 if (args[0] === 'install') {
   const { runInstall } = await import('../src/install.js')
@@ -18,39 +19,44 @@ if (args[0] === 'install') {
 if (args[0] === '--native-host') {
   // ============================================================
   // Mode: Native Messaging Host (launched by Chrome)
-  // Reads Native Messaging from stdin, forwards to MCP server via Unix socket
+  // Reads Native Messaging from stdin, forwards to MCP server via TCP
   // ============================================================
   const { createNativeMessagingTransport } = await import('../src/native-messaging.js')
   const nativeTransport = createNativeMessagingTransport(process.stdin, process.stdout)
 
-  // Connect to MCP server's Unix socket
-  const sock = netConnect(SOCKET_PATH)
+  // Read port from file
+  if (!existsSync(PORT_FILE)) {
+    process.stderr.write(`[webcli native-host] port file not found: ${PORT_FILE}\n`)
+    process.stderr.write(`[webcli native-host] Is the MCP server running?\n`)
+    process.exit(1)
+  }
+  const port = parseInt(readFileSync(PORT_FILE, 'utf-8').trim(), 10)
+
+  const sock = netConnect(port, '127.0.0.1')
 
   let sockBuffer = ''
   sock.on('data', (chunk) => {
-    // Receive JSON messages from MCP server, forward to Extension
     sockBuffer += chunk.toString()
     const lines = sockBuffer.split('\n')
     sockBuffer = lines.pop()!
     for (const line of lines) {
       if (line.trim()) {
         try {
-          nativeTransport.send(JSON.parse(line))
+          const parsed = JSON.parse(line)
+          nativeTransport.send(parsed)
         } catch {}
       }
     }
   })
 
   sock.on('error', (err) => {
-    process.stderr.write(`[webcli native-host] socket error: ${err.message}\n`)
-    process.stderr.write(`[webcli native-host] Is the MCP server running? Start Claude Code or run webcli-mcp first.\n`)
+    process.stderr.write(`[webcli native-host] connection error: ${err.message}\n`)
   })
 
   sock.on('connect', () => {
-    process.stderr.write(`[webcli native-host] connected to MCP server\n`)
+    process.stderr.write(`[webcli native-host] connected to MCP server on port ${port}\n`)
   })
 
-  // Forward Extension messages to MCP server via socket
   nativeTransport.onMessage((msg) => {
     sock.write(JSON.stringify(msg) + '\n')
   })
@@ -60,16 +66,14 @@ if (args[0] === '--native-host') {
 } else {
   // ============================================================
   // Mode: MCP Server (launched by Claude Code / AI Agent)
-  // Serves MCP protocol on stdin/stdout, listens for Native Host on Unix socket
+  // Serves MCP protocol on stdin/stdout, listens for Native Host on TCP
   // ============================================================
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
   const { createMcpServer } = await import('../src/index.js')
   const { server, sessions, commands } = createMcpServer()
 
-  // 1. Start Unix socket server for Native Host connections
-  if (existsSync(SOCKET_PATH)) unlinkSync(SOCKET_PATH)
-
-  const socketServer = createNetServer((client) => {
+  // 1. Start TCP server for Native Host connections
+  const tcpServer = createNetServer((client) => {
     process.stderr.write(`[webcli-mcp] native host connected\n`)
 
     let buffer = ''
@@ -89,7 +93,6 @@ if (args[0] === '--native-host') {
       }
     })
 
-    // Send commands to Extension via Native Host
     commands.setSender((msg) => {
       client.write(JSON.stringify(msg) + '\n')
     })
@@ -99,16 +102,15 @@ if (args[0] === '--native-host') {
     })
   })
 
-  socketServer.listen(SOCKET_PATH, () => {
-    process.stderr.write(`[webcli-mcp] listening on ${SOCKET_PATH}\n`)
+  // Listen on random available port, write to port file
+  tcpServer.listen(0, '127.0.0.1', () => {
+    const addr = tcpServer.address()
+    if (addr && typeof addr === 'object') {
+      mkdirSync(WEBCLI_HOME, { recursive: true })
+      writeFileSync(PORT_FILE, String(addr.port))
+      process.stderr.write(`[webcli-mcp] listening on port ${addr.port}\n`)
+    }
   })
-
-  // Cleanup on exit
-  process.on('exit', () => {
-    try { unlinkSync(SOCKET_PATH) } catch {}
-  })
-  process.on('SIGINT', () => process.exit(0))
-  process.on('SIGTERM', () => process.exit(0))
 
   // 2. Start MCP transport for AI Agent communication
   const transport = new StdioServerTransport()
