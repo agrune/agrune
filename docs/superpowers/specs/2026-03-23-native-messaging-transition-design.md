@@ -3,9 +3,9 @@
 ## 배경
 
 현재 webcli-dom은 Browser SDK → WebSocket → Companion Server → REST API → CLI/Agent 구조로 동작한다.
-이 구조는 Companion 서버를 항상 띄워야 하고, 패키지가 5개로 분산되어 있으며, 외부 AI Agent(Claude Code, Codex, Gemini CLI)와 직접 연결이 불가능하다.
+CLI를 통한 브라우저 제어는 이미 가능하지만, Companion 서버를 항상 띄워야 하고, 패키지가 5개로 분산되어 있으며, 외부 AI Agent(Claude Code, Codex, Gemini CLI)가 MCP로 직접 연결하는 경로가 없다.
 
-Chrome만 지원한다는 전제 하에, Chrome Extension + Native Messaging으로 전환하여 중간 서버를 제거하고 AI Agent가 브라우저를 직접 제어할 수 있도록 한다.
+Chrome만 지원한다는 전제 하에, Chrome Extension + Native Messaging으로 전환하여 중간 서버 의존을 제거하고 AI Agent가 MCP 프로토콜로 브라우저를 직접 제어할 수 있도록 한다.
 
 ## 목표
 
