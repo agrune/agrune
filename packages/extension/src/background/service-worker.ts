@@ -23,6 +23,7 @@ function ensureNativeConnection(): chrome.runtime.Port {
 
 // Content script → Service worker → Native Host
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  console.log('[webcli-sw] message received:', msg.type, 'from tab:', sender.tab?.id)
   if (!sender.tab?.id) return
 
   const tabId = sender.tab.id

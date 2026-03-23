@@ -50,16 +50,16 @@ function App() {
       {/* Main Content */}
       <main className="max-w-[1400px] mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="board" className="gap-1.5">
+          <TabsList className="grid w-full max-w-md grid-cols-3" data-webcli-group="tabs" data-webcli-group-name="Navigation Tabs">
+            <TabsTrigger value="board" className="gap-1.5" data-webcli-action="click" data-webcli-name="Board Tab" data-webcli-key="tab-board">
               <KanbanSquare className="h-4 w-4" />
               Board
             </TabsTrigger>
-            <TabsTrigger value="members" className="gap-1.5">
+            <TabsTrigger value="members" className="gap-1.5" data-webcli-action="click" data-webcli-name="Members Tab" data-webcli-key="tab-members">
               <Users className="h-4 w-4" />
               Members
             </TabsTrigger>
-            <TabsTrigger value="docs" className="gap-1.5">
+            <TabsTrigger value="docs" className="gap-1.5" data-webcli-action="click" data-webcli-name="Docs Tab" data-webcli-key="tab-docs">
               <FileText className="h-4 w-4" />
               Docs
             </TabsTrigger>
