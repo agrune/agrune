@@ -1,4 +1,4 @@
-# @runeai/cli-test-page
+# @runeai/test-page
 
 `rune` 개발용 검증 앱이다.
 

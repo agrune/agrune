@@ -31,7 +31,7 @@
   - Chrome 확장 프로그램
 - `packages/mcp-server`
   - 설치기, native host wrapper 진입점, MCP backend
-- `apps/cli-test-page`
+- `@runeai/test-page`
   - 개발용 검증 앱
 
 ## 설치 흐름
