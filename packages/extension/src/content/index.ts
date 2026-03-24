@@ -85,26 +85,26 @@ function init() {
   })
 
   // 5. MutationObserver for dynamic DOM changes (debounced)
-  // Ignore mutations from webcli-injected elements (aurora, pointer, etc.)
-  const WEBCLI_SELECTOR = '[data-rune-aurora], [data-rune-pointer]'
+  // Ignore mutations from rune-injected elements (aurora, pointer, etc.)
+  const RUNE_SELECTOR = '[data-rune-aurora], [data-rune-pointer]'
   const isWebcliNode = (node: Node): boolean => {
     // For non-element nodes (text, comment), check parent
     if (!(node instanceof HTMLElement)) {
-      return node.parentElement?.closest?.(WEBCLI_SELECTOR) !== null
+      return node.parentElement?.closest?.(RUNE_SELECTOR) !== null
     }
     if (
       node.hasAttribute('data-rune-aurora') ||
       node.hasAttribute('data-rune-pointer') ||
       node.id === 'rune-cursor-style'
     ) return true
-    return node.closest?.(WEBCLI_SELECTOR) !== null
+    return node.closest?.(RUNE_SELECTOR) !== null
   }
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
   const observer = new MutationObserver((mutations) => {
     if (!contextValid) return
 
-    // Skip if all mutations are webcli-internal DOM changes
+    // Skip if all mutations are rune-internal DOM changes
     const hasRelevantMutation = mutations.some(m => {
       for (const node of m.addedNodes) {
         if (!isWebcliNode(node)) return true

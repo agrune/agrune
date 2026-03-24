@@ -2,7 +2,7 @@ import type {
   CommandRequest,
   CommandResult,
   PageSnapshot,
-  WebCliRuntimeConfig,
+  RuneRuntimeConfig,
 } from './index'
 
 export type NativeHostConnectionPhase = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -50,7 +50,7 @@ export interface SessionCloseMessage {
 
 export interface ConfigUpdateMessage {
   type: 'config_update'
-  config: Partial<WebCliRuntimeConfig>
+  config: Partial<RuneRuntimeConfig>
 }
 
 export interface AgentActivityMessage {

@@ -29,7 +29,7 @@ export function scanAnnotations(doc: Document): ScannedTarget[] {
     const key = el.getAttribute('data-rune-key')
     const sensitive = el.hasAttribute('data-rune-sensitive')
 
-    const targetId = key ?? `wcli_${index}`
+    const targetId = key ?? `rune_${index}`
     const selector = key
       ? `[data-rune-key="${key}"]`
       : name

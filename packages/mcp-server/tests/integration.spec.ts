@@ -116,7 +116,7 @@ describe('Integration: MCP server end-to-end', () => {
     await new Promise(r => setTimeout(r, 50))
     expect(sessions.getSessions()).toHaveLength(1)
 
-    await backend.handleToolCall('webcli_sessions', {})
+    await backend.handleToolCall('rune_sessions', {})
 
     fakeInput.push(encodeMessage({ type: 'get_status' } as any))
     await new Promise(r => setTimeout(r, 50))

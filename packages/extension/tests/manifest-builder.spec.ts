@@ -131,7 +131,7 @@ describe('buildManifest', () => {
   it('uses targetId as toolName when name is empty', () => {
     const targets: ScannedTarget[] = [
       {
-        targetId: 'wcli_0',
+        targetId: 'rune_0',
         selector: '[data-rune-action]',
         name: '',
         description: '',
@@ -141,7 +141,7 @@ describe('buildManifest', () => {
     ]
 
     const manifest = buildManifest(targets, [])
-    expect(manifest.groups[0].tools[0].toolName).toBe('wcli_0')
+    expect(manifest.groups[0].tools[0].toolName).toBe('rune_0')
   })
 
   it('sets sourceFile/sourceLine/sourceColumn to defaults for DOM-scanned targets', () => {

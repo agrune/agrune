@@ -79,7 +79,7 @@ describe('extension manifest ID derivation', () => {
   })
 
   it('reads the manifest key from disk', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'webcli-install-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'rune-install-'))
     const manifestPath = path.join(dir, 'manifest.json')
     writeFileSync(manifestPath, JSON.stringify({ key: TEST_EXTENSION_KEY }), 'utf-8')
 
@@ -91,7 +91,7 @@ describe('extension manifest ID derivation', () => {
   })
 
   it('prefers an explicit override extension ID', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'webcli-install-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'rune-install-'))
     const manifestPath = path.join(dir, 'manifest.json')
     writeFileSync(manifestPath, JSON.stringify({ key: TEST_EXTENSION_KEY }), 'utf-8')
 
@@ -103,7 +103,7 @@ describe('extension manifest ID derivation', () => {
   })
 
   it('derives the extension ID from the manifest key when no override is provided', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'webcli-install-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'rune-install-'))
     const manifestPath = path.join(dir, 'manifest.json')
     writeFileSync(manifestPath, JSON.stringify({ key: TEST_EXTENSION_KEY }), 'utf-8')
 
@@ -115,7 +115,7 @@ describe('extension manifest ID derivation', () => {
   })
 
   it('throws when neither override nor manifest key is available', () => {
-    const dir = mkdtempSync(path.join(os.tmpdir(), 'webcli-install-'))
+    const dir = mkdtempSync(path.join(os.tmpdir(), 'rune-install-'))
     const manifestPath = path.join(dir, 'manifest.json')
     writeFileSync(manifestPath, JSON.stringify({ manifest_version: 3, name: 'rune' }), 'utf-8')
 

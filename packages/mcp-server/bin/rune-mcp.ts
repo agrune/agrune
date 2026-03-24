@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 
 const args = process.argv.slice(2)
-const WEBCLI_HOME = join(homedir(), '.runeai')
-const PORT_FILE = join(WEBCLI_HOME, 'port')
+const RUNE_HOME = join(homedir(), '.runeai')
+const PORT_FILE = join(RUNE_HOME, 'port')
 
 if (args[0] === 'install') {
   const { runInstall } = await import('../src/install.js')
@@ -46,11 +46,11 @@ if (args[0] === '--native-host') {
           const parsed = JSON.parse(line)
           if (parsed.type === 'backend_ready') {
             handshakeComplete = true
-            process.stderr.write(`[webcli native-host] connected to backend on port ${port}\n`)
+            process.stderr.write(`[rune native-host] connected to backend on port ${port}\n`)
             continue
           }
           if (parsed.type === 'backend_error') {
-            process.stderr.write(`[webcli native-host] backend error: ${parsed.message}\n`)
+            process.stderr.write(`[rune native-host] backend error: ${parsed.message}\n`)
             continue
           }
           nativeTransport.send(parsed)
@@ -60,12 +60,12 @@ if (args[0] === '--native-host') {
   })
 
   sock.on('error', (err) => {
-    process.stderr.write(`[webcli native-host] connection error: ${err.message}\n`)
+    process.stderr.write(`[rune native-host] connection error: ${err.message}\n`)
   })
 
   nativeTransport.onMessage((msg) => {
     if (!handshakeComplete) {
-      process.stderr.write('[webcli native-host] backend handshake not completed yet\n')
+      process.stderr.write('[rune native-host] backend handshake not completed yet\n')
       return
     }
     sock.write(JSON.stringify(msg) + '\n')
@@ -78,8 +78,8 @@ if (args[0] === '--native-host') {
   // Mode: Singleton backend daemon
   // Holds browser/native connection + shared sessions/commands
   // ============================================================
-  const { WebCliBackend } = await import('../src/backend.js')
-  const backend = new WebCliBackend()
+  const { RuneBackend } = await import('../src/backend.js')
+  const backend = new RuneBackend()
   let nativeSocket: Socket | null = null
 
   const tcpServer = createNetServer((client) => {
@@ -91,7 +91,7 @@ if (args[0] === '--native-host') {
       if (nativeSocket === client) {
         nativeSocket = null
         backend.setNativeSender(null)
-        process.stderr.write('[webcli-backend] native host disconnected\n')
+        process.stderr.write('[rune-backend] native host disconnected\n')
       }
     }
 
@@ -133,7 +133,7 @@ if (args[0] === '--native-host') {
                 client.write(JSON.stringify(msg) + '\n')
               }
             })
-            process.stderr.write('[webcli-backend] native host connected\n')
+            process.stderr.write('[rune-backend] native host connected\n')
           }
           continue
         }
@@ -175,7 +175,7 @@ if (args[0] === '--native-host') {
 
   tcpServer.on('error', (error) => {
     if ((error as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-      process.stderr.write(`[webcli-backend] already running on ${BACKEND_HOST}:${BACKEND_PORT}\n`)
+      process.stderr.write(`[rune-backend] already running on ${BACKEND_HOST}:${BACKEND_PORT}\n`)
       process.exit(0)
     }
     throw error
@@ -185,9 +185,9 @@ if (args[0] === '--native-host') {
     tcpServer.once('error', reject)
     tcpServer.listen(BACKEND_PORT, BACKEND_HOST, () => {
       tcpServer.off('error', reject)
-      mkdirSync(WEBCLI_HOME, { recursive: true })
+      mkdirSync(RUNE_HOME, { recursive: true })
       writeFileSync(PORT_FILE, String(BACKEND_PORT))
-      process.stderr.write(`[webcli-backend] listening on ${BACKEND_HOST}:${BACKEND_PORT}\n`)
+      process.stderr.write(`[rune-backend] listening on ${BACKEND_HOST}:${BACKEND_PORT}\n`)
       resolve()
     })
   })
@@ -202,14 +202,14 @@ if (args[0] === '--native-host') {
   const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
   const { McpServer } = await import('@modelcontextprotocol/sdk/server/mcp.js')
   const { createBackendClient } = await import('../src/backend-client.js')
-  const { registerWebCliTools } = await import('../src/mcp-tools.js')
+  const { registerRuneTools } = await import('../src/mcp-tools.js')
 
   const backendClient = createBackendClient({ host: BACKEND_HOST, port: readBackendPort() })
   const mcp = new McpServer(
     { name: 'rune', version: '0.1.0' },
     { capabilities: { tools: {} } },
   )
-  registerWebCliTools(mcp, (name, toolArgs) => backendClient.callTool(name, toolArgs))
+  registerRuneTools(mcp, (name, toolArgs) => backendClient.callTool(name, toolArgs))
 
   const transport = new StdioServerTransport()
   await mcp.connect(transport)
@@ -249,7 +249,7 @@ async function ensureBackendDaemon(): Promise<void> {
 
   throw lastError instanceof Error
     ? lastError
-    : new Error('Failed to start webcli backend daemon')
+    : new Error('Failed to start rune backend daemon')
 }
 
 function spawnDetachedBackend(): void {

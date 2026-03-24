@@ -3,7 +3,7 @@
  * Communicates with the content script via the postMessage bridge.
  *
  * On receiving an `init_runtime` message the actual runtime from
- * @runeai/build-core is installed on `window.webcliDom`.
+ * @runeai/build-core is installed on `window.runeDom`.
  */
 
 import { installPageAgentRuntime } from '@runeai/build-core/runtime'
@@ -26,7 +26,7 @@ window.addEventListener('message', (event) => {
   // animations in progress) to avoid resetting visual state mid-operation.
   if (type === 'init_runtime') {
     const { manifest, options } = data as { manifest: any; options?: any }
-    const existing = (window as any).webcliDom
+    const existing = (window as any).runeDom
     if (existing?.isActive?.()) {
       // Runtime is busy (agent active, queue processing, or idle timer pending)
       // — skip re-init to avoid resetting visual state mid-operation.
@@ -37,9 +37,9 @@ window.addEventListener('message', (event) => {
     return
   }
 
-  if (type === 'command' && (window as any).webcliDom) {
+  if (type === 'command' && (window as any).runeDom) {
     const { kind, commandId, ...args } = data as Record<string, unknown>
-    const runtime = (window as any).webcliDom
+    const runtime = (window as any).runeDom
     const fn = runtime[kind as string]
     if (typeof fn === 'function') {
       fn.call(runtime, args)
@@ -60,21 +60,21 @@ window.addEventListener('message', (event) => {
     }
   }
 
-  if (type === 'request_snapshot' && (window as any).webcliDom) {
-    const snapshot = (window as any).webcliDom.getSnapshot()
+  if (type === 'request_snapshot' && (window as any).runeDom) {
+    const snapshot = (window as any).runeDom.getSnapshot()
     sendToContentScript('snapshot', snapshot)
   }
 
-  if (type === 'config_update' && (window as any).webcliDom) {
-    ;(window as any).webcliDom.applyConfig(data)
+  if (type === 'config_update' && (window as any).runeDom) {
+    ;(window as any).runeDom.applyConfig(data)
   }
 
-  if (type === 'agent_activity' && (window as any).webcliDom) {
+  if (type === 'agent_activity' && (window as any).runeDom) {
     const { active } = data as { active: boolean }
     if (active) {
-      ;(window as any).webcliDom.beginAgentActivity()
+      ;(window as any).runeDom.beginAgentActivity()
     } else {
-      ;(window as any).webcliDom.endAgentActivity()
+      ;(window as any).runeDom.endAgentActivity()
     }
   }
 })

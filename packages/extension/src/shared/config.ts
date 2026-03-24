@@ -1,4 +1,4 @@
-import type { WebCliRuntimeConfig } from '@runeai/core'
+import type { RuneRuntimeConfig } from '@runeai/core'
 import { DEFAULT_RUNTIME_CONFIG, mergeRuntimeConfig } from '@runeai/core'
 
 const STORAGE_KEY = ['com', 'panion_config'].join('')
@@ -10,20 +10,20 @@ function getStorage(): typeof chrome.storage.sync | null {
   return null
 }
 
-export async function getConfig(): Promise<WebCliRuntimeConfig> {
+export async function getConfig(): Promise<RuneRuntimeConfig> {
   const storage = getStorage()
   if (!storage) {
     return { ...DEFAULT_RUNTIME_CONFIG }
   }
 
   const result = await storage.get(STORAGE_KEY)
-  const stored: Partial<WebCliRuntimeConfig> | undefined = result[STORAGE_KEY]
+  const stored: Partial<RuneRuntimeConfig> | undefined = result[STORAGE_KEY]
   return mergeRuntimeConfig(DEFAULT_RUNTIME_CONFIG, stored)
 }
 
 export async function setConfig(
-  partial: Partial<WebCliRuntimeConfig>,
-): Promise<WebCliRuntimeConfig> {
+  partial: Partial<RuneRuntimeConfig>,
+): Promise<RuneRuntimeConfig> {
   const current = await getConfig()
   const updated = mergeRuntimeConfig(current, partial)
 

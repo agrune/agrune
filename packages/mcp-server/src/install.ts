@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url'
 
 const HOST_NAME = 'com.runeai.rune'
 const MANIFEST_FILENAME = `${HOST_NAME}.json`
-const WEBCLI_HOME = join(homedir(), '.runeai')
-const EXTENSION_DIR = join(WEBCLI_HOME, 'extension')
+const RUNE_HOME = join(homedir(), '.runeai')
+const EXTENSION_DIR = join(RUNE_HOME, 'extension')
 
 export interface ExtensionManifest {
   key?: string
@@ -188,7 +188,7 @@ export async function runInstall(options?: { extensionId?: string }): Promise<vo
   console.log('rune: Installing...\n')
 
   // 1. Create ~/.runeai/ directory
-  mkdirSync(WEBCLI_HOME, { recursive: true })
+  mkdirSync(RUNE_HOME, { recursive: true })
 
   // 2. Find project root and build the extension
   const projectRoot = findProjectRoot()
@@ -225,14 +225,14 @@ export async function runInstall(options?: { extensionId?: string }): Promise<vo
   console.log('3. Building mcp-server...')
   execSync('pnpm run build', { cwd: join(projectRoot, 'packages/mcp-server'), stdio: 'inherit' })
   const mcpServerDist = join(projectRoot, 'packages/mcp-server/dist')
-  const mcpServerDest = join(WEBCLI_HOME, 'mcp-server')
+  const mcpServerDest = join(RUNE_HOME, 'mcp-server')
   if (existsSync(mcpServerDest)) rmSync(mcpServerDest, { recursive: true })
   copyDir(mcpServerDist, mcpServerDest)
 
   // 5. Create wrapper shell script (like Claude Code's pattern)
   console.log('4. Creating native host wrapper...')
-  const wrapperPath = join(WEBCLI_HOME, 'native-host')
-  const entryJs = join(WEBCLI_HOME, 'mcp-server/bin/rune-mcp.js')
+  const wrapperPath = join(RUNE_HOME, 'native-host')
+  const entryJs = join(RUNE_HOME, 'mcp-server/bin/rune-mcp.js')
   writeFileSync(
     wrapperPath,
     [

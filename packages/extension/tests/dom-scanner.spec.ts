@@ -25,7 +25,7 @@ describe('scanAnnotations', () => {
       actionKind: 'click',
       sensitive: false,
     })
-    expect(result[0].targetId).toBe('wcli_0')
+    expect(result[0].targetId).toBe('rune_0')
     expect(result[0].selector).toBe('[data-rune-name="submit-btn"]')
   })
 
@@ -81,8 +81,8 @@ describe('scanAnnotations', () => {
     `
     const result = scanAnnotations(document)
     expect(result).toHaveLength(2)
-    expect(result[0].targetId).toBe('wcli_0')
-    expect(result[1].targetId).toBe('wcli_1')
+    expect(result[0].targetId).toBe('rune_0')
+    expect(result[1].targetId).toBe('rune_1')
   })
 
   it('defaults missing name and description to empty string', () => {

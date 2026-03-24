@@ -1,16 +1,16 @@
-export type WebCliExposureMode = 'grouped' | 'per-element'
+export type RuneExposureMode = 'grouped' | 'per-element'
 
-export interface WebCliRuntimeOptions {
+export interface RuneRuntimeOptions {
   clickAutoScroll: boolean
   clickRetryCount: number
   clickRetryDelayMs: number
 }
 
-export type WebCliSupportedAction = 'click' | 'fill'
+export type RuneSupportedAction = 'click' | 'fill'
 
-export type WebCliToolStatus = 'active' | 'skipped_unsupported_action'
+export type RuneToolStatus = 'active' | 'skipped_unsupported_action'
 
-export interface WebCliTargetEntry {
+export interface RuneTargetEntry {
   targetId: string
   name: string | null
   desc: string | null
@@ -20,24 +20,24 @@ export interface WebCliTargetEntry {
   sourceColumn: number
 }
 
-export interface WebCliToolEntry {
+export interface RuneToolEntry {
   toolName: string
   toolDesc: string
   action: string
-  status: WebCliToolStatus
-  targets: WebCliTargetEntry[]
+  status: RuneToolStatus
+  targets: RuneTargetEntry[]
 }
 
-export interface WebCliGroupEntry {
+export interface RuneGroupEntry {
   groupId: string
   groupName?: string
   groupDesc?: string
-  tools: WebCliToolEntry[]
+  tools: RuneToolEntry[]
 }
 
-export interface WebCliManifest {
+export interface RuneManifest {
   version: 2
   generatedAt: string
-  exposureMode: WebCliExposureMode
-  groups: WebCliGroupEntry[]
+  exposureMode: RuneExposureMode
+  groups: RuneGroupEntry[]
 }

@@ -6,7 +6,7 @@
 
 ```text
 [웹앱 페이지 - main world]
-  window.webcliDom runtime
+  window.runeDom runtime
       ↕ window.postMessage
 [Extension content script]
   DOM 스캔 + 런타임 주입 + 메시지 브리지
@@ -50,7 +50,7 @@ pnpm dlx tsx packages/mcp-server/bin/rune-mcp.ts install
 
 ## 남아 있는 작업
 
-- `webcli_config` 경로의 시각 효과 적용 동작 점검
+- `rune_config` 경로의 시각 효과 적용 동작 점검
 - backend daemon 싱글톤 동작 안정화
 - 팝업 설정 UI 실동작 검증
 - 개발용 앱 기반 수동 검증 절차 보강

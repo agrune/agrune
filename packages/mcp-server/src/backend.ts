@@ -1,4 +1,4 @@
-import type { NativeMessage, WebCliRuntimeConfig } from '@runeai/core'
+import type { NativeMessage, RuneRuntimeConfig } from '@runeai/core'
 import { ActivityBlockStack } from './activity-block-stack.js'
 import { CommandQueue } from './command-queue.js'
 import {
@@ -12,7 +12,7 @@ import type { ToolHandlerResult } from './mcp-tools.js'
 
 const ACTIVITY_TAIL_BLOCK_MS = 5_000
 
-export class WebCliBackend {
+export class RuneBackend {
   readonly sessions = new SessionManager()
   readonly commands = new CommandQueue()
   private readonly activityBlocks = new ActivityBlockStack((active) => {
@@ -58,12 +58,12 @@ export class WebCliBackend {
     this.lastAgentActivityAt = Date.now()
 
     switch (name) {
-      case 'webcli_sessions': {
+      case 'rune_sessions': {
         const list = this.sessions.getSessions()
         return this.textResult(JSON.stringify(list.map(toPublicSession), null, 2))
       }
 
-      case 'webcli_snapshot': {
+      case 'rune_snapshot': {
         const tabId = this.resolveTabId(args)
         if (tabId == null) {
           return this.textResult('No active sessions.', true)
@@ -77,18 +77,18 @@ export class WebCliBackend {
         })
       }
 
-      case 'webcli_act':
-      case 'webcli_fill':
-      case 'webcli_drag':
-      case 'webcli_wait':
-      case 'webcli_guide': {
+      case 'rune_act':
+      case 'rune_fill':
+      case 'rune_drag':
+      case 'rune_wait':
+      case 'rune_guide': {
         const tabId = this.resolveTabId(args)
         if (tabId == null) {
           return this.textResult('No active sessions.', true)
         }
-        return this.withActivityBlocks(name.replace('webcli_', ''), async () => {
+        return this.withActivityBlocks(name.replace('rune_', ''), async () => {
           const command: Record<string, unknown> & { kind: string } = {
-            kind: name.replace('webcli_', ''),
+            kind: name.replace('rune_', ''),
             ...args,
           }
           delete command.tabId
@@ -97,12 +97,12 @@ export class WebCliBackend {
         })
       }
 
-      case 'webcli_config': {
-        const config: Partial<WebCliRuntimeConfig> = {}
+      case 'rune_config': {
+        const config: Partial<RuneRuntimeConfig> = {}
         if (typeof args.pointerAnimation === 'boolean') config.pointerAnimation = args.pointerAnimation
         if (typeof args.auroraGlow === 'boolean') config.auroraGlow = args.auroraGlow
         if (typeof args.auroraTheme === 'string') {
-          config.auroraTheme = args.auroraTheme as WebCliRuntimeConfig['auroraTheme']
+          config.auroraTheme = args.auroraTheme as RuneRuntimeConfig['auroraTheme']
         }
         if (typeof args.clickDelayMs === 'number') config.clickDelayMs = args.clickDelayMs
         if (typeof args.autoScroll === 'boolean') config.autoScroll = args.autoScroll

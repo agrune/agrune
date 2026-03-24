@@ -15,7 +15,7 @@ Claude Code:
 ```json
 {
   "mcpServers": {
-    "webcli": {
+    "rune": {
       "command": "node",
       "args": ["/Users/<user>/.runeai/mcp-server/bin/rune-mcp.js"]
     }
@@ -26,27 +26,27 @@ Claude Code:
 Codex:
 
 ```bash
-codex mcp add webcli --command "node" --args "/Users/<user>/.runeai/mcp-server/bin/rune-mcp.js"
+codex mcp add rune --command "node" --args "/Users/<user>/.runeai/mcp-server/bin/rune-mcp.js"
 ```
 
 Gemini CLI:
 
 ```bash
-gemini mcp add webcli --command "node" --args "/Users/<user>/.runeai/mcp-server/bin/rune-mcp.js"
+gemini mcp add rune --command "node" --args "/Users/<user>/.runeai/mcp-server/bin/rune-mcp.js"
 ```
 
 ## 사용 가능한 MCP 도구
 
 | 도구 | 설명 | 필수 파라미터 |
 |------|------|--------------|
-| `webcli_sessions` | 활성 탭 목록 | - |
-| `webcli_snapshot` | 페이지 스냅샷 | tabId (선택) |
-| `webcli_act` | 클릭 | targetId |
-| `webcli_fill` | 입력 | targetId, value |
-| `webcli_drag` | 드래그 | sourceTargetId, destinationTargetId |
-| `webcli_wait` | 상태 대기 | targetId, state |
-| `webcli_guide` | 시각적 가이드 | targetId |
-| `webcli_config` | 런타임 설정 | pointerAnimation, auroraGlow 등 |
+| `rune_sessions` | 활성 탭 목록 | - |
+| `rune_snapshot` | 페이지 스냅샷 | tabId (선택) |
+| `rune_act` | 클릭 | targetId |
+| `rune_fill` | 입력 | targetId, value |
+| `rune_drag` | 드래그 | sourceTargetId, destinationTargetId |
+| `rune_wait` | 상태 대기 | targetId, state |
+| `rune_guide` | 시각적 가이드 | targetId |
+| `rune_config` | 런타임 설정 | pointerAnimation, auroraGlow 등 |
 
 ## 웹앱 준비
 

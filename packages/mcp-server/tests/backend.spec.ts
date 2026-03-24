@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { WebCliBackend } from '../src/backend.js'
+import { RuneBackend } from '../src/backend.js'
 import type { NativeMessage } from '@runeai/core'
 
-describe('WebCliBackend agent activity lease', () => {
+describe('RuneBackend agent activity lease', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -12,7 +12,7 @@ describe('WebCliBackend agent activity lease', () => {
   })
 
   it('uses guard and tail blocks so agent activity stays on until the tail expires', async () => {
-    const backend = new WebCliBackend()
+    const backend = new RuneBackend()
     const sent: NativeMessage[] = []
     backend.setNativeSender((msg) => {
       sent.push(msg)
@@ -37,7 +37,7 @@ describe('WebCliBackend agent activity lease', () => {
       },
     } as NativeMessage)
 
-    await backend.handleToolCall('webcli_snapshot', { tabId: 42 })
+    await backend.handleToolCall('rune_snapshot', { tabId: 42 })
 
     expect(sent).toContainEqual({ type: 'agent_activity', active: true })
 
@@ -49,7 +49,7 @@ describe('WebCliBackend agent activity lease', () => {
   })
 
   it('returns outline snapshots by default and expands requested groups only', async () => {
-    const backend = new WebCliBackend()
+    const backend = new RuneBackend()
     backend.handleNativeMessage({
       type: 'session_open',
       tabId: 42,
@@ -93,7 +93,7 @@ describe('WebCliBackend agent activity lease', () => {
       },
     } as NativeMessage)
 
-    const outline = await backend.handleToolCall('webcli_snapshot', { tabId: 42 })
+    const outline = await backend.handleToolCall('rune_snapshot', { tabId: 42 })
     expect(JSON.parse(outline.text)).toEqual({
       version: 2,
       url: 'http://localhost:5173',
@@ -111,7 +111,7 @@ describe('WebCliBackend agent activity lease', () => {
       ],
     })
 
-    const expanded = await backend.handleToolCall('webcli_snapshot', { tabId: 42, groupId: 'tabs' })
+    const expanded = await backend.handleToolCall('rune_snapshot', { tabId: 42, groupId: 'tabs' })
     expect(JSON.parse(expanded.text)).toEqual({
       version: 2,
       url: 'http://localhost:5173',

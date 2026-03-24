@@ -11,15 +11,15 @@ export interface ToolDefinition {
 export function getToolDefinitions(): ToolDefinition[] {
   return [
     {
-      name: 'webcli_sessions',
-      description: 'List active browser sessions (tabs) being managed by webcli.',
+      name: 'rune_sessions',
+      description: 'List active browser sessions (tabs) being managed by rune.',
       inputSchema: {
         type: 'object',
         properties: {},
       },
     },
     {
-      name: 'webcli_snapshot',
+      name: 'rune_snapshot',
       description:
         'Get the current active-context snapshot for a browser tab. By default returns a group outline only; use groupId/groupIds or mode="full" to expand actionable targets.',
       inputSchema: {
@@ -41,7 +41,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_act',
+      name: 'rune_act',
       description: 'Click on a target element identified by its targetId from the page snapshot.',
       inputSchema: {
         type: 'object',
@@ -53,7 +53,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_fill',
+      name: 'rune_fill',
       description: 'Fill an input element with a value. The element is identified by its targetId from the page snapshot.',
       inputSchema: {
         type: 'object',
@@ -66,7 +66,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_drag',
+      name: 'rune_drag',
       description: 'Drag an element and drop it onto another element.',
       inputSchema: {
         type: 'object',
@@ -84,7 +84,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_wait',
+      name: 'rune_wait',
       description: 'Wait for a target element to reach a specific state (e.g., visible, hidden, enabled, disabled).',
       inputSchema: {
         type: 'object',
@@ -102,7 +102,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_guide',
+      name: 'rune_guide',
       description: 'Visually highlight a target element on the page to guide the user.',
       inputSchema: {
         type: 'object',
@@ -114,7 +114,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
-      name: 'webcli_config',
+      name: 'rune_config',
       description: 'Update the page runtime configuration (pointer animation, aurora glow, etc.).',
       inputSchema: {
         type: 'object',

@@ -7,14 +7,14 @@ describe('getToolDefinitions', () => {
   it('defines all 8 required tools', () => {
     const names = tools.map((t) => t.name)
     expect(names).toEqual([
-      'webcli_sessions',
-      'webcli_snapshot',
-      'webcli_act',
-      'webcli_fill',
-      'webcli_drag',
-      'webcli_wait',
-      'webcli_guide',
-      'webcli_config',
+      'rune_sessions',
+      'rune_snapshot',
+      'rune_act',
+      'rune_fill',
+      'rune_drag',
+      'rune_wait',
+      'rune_guide',
+      'rune_config',
     ])
   })
 
@@ -28,36 +28,36 @@ describe('getToolDefinitions', () => {
     }
   })
 
-  it('webcli_act requires targetId', () => {
-    const act = tools.find((t) => t.name === 'webcli_act')!
+  it('rune_act requires targetId', () => {
+    const act = tools.find((t) => t.name === 'rune_act')!
     expect(act.inputSchema.required).toContain('targetId')
   })
 
-  it('webcli_fill requires targetId and value', () => {
-    const fill = tools.find((t) => t.name === 'webcli_fill')!
+  it('rune_fill requires targetId and value', () => {
+    const fill = tools.find((t) => t.name === 'rune_fill')!
     expect(fill.inputSchema.required).toContain('targetId')
     expect(fill.inputSchema.required).toContain('value')
   })
 
-  it('webcli_drag requires sourceTargetId and destinationTargetId', () => {
-    const drag = tools.find((t) => t.name === 'webcli_drag')!
+  it('rune_drag requires sourceTargetId and destinationTargetId', () => {
+    const drag = tools.find((t) => t.name === 'rune_drag')!
     expect(drag.inputSchema.required).toContain('sourceTargetId')
     expect(drag.inputSchema.required).toContain('destinationTargetId')
   })
 
-  it('webcli_wait requires targetId and state', () => {
-    const wait = tools.find((t) => t.name === 'webcli_wait')!
+  it('rune_wait requires targetId and state', () => {
+    const wait = tools.find((t) => t.name === 'rune_wait')!
     expect(wait.inputSchema.required).toContain('targetId')
     expect(wait.inputSchema.required).toContain('state')
   })
 
-  it('webcli_guide requires targetId', () => {
-    const guide = tools.find((t) => t.name === 'webcli_guide')!
+  it('rune_guide requires targetId', () => {
+    const guide = tools.find((t) => t.name === 'rune_guide')!
     expect(guide.inputSchema.required).toContain('targetId')
   })
 
-  it('webcli_snapshot supports optional tab selection and group expansion controls', () => {
-    const snapshot = tools.find((t) => t.name === 'webcli_snapshot')!
+  it('rune_snapshot supports optional tab selection and group expansion controls', () => {
+    const snapshot = tools.find((t) => t.name === 'rune_snapshot')!
     expect(snapshot.inputSchema.properties).toHaveProperty('tabId')
     expect(snapshot.inputSchema.properties).toHaveProperty('groupId')
     expect(snapshot.inputSchema.properties).toHaveProperty('groupIds')
@@ -65,13 +65,13 @@ describe('getToolDefinitions', () => {
     expect(snapshot.inputSchema.required ?? []).not.toContain('tabId')
   })
 
-  it('webcli_sessions has no required properties', () => {
-    const sessions = tools.find((t) => t.name === 'webcli_sessions')!
+  it('rune_sessions has no required properties', () => {
+    const sessions = tools.find((t) => t.name === 'rune_sessions')!
     expect(sessions.inputSchema.required ?? []).toEqual([])
   })
 
-  it('webcli_config has all optional config properties', () => {
-    const config = tools.find((t) => t.name === 'webcli_config')!
+  it('rune_config has all optional config properties', () => {
+    const config = tools.find((t) => t.name === 'rune_config')!
     const props = config.inputSchema.properties ?? {}
     expect(props).toHaveProperty('pointerAnimation')
     expect(props).toHaveProperty('auroraGlow')

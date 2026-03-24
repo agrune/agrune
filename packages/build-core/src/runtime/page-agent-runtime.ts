@@ -6,25 +6,25 @@ import {
   type PageSnapshot,
   type PageTarget,
   type PageTargetReason,
-  type WebCliRuntimeConfig,
+  type RuneRuntimeConfig,
   mergeRuntimeConfig,
 } from '@runeai/core'
 import { ActionQueue } from './action-queue'
 import { getCursorMeta, DEFAULT_CURSOR_NAME, POINTER_FILL_SVG, POINTER_BORDER_MASK_SVG } from './cursors/index'
 import { Motion } from 'ai-motion'
 import type {
-  WebCliManifest,
-  WebCliRuntimeOptions,
-  WebCliTargetEntry,
+  RuneManifest,
+  RuneRuntimeOptions,
+  RuneTargetEntry,
 } from '../types'
 
-const DEFAULT_OPTIONS: WebCliRuntimeOptions = {
+const DEFAULT_OPTIONS: RuneRuntimeOptions = {
   clickAutoScroll: true,
   clickRetryCount: 2,
   clickRetryDelayMs: 120,
 }
 
-const DEFAULT_EXECUTION_CONFIG: WebCliRuntimeConfig = {
+const DEFAULT_EXECUTION_CONFIG: RuneRuntimeConfig = {
   autoScroll: true,
   clickDelayMs: 0,
   pointerAnimation: false,
@@ -41,7 +41,7 @@ interface TargetDescriptor {
   groupId: string
   groupName?: string
   groupDesc?: string
-  target: WebCliTargetEntry
+  target: RuneTargetEntry
 }
 
 interface RuntimeTargetMatch {
@@ -75,7 +75,7 @@ export interface PageAgentRuntime {
     commandId?: string
     targetId: string
     expectedVersion?: number
-    config?: Partial<WebCliRuntimeConfig>
+    config?: Partial<RuneRuntimeConfig>
   }) => Promise<CommandResult>
   drag: (input: {
     commandId?: string
@@ -83,14 +83,14 @@ export interface PageAgentRuntime {
     destinationTargetId: string
     placement?: DragPlacement
     expectedVersion?: number
-    config?: Partial<WebCliRuntimeConfig>
+    config?: Partial<RuneRuntimeConfig>
   }) => Promise<CommandResult>
   fill: (input: {
     commandId?: string
     targetId: string
     value: string
     expectedVersion?: number
-    config?: Partial<WebCliRuntimeConfig>
+    config?: Partial<RuneRuntimeConfig>
   }) => Promise<CommandResult>
   wait: (input: {
     commandId?: string
@@ -102,9 +102,9 @@ export interface PageAgentRuntime {
     commandId?: string
     targetId: string
     expectedVersion?: number
-    config?: Partial<WebCliRuntimeConfig>
+    config?: Partial<RuneRuntimeConfig>
   }) => Promise<CommandResult>
-  applyConfig: (config: Partial<WebCliRuntimeConfig>) => void
+  applyConfig: (config: Partial<RuneRuntimeConfig>) => void
   /** Returns true when visual effects are active (agent busy, queue processing, or idle timer pending). */
   isActive: () => boolean
 }
@@ -123,7 +123,7 @@ const GLOBAL_RUNTIME_KEY = '__rune_page_agent_runtime__'
 
 declare global {
   interface Window {
-    webcliDom?: PageAgentRuntime
+    runeDom?: PageAgentRuntime
   }
 }
 
@@ -282,7 +282,7 @@ function isFillableElement(
   )
 }
 
-function collectDescriptors(manifest: WebCliManifest): TargetDescriptor[] {
+function collectDescriptors(manifest: RuneManifest): TargetDescriptor[] {
   const result: TargetDescriptor[] = []
 
   for (const group of manifest.groups) {
@@ -304,7 +304,7 @@ function collectDescriptors(manifest: WebCliManifest): TargetDescriptor[] {
   return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
 }
 
-const REPEATED_TARGET_ID_DELIMITER = '__wcli_idx_'
+const REPEATED_TARGET_ID_DELIMITER = '__rune_idx_'
 
 function findElements(descriptor: TargetDescriptor): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>(descriptor.target.selector))
@@ -373,9 +373,9 @@ function resolveRuntimeTarget(
 }
 
 function normalizeExecutionConfig(
-  runtimeOptions: WebCliRuntimeOptions,
-  next?: Partial<WebCliRuntimeConfig>,
-): WebCliRuntimeConfig {
+  runtimeOptions: RuneRuntimeOptions,
+  next?: Partial<RuneRuntimeConfig>,
+): RuneRuntimeConfig {
   return mergeRuntimeConfig(
     {
       ...DEFAULT_EXECUTION_CONFIG,
@@ -1131,7 +1131,7 @@ function hideAuroraGlow(): void {
 
 async function flashPointerOverlay(
   element: HTMLElement,
-  config: WebCliRuntimeConfig,
+  config: RuneRuntimeConfig,
   onPress?: () => void,
 ): Promise<void> {
   await animateCursorTo(element, config.cursorName ?? DEFAULT_CURSOR_NAME, onPress)
@@ -1467,8 +1467,8 @@ async function performPointerDragSequence(
 }
 
 export function createPageAgentRuntime(
-  manifest: WebCliManifest,
-  options: Partial<WebCliRuntimeOptions> = {},
+  manifest: RuneManifest,
+  options: Partial<RuneRuntimeOptions> = {},
 ): PageAgentRuntime {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     throw new Error('Page agent runtime requires a browser environment.')
@@ -1489,8 +1489,8 @@ export function createPageAgentRuntime(
   const captureSnapshot = () => makeSnapshot(descriptors, snapshotStore)
 
   const resolveExecutionConfig = (
-    patch?: Partial<WebCliRuntimeConfig>,
-  ): WebCliRuntimeConfig => mergeRuntimeConfig(currentConfig, patch)
+    patch?: Partial<RuneRuntimeConfig>,
+  ): RuneRuntimeConfig => mergeRuntimeConfig(currentConfig, patch)
 
   const clearActivityIdleTimer = () => {
     if (activityIdleTimer !== null) {
@@ -1945,7 +1945,7 @@ export function createPageAgentRuntime(
         })
       }),
 
-    applyConfig: (config: Partial<WebCliRuntimeConfig>) => {
+    applyConfig: (config: Partial<RuneRuntimeConfig>) => {
       currentConfig = mergeRuntimeConfig(currentConfig, config)
       if (config.cursorName && cursorState && config.cursorName !== cursorState.cursorName) {
         getOrCreateCursorElement(config.cursorName)
@@ -1971,8 +1971,8 @@ export function getInstalledPageAgentRuntime(): PageAgentRuntimeHandle | null {
 }
 
 export function installPageAgentRuntime(
-  manifest: WebCliManifest,
-  options: Partial<WebCliRuntimeOptions> = {},
+  manifest: RuneManifest,
+  options: Partial<RuneRuntimeOptions> = {},
 ): PageAgentRuntimeHandle {
   const runtime = createPageAgentRuntime(manifest, options)
   const globalStore = getGlobalRuntimeStore()
@@ -1989,13 +1989,13 @@ export function installPageAgentRuntime(
       if (current.active === handle) {
         current.active = undefined
       }
-      if (typeof window !== 'undefined' && window.webcliDom === runtime) {
-        delete window.webcliDom
+      if (typeof window !== 'undefined' && window.runeDom === runtime) {
+        delete window.runeDom
       }
     },
   }
 
   globalStore.active = handle
-  window.webcliDom = runtime
+  window.runeDom = runtime
   return handle
 }

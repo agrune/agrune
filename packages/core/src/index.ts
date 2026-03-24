@@ -26,7 +26,7 @@ export type PageTargetReason =
   | 'disabled'
   | 'sensitive'
 
-export interface WebCliRuntimeConfig {
+export interface RuneRuntimeConfig {
   clickDelayMs: number
   pointerAnimation: boolean
   autoScroll: boolean
@@ -35,7 +35,7 @@ export interface WebCliRuntimeConfig {
   auroraTheme: AuroraTheme
 }
 
-export const DEFAULT_RUNTIME_CONFIG: WebCliRuntimeConfig = {
+export const DEFAULT_RUNTIME_CONFIG: RuneRuntimeConfig = {
   clickDelayMs: 0,
   pointerAnimation: false,
   autoScroll: true,
@@ -92,7 +92,7 @@ export interface CommandErrorShape {
 
 export interface BaseCommandRequest {
   commandId: string
-  config?: Partial<WebCliRuntimeConfig>
+  config?: Partial<RuneRuntimeConfig>
 }
 
 export interface ActCommandRequest extends BaseCommandRequest {
@@ -156,9 +156,9 @@ export interface CommandResultFailure extends CommandExecutionMetadata {
 export type CommandResult = CommandResultSuccess | CommandResultFailure
 
 export function mergeRuntimeConfig(
-  base: WebCliRuntimeConfig,
-  patch?: Partial<WebCliRuntimeConfig> | null,
-): WebCliRuntimeConfig {
+  base: RuneRuntimeConfig,
+  patch?: Partial<RuneRuntimeConfig> | null,
+): RuneRuntimeConfig {
   if (!patch) {
     return { ...base }
   }
@@ -174,8 +174,8 @@ export function mergeRuntimeConfig(
 }
 
 export function normalizeRuntimeConfig(
-  input: Partial<WebCliRuntimeConfig> | undefined,
-): WebCliRuntimeConfig {
+  input: Partial<RuneRuntimeConfig> | undefined,
+): RuneRuntimeConfig {
   const clickDelayMs = Number(input?.clickDelayMs ?? DEFAULT_RUNTIME_CONFIG.clickDelayMs)
 
   return {

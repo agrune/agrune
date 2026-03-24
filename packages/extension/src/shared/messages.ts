@@ -3,12 +3,12 @@ import type {
   CommandRequest,
   NativeHostStatus,
   PageSnapshot,
-  WebCliRuntimeConfig,
+  RuneRuntimeConfig,
 } from '@runeai/core'
 
 export interface ConfigBroadcastMessage {
   type: 'config_broadcast'
-  config: Partial<WebCliRuntimeConfig>
+  config: Partial<RuneRuntimeConfig>
 }
 
 export interface GetNativeHostStatusMessage {
@@ -30,7 +30,7 @@ export type ExtensionMessage =
   | { type: 'command_result'; tabId: number; commandId: string; result: CommandResult }
   | { type: 'session_open'; tabId: number; url: string; title: string }
   | { type: 'session_close'; tabId: number }
-  | { type: 'config_update'; config: Partial<WebCliRuntimeConfig> }
+  | { type: 'config_update'; config: Partial<RuneRuntimeConfig> }
   | ConfigBroadcastMessage
   | GetNativeHostStatusMessage
   | ReconnectNativeHostMessage

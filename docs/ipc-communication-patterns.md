@@ -146,7 +146,7 @@ MCP 서버
 { "method": "tools/list" }
 
 // 도구 호출
-{ "method": "tools/call", "params": { "name": "webcli_act", "arguments": { "targetId": "btn-1" } } }
+{ "method": "tools/call", "params": { "name": "rune_act", "arguments": { "targetId": "btn-1" } } }
 ```
 
 ---

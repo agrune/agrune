@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { WebCliManifest } from '../src/types'
+import type { RuneManifest } from '../src/types'
 
 const motionModes: string[] = []
 
@@ -38,7 +38,7 @@ function mockRect() {
   } as DOMRect
 }
 
-function makeManifest(): WebCliManifest {
+function makeManifest(): RuneManifest {
   return {
     version: 2,
     generatedAt: new Date().toISOString(),
@@ -89,7 +89,7 @@ function makeManifest(): WebCliManifest {
   }
 }
 
-function makeRepeatedTargetManifest(): WebCliManifest {
+function makeRepeatedTargetManifest(): RuneManifest {
   return {
     version: 2,
     generatedAt: new Date().toISOString(),
@@ -122,7 +122,7 @@ function makeRepeatedTargetManifest(): WebCliManifest {
   }
 }
 
-function makeOverlayFlowManifest(): WebCliManifest {
+function makeOverlayFlowManifest(): RuneManifest {
   return {
     version: 2,
     generatedAt: new Date().toISOString(),
@@ -520,14 +520,14 @@ describe('page agent runtime', () => {
     expect(confirmed).toBe(1)
   })
 
-  it('installPageAgentRuntime은 window.webcliDom 전역과 installed handle을 노출한다', () => {
+  it('installPageAgentRuntime은 window.runeDom 전역과 installed handle을 노출한다', () => {
     const handle = installPageAgentRuntime(makeManifest())
 
-    expect(window.webcliDom).toBeDefined()
+    expect(window.runeDom).toBeDefined()
     expect(getInstalledPageAgentRuntime()).toBe(handle)
 
     handle.dispose()
-    expect(window.webcliDom).toBeUndefined()
+    expect(window.runeDom).toBeUndefined()
     expect(getInstalledPageAgentRuntime()).toBeNull()
   })
 
@@ -937,25 +937,25 @@ describe('page agent runtime', () => {
     const snapshot = runtime.getSnapshot()
 
     expect(snapshot.targets.map(target => target.targetId)).toEqual([
-      'assignee-option__wcli_idx_0',
-      'assignee-option__wcli_idx_1',
-      'assignee-option__wcli_idx_2',
+      'assignee-option__rune_idx_0',
+      'assignee-option__rune_idx_1',
+      'assignee-option__rune_idx_2',
     ])
     expect(snapshot.targets.map(target => target.name)).toEqual(labels)
     expect(snapshot.groups).toEqual([
       expect.objectContaining({
         groupId: 'assignee-options',
         targetIds: [
-          'assignee-option__wcli_idx_0',
-          'assignee-option__wcli_idx_1',
-          'assignee-option__wcli_idx_2',
+          'assignee-option__rune_idx_0',
+          'assignee-option__rune_idx_1',
+          'assignee-option__rune_idx_2',
         ],
       }),
     ])
 
     const result = await runtime.act({
       expectedVersion: snapshot.version,
-      targetId: 'assignee-option__wcli_idx_1',
+      targetId: 'assignee-option__rune_idx_1',
     })
 
     expect(result.ok).toBe(true)
@@ -966,7 +966,7 @@ describe('page agent runtime', () => {
     expect(result.result).toEqual(
       expect.objectContaining({
         actionKind: 'click',
-        targetId: 'assignee-option__wcli_idx_1',
+        targetId: 'assignee-option__rune_idx_1',
       }),
     )
   })

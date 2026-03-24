@@ -1,11 +1,11 @@
 export type {
-  WebCliExposureMode,
-  WebCliGroupEntry,
-  WebCliManifest,
-  WebCliRuntimeOptions,
-  WebCliToolEntry,
-  WebCliToolStatus,
-  WebCliTargetEntry,
+  RuneExposureMode,
+  RuneGroupEntry,
+  RuneManifest,
+  RuneRuntimeOptions,
+  RuneToolEntry,
+  RuneToolStatus,
+  RuneTargetEntry,
 } from './types'
 
 export {
