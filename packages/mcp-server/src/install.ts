@@ -214,6 +214,12 @@ export async function runInstall(options?: { extensionId?: string }): Promise<vo
   // Copy manifest.json
   copyFileSync(join(extensionPkg, 'manifest.json'), join(EXTENSION_DIR, 'manifest.json'))
 
+  // Copy icon files referenced by manifest
+  const iconFile = join(extensionPkg, 'icon-128.png')
+  if (existsSync(iconFile)) {
+    copyFileSync(iconFile, join(EXTENSION_DIR, 'icon-128.png'))
+  }
+
   // Copy popup.html if it exists (manifest references src/popup/popup.html)
   const popupHtml = join(extensionPkg, 'src/popup/popup.html')
   if (existsSync(popupHtml)) {
