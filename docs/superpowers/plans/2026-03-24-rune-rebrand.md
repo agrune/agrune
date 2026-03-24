@@ -18,20 +18,20 @@
 - Rename: `plugins/webcli/` → `plugins/rune/`
 - Rename: `packages/mcp-server/bin/webcli-mcp.ts` → `packages/mcp-server/bin/rune-mcp.ts`
 
-- [ ] **Step 1: Rename plugin directory**
+- [x] **Step 1: Rename plugin directory**
 
 ```bash
 cd /Users/laonpeople/dev/web-cli
 mv plugins/webcli plugins/rune
 ```
 
-- [ ] **Step 2: Rename binary file**
+- [x] **Step 2: Rename binary file**
 
 ```bash
 mv packages/mcp-server/bin/webcli-mcp.ts packages/mcp-server/bin/rune-mcp.ts
 ```
 
-- [ ] **Step 3: Verify renames**
+- [x] **Step 3: Verify renames**
 
 ```bash
 ls plugins/rune/.claude-plugin/plugin.json && ls packages/mcp-server/bin/rune-mcp.ts
@@ -39,7 +39,7 @@ ls plugins/rune/.claude-plugin/plugin.json && ls packages/mcp-server/bin/rune-mc
 
 Expected: Both files exist, no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
@@ -56,7 +56,7 @@ These are the most-specific patterns that must be replaced first to avoid partia
 
 **Important:** All `sed` commands below use in-place editing. The exclusion pattern for the spec file must be applied consistently. Use `find` + `sed` to target the right files.
 
-- [ ] **Step 1: Define the sed exclusion helper**
+- [x] **Step 1: Define the sed exclusion helper**
 
 All subsequent sed commands should be run using this pattern to find target files:
 
@@ -75,31 +75,31 @@ find_src() {
 **Important:** All Task 2–4 steps MUST run in a single shell session so `find_src` remains defined. Alternatively, re-define it at the start of each task.
 ```
 
-- [ ] **Step 2: Replace `@webcli-dom/` → `@runeai/`**
+- [x] **Step 2: Replace `@webcli-dom/` → `@runeai/`**
 
 ```bash
 find_src | xargs sed -i '' 's|@webcli-dom/|@runeai/|g'
 ```
 
-- [ ] **Step 3: Replace `@webcli-apps/` → `@runeai/`**
+- [x] **Step 3: Replace `@webcli-apps/` → `@runeai/`**
 
 ```bash
 find_src | xargs sed -i '' 's|@webcli-apps/|@runeai/|g'
 ```
 
-- [ ] **Step 4: Replace `__webcli_dom_page_agent_runtime__` → `__rune_page_agent_runtime__`**
+- [x] **Step 4: Replace `__webcli_dom_page_agent_runtime__` → `__rune_page_agent_runtime__`**
 
 ```bash
 find_src | xargs sed -i '' 's|__webcli_dom_page_agent_runtime__|__rune_page_agent_runtime__|g'
 ```
 
-- [ ] **Step 5: Replace `__webcli_dom_bridge__` → `__rune_bridge__`**
+- [x] **Step 5: Replace `__webcli_dom_bridge__` → `__rune_bridge__`**
 
 ```bash
 find_src | xargs sed -i '' 's|__webcli_dom_bridge__|__rune_bridge__|g'
 ```
 
-- [ ] **Step 6: Replace `.webcli-dom` → `.runeai` (home directory)**
+- [x] **Step 6: Replace `.webcli-dom` → `.runeai` (home directory)**
 
 This MUST run before the generic `webcli-dom` → `rune` replacement. Catches all forms: `'.webcli-dom'`, `~/.webcli-dom/`, etc.
 
@@ -107,7 +107,7 @@ This MUST run before the generic `webcli-dom` → `rune` replacement. Catches al
 find_src | xargs sed -i '' 's|\.webcli-dom|.runeai|g'
 ```
 
-- [ ] **Step 7: Replace `webcli-dom` → `rune`**
+- [x] **Step 7: Replace `webcli-dom` → `rune`**
 
 This catches the root workspace name, extension name, native host references, etc.
 
@@ -115,7 +115,7 @@ This catches the root workspace name, extension name, native host references, et
 find_src | xargs sed -i '' 's|webcli-dom|rune|g'
 ```
 
-- [ ] **Step 8: Verify key files**
+- [x] **Step 8: Verify key files**
 
 ```bash
 grep -r "@webcli-dom" --include='*.ts' --include='*.json' . | grep -v node_modules | grep -v dist | grep -v '.git' | grep -v pnpm-lock | grep -v specs/ | grep -v plans/
@@ -124,7 +124,7 @@ grep -r "webcli-dom" --include='*.ts' --include='*.json' --include='*.md' . | gr
 
 Expected: Zero results for both.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
@@ -137,37 +137,37 @@ git commit -m "refactor: rename package scopes and long identifiers to rune"
 
 **Files:** Same source file set as Task 2.
 
-- [ ] **Step 1: Replace `com.webcli.dom` → `com.runeai.rune`**
+- [x] **Step 1: Replace `com.webcli.dom` → `com.runeai.rune`**
 
 ```bash
 find_src | xargs sed -i '' 's|com\.webcli\.dom|com.runeai.rune|g'
 ```
 
-- [ ] **Step 2: Replace `data-webcli-` → `data-rune-`**
+- [x] **Step 2: Replace `data-webcli-` → `data-rune-`**
 
 ```bash
 find_src | xargs sed -i '' 's|data-webcli-|data-rune-|g'
 ```
 
-- [ ] **Step 3: Replace `webcli-mcp` → `rune-mcp`**
+- [x] **Step 3: Replace `webcli-mcp` → `rune-mcp`**
 
 ```bash
 find_src | xargs sed -i '' 's|webcli-mcp|rune-mcp|g'
 ```
 
-- [ ] **Step 4: Replace `webcli-cursor-style` → `rune-cursor-style`**
+- [x] **Step 4: Replace `webcli-cursor-style` → `rune-cursor-style`**
 
 ```bash
 find_src | xargs sed -i '' 's|webcli-cursor-style|rune-cursor-style|g'
 ```
 
-- [ ] **Step 5: Replace `webcli-extension` → `rune-extension`**
+- [x] **Step 5: Replace `webcli-extension` → `rune-extension`**
 
 ```bash
 find_src | xargs sed -i '' 's|webcli-extension|rune-extension|g'
 ```
 
-- [ ] **Step 6: Replace `webcli-cursor` → `rune-cursor` (CSS classes)**
+- [x] **Step 6: Replace `webcli-cursor` → `rune-cursor` (CSS classes)**
 
 This catches `.webcli-cursor`, `.webcli-cursor-filling`, `.webcli-cursor-border`, `.webcli-cursor-ripple`, `@keyframes webcli-ripple`, etc.
 
@@ -176,7 +176,7 @@ find_src | xargs sed -i '' 's|webcli-cursor|rune-cursor|g'
 find_src | xargs sed -i '' 's|webcli-ripple|rune-ripple|g'
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
@@ -189,31 +189,31 @@ git commit -m "refactor: rename system identifiers, DOM attributes, and CSS to r
 
 **Files:** Same source file set as Task 2.
 
-- [ ] **Step 1: Replace `webcli_` → `rune_` (MCP tools and target IDs)**
+- [x] **Step 1: Replace `webcli_` → `rune_` (MCP tools and target IDs)**
 
 ```bash
 find_src | xargs sed -i '' 's|webcli_|rune_|g'
 ```
 
-- [ ] **Step 2: Replace `__wcli_idx_` → `__rune_idx_`**
+- [x] **Step 2: Replace `__wcli_idx_` → `__rune_idx_`**
 
 ```bash
 find_src | xargs sed -i '' 's|__wcli_idx_|__rune_idx_|g'
 ```
 
-- [ ] **Step 3: Replace `wcli_` → `rune_` (remaining target ID prefix)**
+- [x] **Step 3: Replace `wcli_` → `rune_` (remaining target ID prefix)**
 
 ```bash
 find_src | xargs sed -i '' 's|wcli_|rune_|g'
 ```
 
-- [ ] **Step 4: Replace `WebCli` → `Rune` (PascalCase types and classes)**
+- [x] **Step 4: Replace `WebCli` → `Rune` (PascalCase types and classes)**
 
 ```bash
 find_src | xargs sed -i '' 's|WebCli|Rune|g'
 ```
 
-- [ ] **Step 5: Replace `webCli` → `rune` (camelCase with capital C)**
+- [x] **Step 5: Replace `webCli` → `rune` (camelCase with capital C)**
 
 This catches `webCliDomPlugin` in SKILL.md and any other camelCase variants with capital C.
 
@@ -221,13 +221,13 @@ This catches `webCliDomPlugin` in SKILL.md and any other camelCase variants with
 find_src | xargs sed -i '' 's|webCli|rune|g'
 ```
 
-- [ ] **Step 6: Replace `WEBCLI` → `RUNE` (UPPER_CASE constants)**
+- [x] **Step 6: Replace `WEBCLI` → `RUNE` (UPPER_CASE constants)**
 
 ```bash
 find_src | xargs sed -i '' 's|WEBCLI|RUNE|g'
 ```
 
-- [ ] **Step 7: Replace remaining `webcli` → `rune` (catch-all lowercase)**
+- [x] **Step 7: Replace remaining `webcli` → `rune` (catch-all lowercase)**
 
 This catches `webcliDom`, `webcliContentScript`, `webcliBackgroundServiceWorker`, `webcliPopup`, `webcliPageRuntime`, `isWebcliNode`, log strings, comments, etc.
 
@@ -235,7 +235,7 @@ This catches `webcliDom`, `webcliContentScript`, `webcliBackgroundServiceWorker`
 find_src | xargs sed -i '' 's|webcli|rune|g'
 ```
 
-- [ ] **Step 8: Spot-check key transformations**
+- [x] **Step 8: Spot-check key transformations**
 
 Verify specific files have the right result:
 
@@ -258,7 +258,7 @@ grep 'runeai' packages/mcp-server/src/install.ts packages/mcp-server/bin/rune-mc
 
 Expected: All grep commands return matches.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
@@ -275,7 +275,7 @@ The root `package.json` has scripts with `@webcli-dom/*` filter patterns that we
 - Modify: `/package.json`
 - Modify: `/apps/cli-test-page/package.json`
 
-- [ ] **Step 1: Verify root package.json**
+- [x] **Step 1: Verify root package.json**
 
 ```bash
 cat package.json
@@ -283,7 +283,7 @@ cat package.json
 
 Expected: `"name": "rune"`, scripts filter on `@runeai/*`.
 
-- [ ] **Step 2: Verify app package name change**
+- [x] **Step 2: Verify app package name change**
 
 The app package should now be `@runeai/cli-test-page` (from the automated replace). The spec says it should be `@runeai/test-page`. Fix it:
 
@@ -292,7 +292,7 @@ cd /Users/laonpeople/dev/web-cli
 sed -i '' 's|@runeai/cli-test-page|@runeai/test-page|' apps/cli-test-page/package.json
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A
@@ -307,21 +307,21 @@ git commit -m "refactor: rename test page package to @runeai/test-page"
 - Delete & regenerate: `pnpm-lock.yaml`
 - Clean: all `dist/` directories
 
-- [ ] **Step 1: Clean dist directories**
+- [x] **Step 1: Clean dist directories**
 
 ```bash
 cd /Users/laonpeople/dev/web-cli
 find . -name dist -type d -not -path '*/node_modules/*' -exec rm -rf {} + 2>/dev/null || true
 ```
 
-- [ ] **Step 2: Delete lockfile and node_modules**
+- [x] **Step 2: Delete lockfile and node_modules**
 
 ```bash
 rm -f pnpm-lock.yaml
 rm -rf node_modules packages/*/node_modules apps/*/node_modules
 ```
 
-- [ ] **Step 3: Reinstall dependencies**
+- [x] **Step 3: Reinstall dependencies**
 
 ```bash
 pnpm install
@@ -329,7 +329,7 @@ pnpm install
 
 Expected: Clean install with no errors. New `pnpm-lock.yaml` generated with `@runeai/*` references.
 
-- [ ] **Step 4: Verify lockfile has no webcli references**
+- [x] **Step 4: Verify lockfile has no webcli references**
 
 ```bash
 grep -c "webcli" pnpm-lock.yaml || echo "CLEAN: 0 webcli references"
@@ -337,7 +337,7 @@ grep -c "webcli" pnpm-lock.yaml || echo "CLEAN: 0 webcli references"
 
 Expected: `CLEAN: 0 webcli references`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add pnpm-lock.yaml
@@ -348,7 +348,7 @@ git commit -m "chore: regenerate lockfile after rune rebrand"
 
 ### Task 7: Build verification
 
-- [ ] **Step 1: Build all packages**
+- [x] **Step 1: Build all packages**
 
 ```bash
 cd /Users/laonpeople/dev/web-cli
@@ -357,7 +357,7 @@ pnpm build
 
 Expected: All packages build without errors.
 
-- [ ] **Step 2: If build fails, fix TypeScript errors**
+- [x] **Step 2: If build fails, fix TypeScript errors**
 
 Common issues to watch for:
 - Import paths that weren't caught by find-and-replace
@@ -366,7 +366,7 @@ Common issues to watch for:
 
 Fix any issues found and re-run `pnpm build`.
 
-- [ ] **Step 3: Commit any fixes**
+- [x] **Step 3: Commit any fixes**
 
 ```bash
 git add -A
@@ -377,7 +377,7 @@ git commit -m "fix: resolve build errors after rune rebrand"
 
 ### Task 8: Test verification
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 ```bash
 cd /Users/laonpeople/dev/web-cli
@@ -386,7 +386,7 @@ pnpm test
 
 Expected: All tests pass.
 
-- [ ] **Step 2: If tests fail, fix test assertions**
+- [x] **Step 2: If tests fail, fix test assertions**
 
 Common issues:
 - Hardcoded `webcli` strings in test expectations
@@ -395,7 +395,7 @@ Common issues:
 
 Fix any issues found and re-run `pnpm test`.
 
-- [ ] **Step 3: Commit any fixes**
+- [x] **Step 3: Commit any fixes**
 
 ```bash
 git add -A
@@ -406,7 +406,7 @@ git commit -m "fix: resolve test failures after rune rebrand"
 
 ### Task 9: Final grep verification
 
-- [ ] **Step 1: Grep for any remaining webcli references**
+- [x] **Step 1: Grep for any remaining webcli references**
 
 ```bash
 cd /Users/laonpeople/dev/web-cli
@@ -415,7 +415,7 @@ grep -ri "webcli" --include='*.ts' --include='*.tsx' --include='*.json' --includ
 
 Expected: Zero results.
 
-- [ ] **Step 2: Grep for remaining wcli references**
+- [x] **Step 2: Grep for remaining wcli references**
 
 ```bash
 grep -ri "wcli" --include='*.ts' --include='*.tsx' --include='*.json' --include='*.md' --include='*.html' . | grep -v node_modules | grep -v dist | grep -v '.git' | grep -v pnpm-lock | grep -v 'specs/2026-03-24-rune-rebrand'
@@ -423,14 +423,14 @@ grep -ri "wcli" --include='*.ts' --include='*.tsx' --include='*.json' --include=
 
 Expected: Zero results.
 
-- [ ] **Step 3: If any references found, fix them manually and commit**
+- [x] **Step 3: If any references found, fix them manually and commit**
 
 ```bash
 git add -A
 git commit -m "fix: clean up remaining webcli references"
 ```
 
-- [ ] **Step 4: Final build + test**
+- [x] **Step 4: Final build + test**
 
 ```bash
 pnpm build && pnpm test
@@ -438,7 +438,7 @@ pnpm build && pnpm test
 
 Expected: Build succeeds, all tests pass.
 
-- [ ] **Step 5: Final commit (if any changes from step 3)**
+- [x] **Step 5: Final commit (if any changes from step 3)**
 
 ```bash
 git add -A
