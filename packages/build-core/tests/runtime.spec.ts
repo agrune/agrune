@@ -1168,6 +1168,9 @@ describe('page agent runtime', () => {
       expect(document.querySelector('[data-webcli-pointer="true"]')).not.toBeNull()
       expect((document.querySelector('[data-webcli-pointer="true"]') as HTMLElement | null)?.style.display).toBe('block')
 
+      // Queue idle timer (5s) fires, then schedules activity idle timer (5s)
+      await vi.advanceTimersByTimeAsync(5_000)
+      expect((document.querySelector('[data-webcli-pointer="true"]') as HTMLElement | null)?.style.display).toBe('block')
       await vi.advanceTimersByTimeAsync(5_000)
       expect((document.querySelector('[data-webcli-pointer="true"]') as HTMLElement | null)?.style.display).toBe('none')
     } finally {

@@ -1,11 +1,20 @@
 import type {
-  PageSnapshot,
   CommandRequest,
   CommandResult,
-  CompanionConfig,
+  PageSnapshot,
+  WebCliRuntimeConfig,
 } from './index'
 
-// ── Message interfaces ──────────────────────────────────────────────
+export type NativeHostConnectionPhase = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+export interface NativeHostStatus {
+  connected: boolean
+  phase: NativeHostConnectionPhase
+  hostName: string
+  lastError?: string | null
+  sessionCount?: number
+  mcpConnected?: boolean
+}
 
 export interface SnapshotUpdateMessage {
   type: 'snapshot_update'
@@ -41,10 +50,30 @@ export interface SessionCloseMessage {
 
 export interface ConfigUpdateMessage {
   type: 'config_update'
-  config: Partial<CompanionConfig>
+  config: Partial<WebCliRuntimeConfig>
 }
 
-// ── Union type ──────────────────────────────────────────────────────
+export interface AgentActivityMessage {
+  type: 'agent_activity'
+  active: boolean
+}
+
+export interface PingMessage {
+  type: 'ping'
+}
+
+export interface PongMessage {
+  type: 'pong'
+}
+
+export interface GetStatusMessage {
+  type: 'get_status'
+}
+
+export interface StatusResponseMessage {
+  type: 'status_response'
+  status: NativeHostStatus
+}
 
 export type NativeMessage =
   | SnapshotUpdateMessage
@@ -53,8 +82,11 @@ export type NativeMessage =
   | SessionOpenMessage
   | SessionCloseMessage
   | ConfigUpdateMessage
-
-// ── Type guards ─────────────────────────────────────────────────────
+  | AgentActivityMessage
+  | PingMessage
+  | PongMessage
+  | GetStatusMessage
+  | StatusResponseMessage
 
 export function isSnapshotUpdate(msg: NativeMessage): msg is SnapshotUpdateMessage {
   return msg.type === 'snapshot_update'
@@ -78,4 +110,20 @@ export function isSessionClose(msg: NativeMessage): msg is SessionCloseMessage {
 
 export function isConfigUpdate(msg: NativeMessage): msg is ConfigUpdateMessage {
   return msg.type === 'config_update'
+}
+
+export function isPing(msg: NativeMessage): msg is PingMessage {
+  return msg.type === 'ping'
+}
+
+export function isPong(msg: NativeMessage): msg is PongMessage {
+  return msg.type === 'pong'
+}
+
+export function isGetStatus(msg: NativeMessage): msg is GetStatusMessage {
+  return msg.type === 'get_status'
+}
+
+export function isStatusResponse(msg: NativeMessage): msg is StatusResponseMessage {
+  return msg.type === 'status_response'
 }

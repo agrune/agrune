@@ -104,7 +104,7 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: 'webcli_config',
-      description: 'Update the runtime configuration for the webcli companion (pointer animation, aurora glow, etc.).',
+      description: 'Update the page runtime configuration (pointer animation, aurora glow, etc.).',
       inputSchema: {
         type: 'object',
         properties: {

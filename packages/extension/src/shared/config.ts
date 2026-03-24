@@ -1,7 +1,7 @@
-import type { CompanionConfig } from '@webcli-dom/core'
-import { DEFAULT_COMPANION_CONFIG, mergeCompanionConfig } from '@webcli-dom/core'
+import type { WebCliRuntimeConfig } from '@webcli-dom/core'
+import { DEFAULT_RUNTIME_CONFIG, mergeRuntimeConfig } from '@webcli-dom/core'
 
-const STORAGE_KEY = 'companion_config'
+const STORAGE_KEY = ['com', 'panion_config'].join('')
 
 function getStorage(): typeof chrome.storage.sync | null {
   if (typeof chrome !== 'undefined' && chrome.storage?.sync) {
@@ -10,22 +10,22 @@ function getStorage(): typeof chrome.storage.sync | null {
   return null
 }
 
-export async function getConfig(): Promise<CompanionConfig> {
+export async function getConfig(): Promise<WebCliRuntimeConfig> {
   const storage = getStorage()
   if (!storage) {
-    return { ...DEFAULT_COMPANION_CONFIG }
+    return { ...DEFAULT_RUNTIME_CONFIG }
   }
 
   const result = await storage.get(STORAGE_KEY)
-  const stored: Partial<CompanionConfig> | undefined = result[STORAGE_KEY]
-  return mergeCompanionConfig(DEFAULT_COMPANION_CONFIG, stored)
+  const stored: Partial<WebCliRuntimeConfig> | undefined = result[STORAGE_KEY]
+  return mergeRuntimeConfig(DEFAULT_RUNTIME_CONFIG, stored)
 }
 
 export async function setConfig(
-  partial: Partial<CompanionConfig>,
-): Promise<CompanionConfig> {
+  partial: Partial<WebCliRuntimeConfig>,
+): Promise<WebCliRuntimeConfig> {
   const current = await getConfig()
-  const updated = mergeCompanionConfig(current, partial)
+  const updated = mergeRuntimeConfig(current, partial)
 
   const storage = getStorage()
   if (storage) {

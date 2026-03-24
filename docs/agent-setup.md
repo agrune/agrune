@@ -1,39 +1,38 @@
 # AI Agent 연동 가이드
 
-webcli-dom MCP 서버를 AI Agent에 연결하여 브라우저를 직접 제어하는 방법.
+`webcli-dom`은 Chrome 확장 프로그램과 `webcli-mcp`를 통해 AI Agent가 브라우저를 직접 제어하도록 구성된다.
 
 ## 사전 준비
 
-1. Chrome Web Store에서 webcli-dom 확장 프로그램 설치
-2. MCP 서버 설치: `npm install -g @webcli-dom/mcp-server`
-3. 첫 실행 시 Native Messaging Host 설정이 자동 생성됨
+1. 저장소에서 의존성 설치: `pnpm install`
+2. 설치 실행: `pnpm dlx tsx packages/mcp-server/bin/webcli-mcp.ts install`
+3. `chrome://extensions`에서 `~/.webcli-dom/extension/`을 로드
 
-## Claude Code
+## Agent 등록
 
-`~/.claude/settings.json`:
+Claude Code:
 
 ```json
 {
   "mcpServers": {
     "webcli": {
-      "command": "webcli-mcp"
+      "command": "node",
+      "args": ["/Users/<user>/.webcli-dom/mcp-server/bin/webcli-mcp.js"]
     }
   }
 }
 ```
 
-또는 프로젝트별 `.claude/settings.json`에 추가.
-
-## Codex (OpenAI)
+Codex:
 
 ```bash
-codex mcp add webcli --command "webcli-mcp"
+codex mcp add webcli --command "node" --args "/Users/<user>/.webcli-dom/mcp-server/bin/webcli-mcp.js"
 ```
 
-## Gemini CLI
+Gemini CLI:
 
 ```bash
-gemini mcp add webcli --command "webcli-mcp"
+gemini mcp add webcli --command "node" --args "/Users/<user>/.webcli-dom/mcp-server/bin/webcli-mcp.js"
 ```
 
 ## 사용 가능한 MCP 도구
@@ -47,11 +46,11 @@ gemini mcp add webcli --command "webcli-mcp"
 | `webcli_drag` | 드래그 | sourceTargetId, destinationTargetId |
 | `webcli_wait` | 상태 대기 | targetId, state |
 | `webcli_guide` | 시각적 가이드 | targetId |
-| `webcli_config` | 런타임 설정 | pointerAnimation, auroraGlow 등 (전부 선택) |
+| `webcli_config` | 런타임 설정 | pointerAnimation, auroraGlow 등 |
 
 ## 웹앱 준비
 
-웹앱 HTML/JSX에 `data-webcli-*` 어노테이션을 추가하면 자동으로 인식됨:
+페이지에 `data-webcli-*` 어노테이션이 있으면 확장 프로그램이 자동으로 대상과 그룹을 수집한다.
 
 ```html
 <button data-webcli-action="click" data-webcli-name="Login">로그인</button>

@@ -4,5 +4,5 @@
     "lib": ["ES2022"],
     "noEmit": true
   },
-  "include": ["src", "tests", "tsup.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "bin", "tsup.config.ts", "vitest.config.ts"]
 }

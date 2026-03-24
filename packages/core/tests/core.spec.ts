@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_COMPANION_CONFIG,
+  DEFAULT_RUNTIME_CONFIG,
   createCommandError,
   isCommandErrorCode,
-  mergeCompanionConfig,
-  normalizeCompanionConfig,
+  mergeRuntimeConfig,
+  normalizeRuntimeConfig,
 } from '../src/index'
 
 describe('core helpers', () => {
   it('config 병합 시 patch 값만 덮어쓴다', () => {
-    const result = mergeCompanionConfig(DEFAULT_COMPANION_CONFIG, {
+    const result = mergeRuntimeConfig(DEFAULT_RUNTIME_CONFIG, {
       clickDelayMs: 240,
       pointerAnimation: true,
     })
@@ -26,10 +26,10 @@ describe('core helpers', () => {
 
   it('invalid config 입력은 기본값으로 정규화한다', () => {
     expect(
-      normalizeCompanionConfig({
+      normalizeRuntimeConfig({
         clickDelayMs: -10,
       }),
-    ).toEqual(DEFAULT_COMPANION_CONFIG)
+    ).toEqual(DEFAULT_RUNTIME_CONFIG)
   })
 
   it('structured command error를 생성한다', () => {

@@ -1,13 +1,13 @@
 import {
   createCommandError,
-  mergeCompanionConfig,
   type AuroraTheme,
   type CommandResult,
-  type CompanionConfig,
   type DragPlacement,
   type PageSnapshot,
   type PageTarget,
   type PageTargetReason,
+  type WebCliRuntimeConfig,
+  mergeRuntimeConfig,
 } from '@webcli-dom/core'
 import { ActionQueue } from './action-queue'
 import { getCursorMeta, DEFAULT_CURSOR_NAME, POINTER_FILL_SVG, POINTER_BORDER_MASK_SVG } from './cursors/index'
@@ -24,7 +24,7 @@ const DEFAULT_OPTIONS: WebCliRuntimeOptions = {
   clickRetryDelayMs: 120,
 }
 
-const DEFAULT_EXECUTION_CONFIG: CompanionConfig = {
+const DEFAULT_EXECUTION_CONFIG: WebCliRuntimeConfig = {
   autoScroll: true,
   clickDelayMs: 0,
   pointerAnimation: false,
@@ -75,7 +75,7 @@ export interface PageAgentRuntime {
     commandId?: string
     targetId: string
     expectedVersion?: number
-    config?: Partial<CompanionConfig>
+    config?: Partial<WebCliRuntimeConfig>
   }) => Promise<CommandResult>
   drag: (input: {
     commandId?: string
@@ -83,14 +83,14 @@ export interface PageAgentRuntime {
     destinationTargetId: string
     placement?: DragPlacement
     expectedVersion?: number
-    config?: Partial<CompanionConfig>
+    config?: Partial<WebCliRuntimeConfig>
   }) => Promise<CommandResult>
   fill: (input: {
     commandId?: string
     targetId: string
     value: string
     expectedVersion?: number
-    config?: Partial<CompanionConfig>
+    config?: Partial<WebCliRuntimeConfig>
   }) => Promise<CommandResult>
   wait: (input: {
     commandId?: string
@@ -102,9 +102,11 @@ export interface PageAgentRuntime {
     commandId?: string
     targetId: string
     expectedVersion?: number
-    config?: Partial<CompanionConfig>
+    config?: Partial<WebCliRuntimeConfig>
   }) => Promise<CommandResult>
-  applyConfig: (config: Partial<CompanionConfig>) => void
+  applyConfig: (config: Partial<WebCliRuntimeConfig>) => void
+  /** Returns true when visual effects are active (agent busy, queue processing, or idle timer pending). */
+  isActive: () => boolean
 }
 
 export interface PageAgentRuntimeHandle extends PageAgentRuntime {
@@ -372,9 +374,9 @@ function resolveRuntimeTarget(
 
 function normalizeExecutionConfig(
   runtimeOptions: WebCliRuntimeOptions,
-  next?: Partial<CompanionConfig>,
-): CompanionConfig {
-  return mergeCompanionConfig(
+  next?: Partial<WebCliRuntimeConfig>,
+): WebCliRuntimeConfig {
+  return mergeRuntimeConfig(
     {
       ...DEFAULT_EXECUTION_CONFIG,
       autoScroll: runtimeOptions.clickAutoScroll,
@@ -642,8 +644,8 @@ function hidePointerOverlay(): void {
   cursorState.element.style.display = 'none'
   cursorState.element.style.transition = ''
   cursorState.element.classList.remove('clicking')
-  cursorState.lastX = null
-  cursorState.lastY = null
+  // Preserve lastX/lastY so the cursor resumes from its last position
+  // when re-activated (e.g. between consecutive agent tool calls)
 }
 
 function easeOutCubic(t: number): number {
@@ -1127,7 +1129,11 @@ function hideAuroraGlow(): void {
   setTimeout(() => wrapper.remove(), 500)
 }
 
-async function flashPointerOverlay(element: HTMLElement, config: CompanionConfig, onPress?: () => void): Promise<void> {
+async function flashPointerOverlay(
+  element: HTMLElement,
+  config: WebCliRuntimeConfig,
+  onPress?: () => void,
+): Promise<void> {
   await animateCursorTo(element, config.cursorName ?? DEFAULT_CURSOR_NAME, onPress)
 }
 
@@ -1483,8 +1489,8 @@ export function createPageAgentRuntime(
   const captureSnapshot = () => makeSnapshot(descriptors, snapshotStore)
 
   const resolveExecutionConfig = (
-    patch?: Partial<CompanionConfig>,
-  ): CompanionConfig => mergeCompanionConfig(currentConfig, patch)
+    patch?: Partial<WebCliRuntimeConfig>,
+  ): WebCliRuntimeConfig => mergeRuntimeConfig(currentConfig, patch)
 
   const clearActivityIdleTimer = () => {
     if (activityIdleTimer !== null) {
@@ -1513,11 +1519,9 @@ export function createPageAgentRuntime(
   }
 
   queue.onDeactivate = () => {
-    if (agentActivityActive) {
-      syncActiveVisualEffects()
-      return
+    if (!agentActivityActive) {
+      scheduleActivityHide()
     }
-    hideVisualEffects()
   }
 
   const scheduleActivityHide = () => {
@@ -1941,8 +1945,8 @@ export function createPageAgentRuntime(
         })
       }),
 
-    applyConfig: (config: Partial<CompanionConfig>) => {
-      currentConfig = mergeCompanionConfig(currentConfig, config)
+    applyConfig: (config: Partial<WebCliRuntimeConfig>) => {
+      currentConfig = mergeRuntimeConfig(currentConfig, config)
       if (config.cursorName && cursorState && config.cursorName !== cursorState.cursorName) {
         getOrCreateCursorElement(config.cursorName)
       }
@@ -1950,6 +1954,8 @@ export function createPageAgentRuntime(
         syncActiveVisualEffects()
       }
     },
+
+    isActive: () => agentActivityActive || queue.active || activityIdleTimer !== null,
   }
 
   runtimeDisposers.set(runtime, () => {

@@ -1,29 +1,4 @@
-export type UnsupportedActionHandling = 'warn-skip' | 'error'
-
 export type WebCliExposureMode = 'grouped' | 'per-element'
-
-export type WebCliEmitTrackingAttr = 'none' | 'debug' | 'always'
-
-export type WebCliDeclarativeCompat = 'off' | 'webcli-form-draft-2025-10'
-
-export interface WebCliDomPluginOptions {
-  include?: string[]
-  exclude?: string[]
-  manifestFile?: string
-  toolPrefix?: string
-  preserveSourceAttrs?: boolean
-  strict?: boolean
-  unsupportedActionHandling?: UnsupportedActionHandling
-  exposureMode?: WebCliExposureMode
-  groupAttr?: string
-  emitTrackingAttr?: WebCliEmitTrackingAttr
-  declarativeCompat?: WebCliDeclarativeCompat
-  click?: {
-    autoScroll?: boolean
-    retryCount?: number
-    retryDelayMs?: number
-  }
-}
 
 export interface WebCliRuntimeOptions {
   clickAutoScroll: boolean
@@ -65,28 +40,4 @@ export interface WebCliManifest {
   generatedAt: string
   exposureMode: WebCliExposureMode
   groups: WebCliGroupEntry[]
-}
-
-export interface WebCliCompiledTarget {
-  action: string
-  status: WebCliToolStatus
-  groupId: string
-  groupName?: string
-  groupDesc?: string
-  target: WebCliTargetEntry
-}
-
-export interface WebCliDiagnostic {
-  level: 'warning' | 'error'
-  code:
-    | 'WCLI_COMPILE_MISSING_ATTR'
-    | 'WCLI_COMPILE_EMPTY_ATTR'
-    | 'WCLI_COMPILE_DYNAMIC_ATTR'
-    | 'WCLI_COMPILE_UNSUPPORTED_ACTION'
-    | 'WCLI_COMPILE_DUPLICATE_TOOL'
-    | 'WCLI_COMPILE_PARSE_ERROR'
-  message: string
-  file: string
-  line: number
-  column: number
 }

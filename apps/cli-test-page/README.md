@@ -1,15 +1,24 @@
 # @webcli-apps/cli-test-page
 
-`webcli-dom` 포크용 데모 앱입니다.
+`webcli-dom` 개발용 검증 앱이다.
 
 ## 실행
 
 ```bash
-pnpm --filter @webcli-dom/companion run start
 pnpm -C apps/cli-test-page dev
 ```
 
-포인트:
+확장 프로그램과 MCP 설치는 루트에서 준비한다.
 
-- 페이지는 `@webcli-dom/build-core/register`가 설치한 runtime snapshot을 companion으로 보냅니다.
-- companion이 실행 중이면 TUI와 `webcli` CLI에서 `로그인`, `회원가입`, 입력 필드를 live menu로 볼 수 있습니다.
+```bash
+pnpm install
+pnpm dlx tsx packages/mcp-server/bin/webcli-mcp.ts install
+```
+
+그다음 `chrome://extensions`에서 `~/.webcli-dom/extension/`을 로드하고 이 앱을 열어 검증한다.
+
+## 포인트
+
+- React UI 위에 `data-webcli-*` 어노테이션이 붙어 있다.
+- 확장 프로그램이 탭, 그룹, 타깃 정보를 자동 수집한다.
+- 드래그, 클릭, 입력, 대기 동작을 수동 검증하기 위한 fixture로 유지한다.

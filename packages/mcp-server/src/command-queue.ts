@@ -12,7 +12,7 @@ export class CommandQueue {
   private pending = new Map<string, PendingCommand>()
   private counter = 0
 
-  setSender(sender: (msg: NativeMessage) => void): void {
+  setSender(sender: ((msg: NativeMessage) => void) | null): void {
     this.sender = sender
   }
 

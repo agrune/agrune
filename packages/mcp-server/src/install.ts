@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import {
   copyFileSync,
+  readFileSync,
   mkdirSync,
   writeFileSync,
   existsSync,
@@ -8,6 +9,7 @@ import {
   statSync,
   rmSync,
 } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join, resolve, dirname } from 'node:path'
 import { homedir, platform } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -16,6 +18,16 @@ const HOST_NAME = 'com.webcli.dom'
 const MANIFEST_FILENAME = `${HOST_NAME}.json`
 const WEBCLI_HOME = join(homedir(), '.webcli-dom')
 const EXTENSION_DIR = join(WEBCLI_HOME, 'extension')
+
+export interface ExtensionManifest {
+  key?: string
+}
+
+export interface ExtensionLoadPlan {
+  shouldAttemptAutoLoad: boolean
+  shouldOpenExtensionsPage: boolean
+  instructions: string[]
+}
 
 export function getNativeHostPath(): string {
   const home = homedir()
@@ -40,6 +52,49 @@ export function getNativeHostManifest(binaryPath: string, extensionId: string) {
   }
 }
 
+export function readExtensionManifest(manifestPath: string): ExtensionManifest {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as ExtensionManifest
+  if (!manifest || typeof manifest !== 'object') {
+    throw new Error(`Invalid extension manifest at ${manifestPath}`)
+  }
+  return manifest
+}
+
+export function deriveExtensionIdFromManifestKey(key: string): string {
+  const publicKeyBytes = Buffer.from(key, 'base64')
+  if (publicKeyBytes.length === 0) {
+    throw new Error('Extension manifest key is empty or invalid')
+  }
+
+  const hash = createHash('sha256').update(publicKeyBytes).digest()
+  let extensionId = ''
+
+  for (const byte of hash.subarray(0, 16)) {
+    extensionId += String.fromCharCode('a'.charCodeAt(0) + (byte >> 4))
+    extensionId += String.fromCharCode('a'.charCodeAt(0) + (byte & 0x0f))
+  }
+
+  return extensionId
+}
+
+export function resolveExtensionId(
+  manifestPath: string,
+  extensionIdOverride?: string,
+): string {
+  if (extensionIdOverride) {
+    return extensionIdOverride
+  }
+
+  const manifest = readExtensionManifest(manifestPath)
+  if (!manifest.key) {
+    throw new Error(
+      `Extension manifest at ${manifestPath} is missing "key". Pass --extension-id or add a fixed key.`,
+    )
+  }
+
+  return deriveExtensionIdFromManifestKey(manifest.key)
+}
+
 export function installNativeHost(binaryPath: string, extensionId: string): string {
   const manifestPath = getNativeHostPath()
   const manifest = getNativeHostManifest(binaryPath, extensionId)
@@ -48,6 +103,58 @@ export function installNativeHost(binaryPath: string, extensionId: string): stri
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
 
   return manifestPath
+}
+
+export function isChromeRunning(): boolean {
+  if (platform() !== 'darwin') {
+    return false
+  }
+
+  try {
+    execSync('pgrep -x "Google Chrome"', { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function getExtensionLoadPlan(
+  currentPlatform: NodeJS.Platform,
+  extensionDir: string,
+  chromeRunning: boolean,
+): ExtensionLoadPlan {
+  const manualSteps = [
+    'chrome://extensions -> Developer mode ON -> Load unpacked',
+    extensionDir,
+  ]
+
+  if (currentPlatform !== 'darwin') {
+    return {
+      shouldAttemptAutoLoad: false,
+      shouldOpenExtensionsPage: false,
+      instructions: manualSteps,
+    }
+  }
+
+  if (chromeRunning) {
+    return {
+      shouldAttemptAutoLoad: false,
+      shouldOpenExtensionsPage: true,
+      instructions: [
+        'Google Chrome is already running, so automatic unpacked extension loading may be ignored.',
+        ...manualSteps,
+      ],
+    }
+  }
+
+  return {
+    shouldAttemptAutoLoad: true,
+    shouldOpenExtensionsPage: false,
+    instructions: [
+      'If the extension does not appear automatically, load it manually:',
+      ...manualSteps,
+    ],
+  }
 }
 
 // --- Auto-install ---
@@ -140,39 +247,43 @@ export async function runInstall(options?: { extensionId?: string }): Promise<vo
 
   // 6. Install Native Messaging Host config
   console.log('5. Installing native messaging host config...')
-  const extensionId = options?.extensionId || 'PLACEHOLDER_EXTENSION_ID'
+  const extensionManifestPath = join(EXTENSION_DIR, 'manifest.json')
+  const extensionId = resolveExtensionId(extensionManifestPath, options?.extensionId)
   const hostPath = installNativeHost(wrapperPath, extensionId)
   console.log(`   -> ${hostPath}`)
-
-  if (!options?.extensionId) {
-    console.log('   (Using placeholder extension ID - re-run with --extension-id=<id> to finalize)')
-  }
 
   // 7. Open Chrome with the unpacked extension on macOS
   console.log('\n6. Loading extension in Chrome...')
   console.log('   Extension installed to:', EXTENSION_DIR)
+  const loadPlan = getExtensionLoadPlan(platform(), EXTENSION_DIR, isChromeRunning())
 
-  if (platform() === 'darwin') {
+  if (platform() === 'darwin' && loadPlan.shouldAttemptAutoLoad) {
     try {
       execSync(`open -a "Google Chrome" --args --load-extension="${EXTENSION_DIR}"`)
       console.log('   -> Chrome opened with extension loaded')
     } catch {
       console.log('   -> Could not auto-open Chrome. Please load manually:')
-      console.log(`     chrome://extensions -> Load unpacked -> ${EXTENSION_DIR}`)
+      for (const instruction of loadPlan.instructions) {
+        console.log(`     ${instruction}`)
+      }
     }
   } else {
+    if (loadPlan.shouldOpenExtensionsPage) {
+      try {
+        execSync('open -a "Google Chrome" "chrome://extensions"')
+        console.log('   -> Opened chrome://extensions for manual loading')
+      } catch {
+        console.log('   -> Could not open chrome://extensions automatically')
+      }
+    }
+
     console.log('   Load the extension manually:')
-    console.log(`   chrome://extensions -> Developer mode ON -> Load unpacked -> ${EXTENSION_DIR}`)
+    for (const instruction of loadPlan.instructions) {
+      console.log(`   ${instruction}`)
+    }
   }
 
   // 8. Summary
   console.log('\nInstallation complete!')
-  if (!options?.extensionId) {
-    console.log('\nNext steps:')
-    console.log('  1. Find the extension ID in chrome://extensions')
-    console.log('  2. Re-run: webcli-mcp install --extension-id=<your-extension-id>')
-    console.log('     to finalize the native messaging host configuration.')
-  } else {
-    console.log(`\nNative messaging host configured for extension: ${options.extensionId}`)
-  }
+  console.log(`\nNative messaging host configured for extension: ${extensionId}`)
 }

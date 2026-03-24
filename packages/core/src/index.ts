@@ -13,7 +13,6 @@ export const COMMAND_ERROR_CODES = [
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
 
-export type ApprovalStatus = 'pending' | 'approved' | 'denied'
 export type ActionKind = 'click' | 'fill'
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
@@ -27,7 +26,7 @@ export type PageTargetReason =
   | 'disabled'
   | 'sensitive'
 
-export interface CompanionConfig {
+export interface WebCliRuntimeConfig {
   clickDelayMs: number
   pointerAnimation: boolean
   autoScroll: boolean
@@ -36,7 +35,7 @@ export interface CompanionConfig {
   auroraTheme: AuroraTheme
 }
 
-export const DEFAULT_COMPANION_CONFIG: CompanionConfig = {
+export const DEFAULT_RUNTIME_CONFIG: WebCliRuntimeConfig = {
   clickDelayMs: 0,
   pointerAnimation: false,
   autoScroll: true,
@@ -93,7 +92,7 @@ export interface CommandErrorShape {
 
 export interface BaseCommandRequest {
   commandId: string
-  config?: Partial<CompanionConfig>
+  config?: Partial<WebCliRuntimeConfig>
 }
 
 export interface ActCommandRequest extends BaseCommandRequest {
@@ -156,81 +155,15 @@ export interface CommandResultFailure extends CommandExecutionMetadata {
 
 export type CommandResult = CommandResultSuccess | CommandResultFailure
 
-export interface SessionSnapshot {
-  id: string
-  appId: string
-  origin: string
-  url: string
-  title: string
-  clientVersion: string
-  connectedAt: number
-  lastSeenAt: number
-  approvalStatus: ApprovalStatus
-  active: boolean
-  agentActive: boolean
-  agentStopped: boolean
-  targetCount: number
-  pendingCommandCount: number
-  snapshotVersion: number | null
-}
-
-export interface BootstrapSessionResponse {
-  sessionId: string
-  sessionToken: string | null
-  tokenExpiresAt: number | null
-  status?: ApprovalStatus
-  active?: boolean
-  pollIntervalMs?: number
-}
-
-export interface PageSyncPayload {
-  snapshot: PageSnapshot
-  completedCommands: CommandResult[]
-  timestamp: number
-}
-
-export interface SyncResponse {
-  status?: ApprovalStatus
-  active?: boolean
-  agentActive?: boolean
-  agentStopped?: boolean
-  pendingCommands?: CommandRequest[]
-  config?: CompanionConfig
-}
-
-export interface ServerWsMessage {
-  type?: string
-  status?: ApprovalStatus
-  active?: boolean
-  agentActive?: boolean
-  agentStopped?: boolean
-  pendingCommands?: CommandRequest[]
-  config?: CompanionConfig
-  message?: string
-}
-
-export interface CompanionStatusPayload {
-  endpoint: string
-  homeDir: string
-  tokenPath: string
-  pidPath: string
-  sessionCount: number
-  activeSessionId: string | null
-  agentActive: boolean
-  agentStopped: boolean
-  approvals: Record<ApprovalStatus, number>
-  config: CompanionConfig
-}
-
-export function mergeCompanionConfig(
-  base: CompanionConfig,
-  patch?: Partial<CompanionConfig> | null,
-): CompanionConfig {
+export function mergeRuntimeConfig(
+  base: WebCliRuntimeConfig,
+  patch?: Partial<WebCliRuntimeConfig> | null,
+): WebCliRuntimeConfig {
   if (!patch) {
     return { ...base }
   }
 
-  return normalizeCompanionConfig({
+  return normalizeRuntimeConfig({
     clickDelayMs: patch.clickDelayMs ?? base.clickDelayMs,
     pointerAnimation: patch.pointerAnimation ?? base.pointerAnimation,
     autoScroll: patch.autoScroll ?? base.autoScroll,
@@ -240,36 +173,36 @@ export function mergeCompanionConfig(
   })
 }
 
-export function normalizeCompanionConfig(
-  input: Partial<CompanionConfig> | undefined,
-): CompanionConfig {
-  const clickDelayMs = Number(input?.clickDelayMs ?? DEFAULT_COMPANION_CONFIG.clickDelayMs)
+export function normalizeRuntimeConfig(
+  input: Partial<WebCliRuntimeConfig> | undefined,
+): WebCliRuntimeConfig {
+  const clickDelayMs = Number(input?.clickDelayMs ?? DEFAULT_RUNTIME_CONFIG.clickDelayMs)
 
   return {
     clickDelayMs:
       Number.isFinite(clickDelayMs) && clickDelayMs >= 0
         ? Math.floor(clickDelayMs)
-        : DEFAULT_COMPANION_CONFIG.clickDelayMs,
+        : DEFAULT_RUNTIME_CONFIG.clickDelayMs,
     pointerAnimation:
       typeof input?.pointerAnimation === 'boolean'
         ? input.pointerAnimation
-        : DEFAULT_COMPANION_CONFIG.pointerAnimation,
+        : DEFAULT_RUNTIME_CONFIG.pointerAnimation,
     autoScroll:
       typeof input?.autoScroll === 'boolean'
         ? input.autoScroll
-        : DEFAULT_COMPANION_CONFIG.autoScroll,
+        : DEFAULT_RUNTIME_CONFIG.autoScroll,
     cursorName:
       typeof input?.cursorName === 'string' && input.cursorName.trim()
         ? input.cursorName.trim()
-        : DEFAULT_COMPANION_CONFIG.cursorName,
+        : DEFAULT_RUNTIME_CONFIG.cursorName,
     auroraGlow:
       typeof input?.auroraGlow === 'boolean'
         ? input.auroraGlow
-        : DEFAULT_COMPANION_CONFIG.auroraGlow,
+        : DEFAULT_RUNTIME_CONFIG.auroraGlow,
     auroraTheme:
       input?.auroraTheme === 'light' || input?.auroraTheme === 'dark'
         ? input.auroraTheme
-        : DEFAULT_COMPANION_CONFIG.auroraTheme,
+        : DEFAULT_RUNTIME_CONFIG.auroraTheme,
   }
 }
 

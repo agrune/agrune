@@ -86,4 +86,52 @@ describe('Integration: MCP server end-to-end', () => {
     await new Promise(r => setTimeout(r, 50))
     expect(sessions.getSessions()).toHaveLength(0)
   })
+
+  it('responds to ping with pong', async () => {
+    const { connectNativeMessaging } = createMcpServer()
+    const fakeInput = new Readable({ read() {} })
+    const outputChunks: Buffer[] = []
+    const fakeOutput = new Writable({
+      write(chunk, _enc, cb) { outputChunks.push(chunk); cb() },
+    })
+    connectNativeMessaging(fakeInput, fakeOutput)
+
+    fakeInput.push(encodeMessage({ type: 'ping' } as any))
+    await new Promise(r => setTimeout(r, 50))
+
+    const { messages } = decodeMessages(Buffer.concat(outputChunks))
+    expect(messages).toContainEqual({ type: 'pong' })
+  })
+
+  it('responds to get_status with current session and recent agent activity state', async () => {
+    const { sessions, connectNativeMessaging, backend } = createMcpServer()
+    const fakeInput = new Readable({ read() {} })
+    const outputChunks: Buffer[] = []
+    const fakeOutput = new Writable({
+      write(chunk, _enc, cb) { outputChunks.push(chunk); cb() },
+    })
+    connectNativeMessaging(fakeInput, fakeOutput)
+
+    fakeInput.push(encodeMessage({ type: 'session_open', tabId: 42, url: 'http://test.com', title: 'Test' }))
+    await new Promise(r => setTimeout(r, 50))
+    expect(sessions.getSessions()).toHaveLength(1)
+
+    await backend.handleToolCall('webcli_sessions', {})
+
+    fakeInput.push(encodeMessage({ type: 'get_status' } as any))
+    await new Promise(r => setTimeout(r, 50))
+
+    const { messages } = decodeMessages(Buffer.concat(outputChunks))
+    expect(messages).toContainEqual({
+      type: 'status_response',
+      status: {
+        hostName: 'com.webcli.dom',
+        phase: 'connected',
+        connected: true,
+        lastError: null,
+        sessionCount: 1,
+        mcpConnected: true,
+      },
+    })
+  })
 })

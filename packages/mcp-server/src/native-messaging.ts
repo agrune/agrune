@@ -17,7 +17,9 @@ export function encodeMessage(msg: unknown): Buffer {
  * Decode one or more messages from a buffer.
  * Returns decoded messages and any remaining (incomplete) bytes.
  */
-export function decodeMessages(buffer: Buffer): { messages: NativeMessage[]; remaining: Buffer } {
+export function decodeMessages(
+  buffer: Buffer<ArrayBufferLike>,
+): { messages: NativeMessage[]; remaining: Buffer<ArrayBufferLike> } {
   const messages: NativeMessage[] = []
   let offset = 0
 
@@ -53,7 +55,7 @@ export function createNativeMessagingTransport(
   output: Writable,
 ): NativeMessagingTransport {
   const listeners: Array<(msg: NativeMessage) => void> = []
-  let buffer = Buffer.alloc(0)
+  let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0)
 
   input.on('data', (chunk: Buffer) => {
     buffer = Buffer.concat([buffer, chunk])

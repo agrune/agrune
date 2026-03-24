@@ -1,15 +1,4 @@
-import webCliDomPlugin from './vite'
-
-export default webCliDomPlugin
-export { webCliDomPlugin }
-export { webCliDomUnplugin } from './plugin/index'
-
 export type {
-  UnsupportedActionHandling,
-  WebCliDeclarativeCompat,
-  WebCliDiagnostic,
-  WebCliDomPluginOptions,
-  WebCliEmitTrackingAttr,
   WebCliExposureMode,
   WebCliGroupEntry,
   WebCliManifest,

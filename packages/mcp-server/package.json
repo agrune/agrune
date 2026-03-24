@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "dev": "tsx src/index.ts"
   },

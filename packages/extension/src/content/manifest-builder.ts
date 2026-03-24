@@ -1,41 +1,10 @@
 import type { ScannedTarget, ScannedGroup } from './dom-scanner'
-
-/**
- * Types compatible with WebCliManifest from @webcli-dom/build-core.
- * Defined locally to avoid adding a direct dependency on build-core.
- */
-
-export interface WebCliTargetEntry {
-  targetId: string
-  name: string | null
-  desc: string | null
-  selector: string
-  sourceFile: string
-  sourceLine: number
-  sourceColumn: number
-}
-
-export interface WebCliToolEntry {
-  toolName: string
-  toolDesc: string
-  action: string
-  status: 'active' | 'skipped_unsupported_action'
-  targets: WebCliTargetEntry[]
-}
-
-export interface WebCliGroupEntry {
-  groupId: string
-  groupName?: string
-  groupDesc?: string
-  tools: WebCliToolEntry[]
-}
-
-export interface WebCliManifest {
-  version: 2
-  generatedAt: string
-  exposureMode: 'grouped' | 'per-element'
-  groups: WebCliGroupEntry[]
-}
+import type {
+  WebCliGroupEntry,
+  WebCliManifest,
+  WebCliTargetEntry,
+  WebCliToolEntry,
+} from '@webcli-dom/build-core'
 
 const DEFAULT_GROUP_ID = 'default'
 const DEFAULT_GROUP_NAME = 'Default'
@@ -63,8 +32,8 @@ function toToolEntry(target: ScannedTarget): WebCliToolEntry {
 }
 
 /**
- * Converts scanned DOM targets and groups into a WebCliManifest
- * that is compatible with installPageAgentRuntime() from build-core.
+ * Converts scanned DOM targets and groups into the runtime manifest used by
+ * installPageAgentRuntime().
  */
 export function buildManifest(
   targets: ScannedTarget[],

@@ -21,9 +21,17 @@ window.addEventListener('message', (event) => {
 
   const { type, data } = event.data.payload
 
-  // Initialize the real runtime when the content script sends the manifest
+  // Initialize the real runtime when the content script sends the manifest.
+  // Skip re-initialization if the current runtime is active (agent working or
+  // animations in progress) to avoid resetting visual state mid-operation.
   if (type === 'init_runtime') {
     const { manifest, options } = data as { manifest: any; options?: any }
+    const existing = (window as any).webcliDom
+    if (existing?.isActive?.()) {
+      // Runtime is busy (agent active, queue processing, or idle timer pending)
+      // — skip re-init to avoid resetting visual state mid-operation.
+      return
+    }
     installPageAgentRuntime(manifest, options ?? {})
     sendToContentScript('runtime_ready', {})
     return
@@ -59,6 +67,15 @@ window.addEventListener('message', (event) => {
 
   if (type === 'config_update' && (window as any).webcliDom) {
     ;(window as any).webcliDom.applyConfig(data)
+  }
+
+  if (type === 'agent_activity' && (window as any).webcliDom) {
+    const { active } = data as { active: boolean }
+    if (active) {
+      ;(window as any).webcliDom.beginAgentActivity()
+    } else {
+      ;(window as any).webcliDom.endAgentActivity()
+    }
   }
 })
 

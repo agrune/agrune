@@ -6,12 +6,12 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
   "dependencies": {
     "@webcli-dom/build-core": "workspace:*",
-    "@webcli-dom/core": "workspace:*",
-    "ai-motion": "0.4.8"
+    "@webcli-dom/core": "workspace:*"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.287",

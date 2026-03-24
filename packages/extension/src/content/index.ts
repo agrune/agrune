@@ -2,6 +2,7 @@ import { scanAnnotations, scanGroups } from './dom-scanner'
 import { buildManifest } from './manifest-builder'
 import { injectRuntime } from './runtime-injector'
 import { setupBridge, sendToBridge } from './bridge'
+import { syncStoredConfigToRuntime } from './runtime-config'
 
 const SNAPSHOT_INTERVAL_MS = 800
 const MUTATION_DEBOUNCE_MS = 500
@@ -38,10 +39,8 @@ function init() {
     title: document.title,
   })
 
-  // 2. Inject runtime into main world
-  injectRuntime()
-
-  // 3. Set up bridge to communicate with page runtime
+  // 2. Register the bridge listener before injecting the runtime so we do not
+  // miss the initial bridge_loaded message on fast loads.
   setupBridge((type, data) => {
     if (type === 'bridge_loaded') {
       const targets = scanAnnotations(document)
@@ -52,6 +51,7 @@ function init() {
 
     if (type === 'runtime_ready') {
       startSnapshotLoop()
+      void syncStoredConfigToRuntime(sendToBridge)
     }
 
     if (type === 'snapshot') {
@@ -63,6 +63,9 @@ function init() {
       safeSendMessage({ type: 'command_result', commandId, result })
     }
   })
+
+  // 3. Inject runtime into main world
+  injectRuntime()
 
   // 4. Listen for commands from service worker
   chrome.runtime.onMessage.addListener((msg) => {
@@ -76,12 +79,43 @@ function init() {
     if (msg.type === 'config_update') {
       sendToBridge('config_update', msg.config)
     }
+    if (msg.type === 'agent_activity') {
+      sendToBridge('agent_activity', { active: msg.active })
+    }
   })
 
   // 5. MutationObserver for dynamic DOM changes (debounced)
+  // Ignore mutations from webcli-injected elements (aurora, pointer, etc.)
+  const WEBCLI_SELECTOR = '[data-webcli-aurora], [data-webcli-pointer]'
+  const isWebcliNode = (node: Node): boolean => {
+    // For non-element nodes (text, comment), check parent
+    if (!(node instanceof HTMLElement)) {
+      return node.parentElement?.closest?.(WEBCLI_SELECTOR) !== null
+    }
+    if (
+      node.hasAttribute('data-webcli-aurora') ||
+      node.hasAttribute('data-webcli-pointer') ||
+      node.id === 'webcli-cursor-style'
+    ) return true
+    return node.closest?.(WEBCLI_SELECTOR) !== null
+  }
+
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
-  const observer = new MutationObserver(() => {
+  const observer = new MutationObserver((mutations) => {
     if (!contextValid) return
+
+    // Skip if all mutations are webcli-internal DOM changes
+    const hasRelevantMutation = mutations.some(m => {
+      for (const node of m.addedNodes) {
+        if (!isWebcliNode(node)) return true
+      }
+      for (const node of m.removedNodes) {
+        if (!isWebcliNode(node)) return true
+      }
+      return false
+    })
+    if (!hasRelevantMutation) return
+
     if (debounceTimer !== null) clearTimeout(debounceTimer)
     debounceTimer = setTimeout(() => {
       debounceTimer = null
