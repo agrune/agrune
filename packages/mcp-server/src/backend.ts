@@ -145,6 +145,7 @@ export class RuneBackend {
     return {
       mode: args.mode === 'full' ? 'full' : 'outline',
       ...(groupIds.size > 0 ? { groupIds: [...groupIds] } : {}),
+      ...(args.includeTextContent === true ? { includeTextContent: true } : {}),
     }
   }
 

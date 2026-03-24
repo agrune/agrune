@@ -32,11 +32,12 @@ export function registerRuneTools(
 
   mcp.tool(
     'rune_snapshot',
-    'Get the current active-context snapshot. By default returns a group outline; expand groups or request full mode to inspect actionable targets.',
+    'Get the current active-context snapshot. By default returns a group outline; expand groups or request full mode to inspect actionable targets. Targets only include actionable elements. Omitted fields use defaults: visible=true, enabled=true.',
     {
       groupId: z.string().optional().describe('Expand a single group by groupId'),
       groupIds: z.array(z.string()).optional().describe('Expand multiple groups by groupId'),
       mode: z.enum(['outline', 'full']).optional().describe('outline returns groups only; full returns all active-context targets'),
+      includeTextContent: z.boolean().optional().describe('Include visible text content of each target element'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('rune_snapshot', args)),

@@ -62,6 +62,7 @@ describe('getToolDefinitions', () => {
     expect(snapshot.inputSchema.properties).toHaveProperty('groupId')
     expect(snapshot.inputSchema.properties).toHaveProperty('groupIds')
     expect(snapshot.inputSchema.properties).toHaveProperty('mode')
+    expect(snapshot.inputSchema.properties).toHaveProperty('includeTextContent')
     expect(snapshot.inputSchema.required ?? []).not.toContain('tabId')
   })
 

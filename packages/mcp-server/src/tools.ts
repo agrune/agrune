@@ -21,7 +21,7 @@ export function getToolDefinitions(): ToolDefinition[] {
     {
       name: 'rune_snapshot',
       description:
-        'Get the current active-context snapshot for a browser tab. By default returns a group outline only; use groupId/groupIds or mode="full" to expand actionable targets.',
+        'Get the current active-context snapshot for a browser tab. By default returns a group outline only; use groupId/groupIds or mode="full" to expand actionable targets. Targets only include actionable elements. Omitted fields use defaults: visible=true, enabled=true.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -36,6 +36,10 @@ export function getToolDefinitions(): ToolDefinition[] {
             type: 'string',
             enum: ['outline', 'full'],
             description: 'outline returns groups only; full returns all actionable targets in the active context.',
+          },
+          includeTextContent: {
+            type: 'boolean',
+            description: 'Include visible text content of each target element. Default: false.',
           },
         },
       },
