@@ -75,6 +75,21 @@ describe('SessionManager', () => {
     expect(mgr.getSnapshot(1)).toEqual(snap2)
   })
 
+  it('clears stale snapshot when the same tab opens a new page', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://example.com', 'Example')
+    mgr.updateSnapshot(1, makeSnapshot({ version: 3 }))
+
+    mgr.openSession(1, 'https://example.com/next', 'Next Page')
+
+    expect(mgr.getSession(1)).toMatchObject({
+      tabId: 1,
+      url: 'https://example.com/next',
+      title: 'Next Page',
+      snapshot: null,
+    })
+  })
+
   it('returns null snapshot for unknown tab', () => {
     const mgr = new SessionManager()
     expect(mgr.getSnapshot(999)).toBeNull()

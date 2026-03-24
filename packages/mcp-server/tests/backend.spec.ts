@@ -47,4 +47,102 @@ describe('WebCliBackend agent activity lease', () => {
     await vi.advanceTimersByTimeAsync(1_000)
     expect(sent).toContainEqual({ type: 'agent_activity', active: false })
   })
+
+  it('returns outline snapshots by default and expands requested groups only', async () => {
+    const backend = new WebCliBackend()
+    backend.handleNativeMessage({
+      type: 'session_open',
+      tabId: 42,
+      url: 'http://localhost:5173',
+      title: 'Project Management Tool',
+    } as NativeMessage)
+    backend.handleNativeMessage({
+      type: 'snapshot_update',
+      tabId: 42,
+      snapshot: {
+        version: 2,
+        capturedAt: Date.now(),
+        url: 'http://localhost:5173',
+        title: 'Project Management Tool',
+        groups: [],
+        targets: [
+          {
+            targetId: 'tab-board',
+            groupId: 'tabs',
+            groupName: 'Navigation Tabs',
+            groupDesc: 'Main navigation',
+            name: 'Board Tab',
+            description: 'Open board',
+            actionKind: 'click',
+            selector: '[data-webcli-key=\"tab-board\"]',
+            visible: true,
+            inViewport: true,
+            enabled: true,
+            covered: false,
+            actionableNow: true,
+            reason: 'ready',
+            overlay: false,
+            sensitive: false,
+            textContent: 'Board',
+            valuePreview: null,
+            sourceFile: '',
+            sourceLine: 0,
+            sourceColumn: 0,
+          },
+        ],
+      },
+    } as NativeMessage)
+
+    const outline = await backend.handleToolCall('webcli_snapshot', { tabId: 42 })
+    expect(JSON.parse(outline.text)).toEqual({
+      version: 2,
+      url: 'http://localhost:5173',
+      title: 'Project Management Tool',
+      context: 'page',
+      groups: [
+        {
+          groupId: 'tabs',
+          groupName: 'Navigation Tabs',
+          groupDesc: 'Main navigation',
+          targetCount: 1,
+          actionKinds: ['click'],
+          sampleTargetNames: ['Board Tab'],
+        },
+      ],
+    })
+
+    const expanded = await backend.handleToolCall('webcli_snapshot', { tabId: 42, groupId: 'tabs' })
+    expect(JSON.parse(expanded.text)).toEqual({
+      version: 2,
+      url: 'http://localhost:5173',
+      title: 'Project Management Tool',
+      context: 'page',
+      groups: [
+        {
+          groupId: 'tabs',
+          groupName: 'Navigation Tabs',
+          groupDesc: 'Main navigation',
+          targetCount: 1,
+          actionKinds: ['click'],
+          sampleTargetNames: ['Board Tab'],
+        },
+      ],
+      targets: [
+        {
+          targetId: 'tab-board',
+          groupId: 'tabs',
+          groupName: 'Navigation Tabs',
+          groupDesc: 'Main navigation',
+          name: 'Board Tab',
+          description: 'Open board',
+          actionKind: 'click',
+          visible: true,
+          enabled: true,
+          reason: 'ready',
+          sensitive: false,
+          textContent: 'Board',
+        },
+      ],
+    })
+  })
 })

@@ -21,11 +21,22 @@ export function getToolDefinitions(): ToolDefinition[] {
     {
       name: 'webcli_snapshot',
       description:
-        'Get the current page snapshot (DOM accessibility tree) for a browser tab. Returns the latest captured snapshot.',
+        'Get the current active-context snapshot for a browser tab. By default returns a group outline only; use groupId/groupIds or mode="full" to expand actionable targets.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
+          groupId: { type: 'string', description: 'Expand a single group by its groupId.' },
+          groupIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Expand multiple groups by groupId.',
+          },
+          mode: {
+            type: 'string',
+            enum: ['outline', 'full'],
+            description: 'outline returns groups only; full returns all actionable targets in the active context.',
+          },
         },
       },
     },

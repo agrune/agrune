@@ -2,6 +2,7 @@ import type { NativeMessage, WebCliRuntimeConfig } from '@webcli-dom/core'
 import { ActivityBlockStack } from './activity-block-stack.js'
 import { CommandQueue } from './command-queue.js'
 import {
+  type PublicSnapshotOptions,
   toPublicCommandResult,
   toPublicSession,
   toPublicSnapshot,
@@ -72,7 +73,7 @@ export class WebCliBackend {
           if (!snapshot) {
             return this.textResult(`No snapshot available for tab ${tabId}.`, true)
           }
-          return this.textResult(JSON.stringify(toPublicSnapshot(snapshot), null, 2))
+          return this.textResult(JSON.stringify(toPublicSnapshot(snapshot, this.resolveSnapshotOptions(args)), null, 2))
         })
       }
 
@@ -126,6 +127,25 @@ export class WebCliBackend {
     if (typeof args.tabId === 'number') return args.tabId
     const all = this.sessions.getSessions()
     return all.length > 0 ? all[0].tabId : null
+  }
+
+  private resolveSnapshotOptions(args: Record<string, unknown>): PublicSnapshotOptions {
+    const groupIds = new Set<string>()
+    if (typeof args.groupId === 'string' && args.groupId.trim()) {
+      groupIds.add(args.groupId.trim())
+    }
+    if (Array.isArray(args.groupIds)) {
+      for (const value of args.groupIds) {
+        if (typeof value === 'string' && value.trim()) {
+          groupIds.add(value.trim())
+        }
+      }
+    }
+
+    return {
+      mode: args.mode === 'full' ? 'full' : 'outline',
+      ...(groupIds.size > 0 ? { groupIds: [...groupIds] } : {}),
+    }
   }
 
   private async withActivityBlocks<T>(kind: string, effect: () => Promise<T>): Promise<T> {

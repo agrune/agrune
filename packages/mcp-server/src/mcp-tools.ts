@@ -32,8 +32,13 @@ export function registerWebCliTools(
 
   mcp.tool(
     'webcli_snapshot',
-    'Get the current page snapshot including all annotated targets and their states',
-    optionalTabId,
+    'Get the current active-context snapshot. By default returns a group outline; expand groups or request full mode to inspect actionable targets.',
+    {
+      groupId: z.string().optional().describe('Expand a single group by groupId'),
+      groupIds: z.array(z.string()).optional().describe('Expand multiple groups by groupId'),
+      mode: z.enum(['outline', 'full']).optional().describe('outline returns groups only; full returns all active-context targets'),
+      ...optionalTabId,
+    },
     async (args) => toMcpToolResult(await handleToolCall('webcli_snapshot', args)),
   )
 

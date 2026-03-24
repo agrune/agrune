@@ -56,9 +56,12 @@ describe('getToolDefinitions', () => {
     expect(guide.inputSchema.required).toContain('targetId')
   })
 
-  it('webcli_snapshot has optional tabId', () => {
+  it('webcli_snapshot supports optional tab selection and group expansion controls', () => {
     const snapshot = tools.find((t) => t.name === 'webcli_snapshot')!
     expect(snapshot.inputSchema.properties).toHaveProperty('tabId')
+    expect(snapshot.inputSchema.properties).toHaveProperty('groupId')
+    expect(snapshot.inputSchema.properties).toHaveProperty('groupIds')
+    expect(snapshot.inputSchema.properties).toHaveProperty('mode')
     expect(snapshot.inputSchema.required ?? []).not.toContain('tabId')
   })
 

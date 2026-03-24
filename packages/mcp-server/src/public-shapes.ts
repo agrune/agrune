@@ -18,7 +18,9 @@ export interface PublicSnapshotGroup {
   groupId: string
   groupName?: string
   groupDesc?: string
-  targetIds: string[]
+  targetCount: number
+  actionKinds: PageTarget['actionKind'][]
+  sampleTargetNames: string[]
 }
 
 export interface PublicSnapshotTarget {
@@ -36,12 +38,18 @@ export interface PublicSnapshotTarget {
   textContent?: string
 }
 
+export interface PublicSnapshotOptions {
+  mode?: 'outline' | 'full'
+  groupIds?: string[]
+}
+
 export interface PublicSnapshot {
   version: number
   url: string
   title: string
+  context: 'page' | 'overlay'
   groups: PublicSnapshotGroup[]
-  targets: PublicSnapshotTarget[]
+  targets?: PublicSnapshotTarget[]
 }
 
 export type PublicCommandResult =
@@ -68,31 +76,93 @@ export function toPublicSession(session: Session): PublicSession {
   }
 }
 
-export function toPublicSnapshot(snapshot: PageSnapshot): PublicSnapshot {
+function toPublicTarget(target: PageTarget): PublicSnapshotTarget {
+  return {
+    targetId: target.targetId,
+    groupId: target.groupId,
+    groupName: target.groupName,
+    groupDesc: target.groupDesc,
+    name: target.name,
+    description: target.description,
+    actionKind: target.actionKind,
+    visible: target.visible,
+    enabled: target.enabled,
+    reason: target.reason,
+    sensitive: target.sensitive,
+    ...(target.textContent ? { textContent: target.textContent } : {}),
+  }
+}
+
+function getActiveContext(snapshot: PageSnapshot): {
+  context: PublicSnapshot['context']
+  targets: PageTarget[]
+} {
+  const actionableTargets = snapshot.targets.filter(target => target.actionableNow)
+  const overlayTargets = actionableTargets.filter(target => target.overlay)
+
+  if (overlayTargets.length > 0) {
+    return {
+      context: 'overlay',
+      targets: overlayTargets,
+    }
+  }
+
+  return {
+    context: 'page',
+    targets: actionableTargets,
+  }
+}
+
+function toPublicGroups(targets: PageTarget[]): PublicSnapshotGroup[] {
+  const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targets: PageTarget[] }>()
+
+  for (const target of targets) {
+    const existing = groups.get(target.groupId)
+    if (existing) {
+      existing.targets.push(target)
+      continue
+    }
+
+    groups.set(target.groupId, {
+      groupId: target.groupId,
+      groupName: target.groupName,
+      groupDesc: target.groupDesc,
+      targets: [target],
+    })
+  }
+
+  return Array.from(groups.values()).map(group => ({
+    groupId: group.groupId,
+    groupName: group.groupName,
+    groupDesc: group.groupDesc,
+    targetCount: group.targets.length,
+    actionKinds: [...new Set(group.targets.map(target => target.actionKind))],
+    sampleTargetNames: group.targets
+      .map(target => target.name)
+      .filter(name => name.length > 0)
+      .slice(0, 3),
+  }))
+}
+
+export function toPublicSnapshot(
+  snapshot: PageSnapshot,
+  options: PublicSnapshotOptions = {},
+): PublicSnapshot {
+  const activeContext = getActiveContext(snapshot)
+  const requestedGroupIds = new Set(options.groupIds ?? [])
+  const includeTargets = requestedGroupIds.size > 0 || options.mode === 'full'
+  const expandedTargets =
+    requestedGroupIds.size > 0
+      ? activeContext.targets.filter(target => requestedGroupIds.has(target.groupId))
+      : activeContext.targets
+
   return {
     version: snapshot.version,
     url: snapshot.url,
     title: snapshot.title,
-    groups: snapshot.groups.map(group => ({
-      groupId: group.groupId,
-      groupName: group.groupName,
-      groupDesc: group.groupDesc,
-      targetIds: group.targetIds,
-    })),
-    targets: snapshot.targets.map(target => ({
-      targetId: target.targetId,
-      groupId: target.groupId,
-      groupName: target.groupName,
-      groupDesc: target.groupDesc,
-      name: target.name,
-      description: target.description,
-      actionKind: target.actionKind,
-      visible: target.visible,
-      enabled: target.enabled,
-      reason: target.reason,
-      sensitive: target.sensitive,
-      ...(target.textContent ? { textContent: target.textContent } : {}),
-    })),
+    context: activeContext.context,
+    groups: toPublicGroups(activeContext.targets),
+    ...(includeTargets ? { targets: expandedTargets.map(toPublicTarget) } : {}),
   }
 }
 
