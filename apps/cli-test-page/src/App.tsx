@@ -68,6 +68,7 @@ function App() {
           <TabsContent value="board">
             <KanbanBoard
               tasks={tasks}
+              members={members}
               onTasksChange={setTasks}
               onNewTask={() => setWizardOpen(true)}
             />
