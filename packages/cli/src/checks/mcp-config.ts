@@ -50,7 +50,7 @@ export function codexMcpCheck(): Check {
     },
     async fix() {
       const { execFileSync } = await import('node:child_process')
-      execFileSync('codex', ['mcp', 'add', 'agrune', '--command', 'node', '--args', MCP_SERVER_ENTRY], {
+      execFileSync('codex', ['mcp', 'add', 'agrune', '--', 'node', MCP_SERVER_ENTRY], {
         stdio: 'inherit',
       })
     },

@@ -134,7 +134,7 @@ export async function runSetup(opts: { force?: boolean } = {}): Promise<void> {
   if (selected.includes('codex-mcp')) {
     s.start('Codex MCP 설정 중...')
     try {
-      execFileSync('codex', ['mcp', 'add', 'agrune', '--command', 'node', '--args', MCP_SERVER_ENTRY], {
+      execFileSync('codex', ['mcp', 'add', 'agrune', '--', 'node', MCP_SERVER_ENTRY], {
         stdio: 'pipe',
       })
       s.stop('Codex MCP 설정 완료')
