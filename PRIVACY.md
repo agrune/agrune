@@ -38,4 +38,4 @@ The extension requests browser permissions solely to fulfill its core function o
 
 ## Contact
 
-For questions about this privacy policy, please open an issue at: https://github.com/chenjingdev/web-cli/issues
+For questions about this privacy policy, please open an issue at: https://github.com/agrune/agrune/issues
