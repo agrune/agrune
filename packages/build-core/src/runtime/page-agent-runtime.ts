@@ -1392,6 +1392,70 @@ function performPointerClickSequence(element: HTMLElement): void {
   dispatchMouseLikeEvent(releaseTarget, 'click', coords, 0, true, { detail: 1 })
 }
 
+function performPointerDblClickSequence(element: HTMLElement): void {
+  const coords = getInteractablePoint(element)
+  const pressTarget = getEventTargetAtPoint(element, coords)
+
+  // First click (detail: 1)
+  dispatchHoverTransition(null, pressTarget, coords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 1, true)
+  const releaseTarget1 = getEventTargetAtPoint(element, coords)
+  dispatchPointerLikeEvent(releaseTarget1, 'pointerup', coords, 0, true)
+  dispatchMouseLikeEvent(releaseTarget1, 'mouseup', coords, 0, true)
+  dispatchMouseLikeEvent(releaseTarget1, 'click', coords, 0, true, { detail: 1 })
+
+  // Second click (detail: 2)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 1, true, { detail: 2 })
+  const releaseTarget2 = getEventTargetAtPoint(element, coords)
+  dispatchPointerLikeEvent(releaseTarget2, 'pointerup', coords, 0, true)
+  dispatchMouseLikeEvent(releaseTarget2, 'mouseup', coords, 0, true, { detail: 2 })
+  dispatchMouseLikeEvent(releaseTarget2, 'click', coords, 0, true, { detail: 2 })
+
+  // dblclick event
+  dispatchMouseLikeEvent(releaseTarget2, 'dblclick', coords, 0, true, { detail: 2 })
+}
+
+function performContextMenuSequence(element: HTMLElement): void {
+  const coords = getInteractablePoint(element)
+  const pressTarget = getEventTargetAtPoint(element, coords)
+
+  dispatchHoverTransition(null, pressTarget, coords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 2, true, { button: 2 })
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 2, true, { button: 2 })
+  const releaseTarget = getEventTargetAtPoint(element, coords)
+  dispatchPointerLikeEvent(releaseTarget, 'pointerup', coords, 0, true, { button: 2 })
+  dispatchMouseLikeEvent(releaseTarget, 'mouseup', coords, 0, true, { button: 2 })
+  dispatchMouseLikeEvent(releaseTarget, 'contextmenu', coords, 0, true, { button: 2 })
+}
+
+function performHoverSequence(element: HTMLElement): void {
+  const coords = getInteractablePoint(element)
+  const target = getEventTargetAtPoint(element, coords)
+
+  dispatchPointerLikeEvent(target, 'pointerover', coords, 0, true)
+  dispatchPointerLikeEvent(target, 'pointerenter', coords, 0, false)
+  dispatchMouseLikeEvent(target, 'mouseover', coords, 0, true)
+  dispatchMouseLikeEvent(target, 'mouseenter', coords, 0, false)
+}
+
+async function performLongPressSequence(element: HTMLElement): Promise<void> {
+  const coords = getInteractablePoint(element)
+  const pressTarget = getEventTargetAtPoint(element, coords)
+
+  dispatchHoverTransition(null, pressTarget, coords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 1, true)
+
+  await sleep(500)
+
+  const releaseTarget = getEventTargetAtPoint(element, coords)
+  dispatchPointerLikeEvent(releaseTarget, 'pointerup', coords, 0, true)
+  dispatchMouseLikeEvent(releaseTarget, 'mouseup', coords, 0, true)
+  // click event intentionally omitted — longpress is separate from click
+}
+
 async function performHtmlDragSequence(
   sourceElement: HTMLElement,
   destinationElement: HTMLElement,
