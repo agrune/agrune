@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Validate versions
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+            PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
+            if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+              echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+              exit 1
+            fi
+          done
+          echo "All versions match: $TAG_VERSION"
+
+      - name: Build packages
+        run: |
+          pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp-server run build
+          mkdir -p packages/cli/assets
+          cp -r packages/mcp-server/dist packages/cli/assets/mcp-server
+          pnpm --filter @agrune/cli run build
+
+      - name: Setup npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish @agrune/core
+        run: pnpm --filter @agrune/core publish --access public --no-git-checks
+        continue-on-error: true
+
+      - name: Publish @agrune/build-core
+        run: pnpm --filter @agrune/build-core publish --access public --no-git-checks
+        continue-on-error: true
+
+      - name: Publish @agrune/cli
+        run: pnpm --filter @agrune/cli publish --access public --no-git-checks
+        continue-on-error: true
+
+  publish-cws:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build extension
+        run: pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/extension run build
+
+      - name: Package extension zip
+        working-directory: packages/extension
+        run: |
+          mkdir -p /tmp/ext-pkg/dist /tmp/ext-pkg/src/popup
+          jq 'del(.key)' manifest.json > /tmp/ext-pkg/manifest.json
+          cp icon-128.png /tmp/ext-pkg/
+          cp dist/content.js dist/service-worker.js dist/popup.js dist/page-runtime.js /tmp/ext-pkg/dist/
+          cp src/popup/popup.html /tmp/ext-pkg/src/popup/
+          cd /tmp/ext-pkg && zip -r /tmp/extension.zip .
+
+      - name: Upload to Chrome Web Store
+        run: |
+          npx chrome-webstore-upload-cli upload \
+            --source /tmp/extension.zip \
+            --extension-id ${{ secrets.CWS_EXTENSION_ID }} \
+            --client-id ${{ secrets.CWS_CLIENT_ID }} \
+            --client-secret ${{ secrets.CWS_CLIENT_SECRET }} \
+            --refresh-token ${{ secrets.CWS_REFRESH_TOKEN }}
