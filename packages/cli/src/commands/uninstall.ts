@@ -4,7 +4,6 @@ import { execSync } from 'node:child_process'
 import { AGRUNE_HOME } from '../constants.js'
 import { getNativeHostManifestPath, getClaudeConfigPath } from '../utils/paths.js'
 import { readJsonFile, writeJsonFile, backupFile } from '../utils/fs-helpers.js'
-import { readVersionFile } from '../utils/version.js'
 import { join } from 'node:path'
 
 /** Testable core logic */

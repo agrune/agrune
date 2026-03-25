@@ -2,7 +2,7 @@ import * as p from '@clack/prompts'
 import { existsSync, rmSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import { copyDir } from '../utils/fs-helpers.js'
 import { writeVersionFile, readVersionFile, type VersionData } from '../utils/version.js'
 import { installNativeHostWrapper, installNativeHostManifest } from '../utils/native-host.js'
@@ -128,7 +128,7 @@ export async function runSetup(opts: { force?: boolean } = {}): Promise<void> {
   if (selected.includes('codex-mcp')) {
     s.start('Codex MCP 설정 중...')
     try {
-      execSync(`codex mcp add agrune --command "node" --args "${MCP_SERVER_ENTRY}"`, {
+      execFileSync('codex', ['mcp', 'add', 'agrune', '--command', 'node', '--args', MCP_SERVER_ENTRY], {
         stdio: 'pipe',
       })
       s.stop('Codex MCP 설정 완료')

@@ -31,8 +31,12 @@ export function backupFile(filePath: string): string | null {
 
 export function readJsonFile<T>(filePath: string): T | null {
   if (!existsSync(filePath)) return null
-  const content = readFileSync(filePath, 'utf-8')
-  return JSON.parse(content) as T
+  try {
+    const content = readFileSync(filePath, 'utf-8')
+    return JSON.parse(content) as T
+  } catch {
+    return null
+  }
 }
 
 export function writeJsonFile(filePath: string, data: unknown): void {

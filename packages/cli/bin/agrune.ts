@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+export {}
 
 const command = process.argv[2]
 
