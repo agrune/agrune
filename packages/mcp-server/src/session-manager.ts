@@ -10,6 +10,7 @@ export interface Session {
 
 export class SessionManager {
   private sessions = new Map<number, Session>()
+  private snapshotWaiters: Array<() => void> = []
 
   openSession(tabId: number, url: string, title: string): void {
     this.sessions.set(tabId, {
@@ -37,10 +38,41 @@ export class SessionManager {
     const session = this.sessions.get(tabId)
     if (session) {
       session.snapshot = snapshot
+      this.notifyWaiters()
     }
   }
 
   getSnapshot(tabId: number): PageSnapshot | null {
     return this.sessions.get(tabId)?.snapshot ?? null
+  }
+
+  hasReadySession(): boolean {
+    for (const session of this.sessions.values()) {
+      if (session.snapshot !== null) return true
+    }
+    return false
+  }
+
+  waitForSnapshot(timeoutMs: number): Promise<boolean> {
+    if (this.hasReadySession()) return Promise.resolve(true)
+
+    return new Promise<boolean>((resolve) => {
+      const onReady = () => {
+        clearTimeout(timer)
+        resolve(true)
+      }
+      const timer = setTimeout(() => {
+        const idx = this.snapshotWaiters.indexOf(onReady)
+        if (idx !== -1) this.snapshotWaiters.splice(idx, 1)
+        resolve(false)
+      }, timeoutMs)
+      this.snapshotWaiters.push(onReady)
+    })
+  }
+
+  private notifyWaiters(): void {
+    if (!this.hasReadySession()) return
+    const waiters = this.snapshotWaiters.splice(0)
+    for (const waiter of waiters) waiter()
   }
 }

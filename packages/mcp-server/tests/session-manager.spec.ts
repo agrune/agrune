@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { SessionManager } from '../src/session-manager'
 import type { PageSnapshot } from '@runeai/core'
 
@@ -101,5 +101,64 @@ describe('SessionManager', () => {
     // Should not throw
     mgr.updateSnapshot(999, snap)
     expect(mgr.getSnapshot(999)).toBeNull()
+  })
+})
+
+describe('hasReadySession', () => {
+  it('returns false when no sessions', () => {
+    const mgr = new SessionManager()
+    expect(mgr.hasReadySession()).toBe(false)
+  })
+
+  it('returns false when sessions have no snapshot', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    expect(mgr.hasReadySession()).toBe(false)
+  })
+
+  it('returns true when at least one session has a snapshot', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.updateSnapshot(1, makeSnapshot())
+    expect(mgr.hasReadySession()).toBe(true)
+  })
+})
+
+describe('waitForSnapshot', () => {
+  it('resolves immediately if a ready session already exists', async () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.updateSnapshot(1, makeSnapshot())
+    const result = await mgr.waitForSnapshot(1000)
+    expect(result).toBe(true)
+  })
+
+  it('resolves when a snapshot arrives within timeout', async () => {
+    const mgr = new SessionManager()
+    const promise = mgr.waitForSnapshot(3000)
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.updateSnapshot(1, makeSnapshot())
+    const result = await promise
+    expect(result).toBe(true)
+  })
+
+  it('resolves false on timeout when no snapshot arrives', async () => {
+    vi.useFakeTimers()
+    const mgr = new SessionManager()
+    const promise = mgr.waitForSnapshot(3000)
+    await vi.advanceTimersByTimeAsync(3000)
+    const result = await promise
+    expect(result).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('multiple waiters join the same promise', async () => {
+    const mgr = new SessionManager()
+    const p1 = mgr.waitForSnapshot(3000)
+    const p2 = mgr.waitForSnapshot(3000)
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.updateSnapshot(1, makeSnapshot())
+    expect(await p1).toBe(true)
+    expect(await p2).toBe(true)
   })
 })
