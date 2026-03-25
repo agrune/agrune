@@ -7,6 +7,6 @@
     "build": "pnpm -r --filter \"@agrune/*\" run build",
     "typecheck": "pnpm -r --filter \"@agrune/*\" --if-present run typecheck && pnpm -r --filter \"@agrune/*\" --if-present run build",
     "test": "pnpm -r --filter \"@agrune/*\" --if-present run test",
-    "build:cli": "pnpm -r build && mkdir -p packages/cli/assets && cp -r packages/mcp-server/dist packages/cli/assets/mcp-server && pnpm -C packages/cli build"
+    "build:cli": "pnpm -r build && rm -rf packages/cli/assets/mcp-server && mkdir -p packages/cli/assets && cp -r packages/mcp-server/dist packages/cli/assets/mcp-server && pnpm -C packages/cli build"
   }
 }

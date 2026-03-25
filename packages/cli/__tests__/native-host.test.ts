@@ -3,7 +3,7 @@ import { getNativeHostManifest, deriveExtensionIdFromManifestKey } from '../src/
 
 describe('native-host', () => {
   it('creates correct manifest shape', () => {
-    const manifest = getNativeHostManifest('/path/to/binary', 'abcdefghijklmnop')
+    const manifest = getNativeHostManifest('/path/to/binary', ['abcdefghijklmnop'])
     expect(manifest).toEqual({
       name: 'com.agrune.agrune',
       description: 'agrune MCP server native messaging host',
