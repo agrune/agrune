@@ -2,37 +2,18 @@
 
 `agrune`은 Chrome 확장 프로그램과 `agrune-mcp`를 통해 AI Agent가 브라우저를 직접 제어하도록 구성된다.
 
-## 사전 준비
-
-1. 저장소에서 의존성 설치: `pnpm install`
-2. 설치 실행: `pnpm dlx tsx packages/mcp-server/bin/agrune-mcp.ts install`
-3. `chrome://extensions`에서 `~/.agrune/extension/`을 로드
-
-## Agent 등록
-
-Claude Code:
-
-```json
-{
-  "mcpServers": {
-    "agrune": {
-      "command": "node",
-      "args": ["/Users/<user>/.agrune/mcp-server/bin/agrune-mcp.js"]
-    }
-  }
-}
-```
-
-Codex:
+## 설치
 
 ```bash
-codex mcp add agrune --command "node" --args "/Users/<user>/.agrune/mcp-server/bin/agrune-mcp.js"
+pnpm dlx @agrune/cli
 ```
 
-Gemini CLI:
+대화형 인스톨러가 실행되며 Chrome Extension, Claude MCP, Codex MCP 중 설치할 항목을 선택한다.
+
+설치 후 상태 확인:
 
 ```bash
-gemini mcp add agrune --command "node" --args "/Users/<user>/.agrune/mcp-server/bin/agrune-mcp.js"
+pnpm dlx @agrune/cli doctor
 ```
 
 ## 사용 가능한 MCP 도구
