@@ -9,14 +9,6 @@ const args = process.argv.slice(2)
 const AGRUNE_HOME = join(homedir(), '.agrune')
 const PORT_FILE = join(AGRUNE_HOME, 'port')
 
-if (args[0] === 'install') {
-  const { runInstall } = await import('../src/install.js')
-  const extensionIdArg = args.find(a => a.startsWith('--extension-id='))
-  const extensionId = extensionIdArg?.split('=')[1]
-  await runInstall({ extensionId })
-  process.exit(0)
-}
-
 const { BACKEND_HOST, BACKEND_PORT } = await import('../src/backend-protocol.js')
 
 if (args[0] === '--native-host') {
