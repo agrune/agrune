@@ -3,6 +3,7 @@ import { vi } from 'vitest'
 type Listener<T> = (payload: T) => void
 
 interface MockPort {
+  name?: string
   postMessage: ReturnType<typeof vi.fn>
   disconnect: ReturnType<typeof vi.fn>
   onMessage: { addListener(listener: Listener<unknown>): void }
@@ -11,6 +12,12 @@ interface MockPort {
 
 export interface ChromeMockOptions {
   tabs?: Array<{ id?: number }>
+}
+
+export interface ConnectHandle {
+  port: MockPort
+  emitMessage(message: unknown): void
+  emitDisconnect(): void
 }
 
 export interface ChromeMockBundle {
@@ -29,6 +36,7 @@ export interface ChromeMockBundle {
   ): ReturnType<typeof vi.fn>
   emitTabRemoved(tabId: number): void
   emitTabUpdated(tabId: number, changeInfo: chrome.tabs.TabChangeInfo): void
+  emitConnect(name: string): ConnectHandle
 }
 
 export function createChromeMock(options: ChromeMockOptions = {}): ChromeMockBundle {
@@ -37,6 +45,7 @@ export function createChromeMock(options: ChromeMockOptions = {}): ChromeMockBun
   let updatedListener: ((tabId: number, changeInfo: chrome.tabs.TabChangeInfo) => void) | null = null
   let portMessageListener: Listener<unknown> | null = null
   let portDisconnectListener: Listener<void> | null = null
+  let connectListener: ((port: chrome.runtime.Port) => void) | null = null
 
   const port: ChromeMockBundle['port'] = {
     postMessage: vi.fn(),
@@ -63,6 +72,11 @@ export function createChromeMock(options: ChromeMockOptions = {}): ChromeMockBun
       onMessage: {
         addListener(listener: typeof runtimeListener) {
           runtimeListener = listener ?? null
+        },
+      },
+      onConnect: {
+        addListener(listener: typeof connectListener) {
+          connectListener = listener ?? null
         },
       },
     },
@@ -109,6 +123,35 @@ export function createChromeMock(options: ChromeMockOptions = {}): ChromeMockBun
     },
     emitTabUpdated(tabId: number, changeInfo: chrome.tabs.TabChangeInfo) {
       updatedListener?.(tabId, changeInfo)
+    },
+    emitConnect(name: string): ConnectHandle {
+      let msgListener: Listener<unknown> | null = null
+      let disconnectListener: Listener<void> | null = null
+      const mockPort: MockPort = {
+        name,
+        postMessage: vi.fn(),
+        disconnect: vi.fn(),
+        onMessage: {
+          addListener(listener: Listener<unknown>) {
+            msgListener = listener
+          },
+        },
+        onDisconnect: {
+          addListener(listener: Listener<void>) {
+            disconnectListener = listener
+          },
+        },
+      } as unknown as MockPort
+      connectListener?.(mockPort as unknown as chrome.runtime.Port)
+      return {
+        port: mockPort,
+        emitMessage(message: unknown) {
+          msgListener?.(message)
+        },
+        emitDisconnect() {
+          disconnectListener?.()
+        },
+      }
     },
   }
 }

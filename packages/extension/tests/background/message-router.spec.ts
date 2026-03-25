@@ -216,6 +216,96 @@ describe('createBackgroundMessageRouter', () => {
     expect(broadcaster.broadcastAgentActivity).toHaveBeenCalledWith(true)
   })
 
+  it('forwards snapshots to subscribed devtools panels', () => {
+    const chrome = createChromeMock()
+    const controller = {
+      postMessage: vi.fn(),
+      requestStatus: vi.fn(),
+      reconnect: vi.fn(),
+      getStatus: vi.fn(() => ({
+        hostName: 'com.agrune.agrune',
+        phase: 'connected' as NativeHostPhase,
+        connected: true,
+        lastError: null,
+      })),
+    }
+    const broadcaster = {
+      broadcastToAllTabs: vi.fn(),
+      sendToTab: vi.fn(),
+      broadcastConfig: vi.fn(),
+      broadcastAgentActivity: vi.fn(),
+      broadcastNativeHostStatus: vi.fn(),
+    }
+    const router = createBackgroundMessageRouter({ api: chrome.chromeMock, controller, broadcaster })
+    router.register()
+    const conn = chrome.emitConnect('devtools-inspector')
+    conn.emitMessage({ type: 'subscribe_snapshot', tabId: 42 })
+    chrome.emitRuntimeMessage(
+      { type: 'snapshot', snapshot: { version: 1, targets: [] } },
+      { tab: { id: 42 } } as chrome.runtime.MessageSender,
+    )
+    expect(conn.port.postMessage).toHaveBeenCalledWith({
+      type: 'devtools_snapshot',
+      tabId: 42,
+      snapshot: { version: 1, targets: [] },
+    })
+    expect(controller.postMessage).toHaveBeenCalledWith({
+      type: 'snapshot_update',
+      tabId: 42,
+      snapshot: { version: 1, targets: [] },
+    })
+  })
+
+  it('cleans up devtools subscription on port disconnect', () => {
+    const chrome = createChromeMock()
+    const controller = { postMessage: vi.fn(), requestStatus: vi.fn(), reconnect: vi.fn(), getStatus: vi.fn(() => ({ hostName: 'com.agrune.agrune', phase: 'connected' as NativeHostPhase, connected: true, lastError: null })) }
+    const broadcaster = { broadcastToAllTabs: vi.fn(), sendToTab: vi.fn(), broadcastConfig: vi.fn(), broadcastAgentActivity: vi.fn(), broadcastNativeHostStatus: vi.fn() }
+    const router = createBackgroundMessageRouter({ api: chrome.chromeMock, controller, broadcaster })
+    router.register()
+    const conn = chrome.emitConnect('devtools-inspector')
+    conn.emitMessage({ type: 'subscribe_snapshot', tabId: 42 })
+    conn.emitDisconnect()
+    chrome.emitRuntimeMessage(
+      { type: 'snapshot', snapshot: { version: 2 } },
+      { tab: { id: 42 } } as chrome.runtime.MessageSender,
+    )
+    expect(conn.port.postMessage).not.toHaveBeenCalled()
+  })
+
+  it('cleans up devtools subscription on tab removal', () => {
+    const chrome = createChromeMock()
+    const controller = { postMessage: vi.fn(), requestStatus: vi.fn(), reconnect: vi.fn(), getStatus: vi.fn(() => ({ hostName: 'com.agrune.agrune', phase: 'connected' as NativeHostPhase, connected: true, lastError: null })) }
+    const broadcaster = { broadcastToAllTabs: vi.fn(), sendToTab: vi.fn(), broadcastConfig: vi.fn(), broadcastAgentActivity: vi.fn(), broadcastNativeHostStatus: vi.fn() }
+    const router = createBackgroundMessageRouter({ api: chrome.chromeMock, controller, broadcaster })
+    router.register()
+    const conn = chrome.emitConnect('devtools-inspector')
+    conn.emitMessage({ type: 'subscribe_snapshot', tabId: 42 })
+    chrome.emitTabRemoved(42)
+    chrome.emitRuntimeMessage(
+      { type: 'snapshot', snapshot: { version: 3 } },
+      { tab: { id: 42 } } as chrome.runtime.MessageSender,
+    )
+    expect(conn.port.postMessage).not.toHaveBeenCalled()
+  })
+
+  it('forwards snapshots to all subscribers for the same tabId', () => {
+    const chrome = createChromeMock()
+    const controller = { postMessage: vi.fn(), requestStatus: vi.fn(), reconnect: vi.fn(), getStatus: vi.fn(() => ({ hostName: 'com.agrune.agrune', phase: 'connected' as NativeHostPhase, connected: true, lastError: null })) }
+    const broadcaster = { broadcastToAllTabs: vi.fn(), sendToTab: vi.fn(), broadcastConfig: vi.fn(), broadcastAgentActivity: vi.fn(), broadcastNativeHostStatus: vi.fn() }
+    const router = createBackgroundMessageRouter({ api: chrome.chromeMock, controller, broadcaster })
+    router.register()
+    const conn1 = chrome.emitConnect('devtools-inspector')
+    conn1.emitMessage({ type: 'subscribe_snapshot', tabId: 42 })
+    const conn2 = chrome.emitConnect('devtools-inspector')
+    conn2.emitMessage({ type: 'subscribe_snapshot', tabId: 42 })
+    chrome.emitRuntimeMessage(
+      { type: 'snapshot', snapshot: { version: 1 } },
+      { tab: { id: 42 } } as chrome.runtime.MessageSender,
+    )
+    expect(conn1.port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'devtools_snapshot', tabId: 42 }))
+    expect(conn2.port.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'devtools_snapshot', tabId: 42 }))
+  })
+
   it('broadcasts resync to all tabs when receiving resync_request from native host', () => {
     const chrome = createChromeMock()
     const controller = {

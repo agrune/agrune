@@ -36,6 +36,31 @@ export function createBackgroundMessageRouter(options: BackgroundMessageRouterOp
     }
   }
 
+  const devtoolsSubscribers = new Map<number, Set<chrome.runtime.Port>>()
+
+  const handleDevtoolsConnect = (port: chrome.runtime.Port): void => {
+    if (port.name !== 'devtools-inspector') return
+
+    port.onMessage.addListener((msg: unknown) => {
+      const m = msg as { type: string; tabId?: number }
+      if (m.type === 'subscribe_snapshot' && typeof m.tabId === 'number') {
+        let subs = devtoolsSubscribers.get(m.tabId)
+        if (!subs) {
+          subs = new Set()
+          devtoolsSubscribers.set(m.tabId, subs)
+        }
+        subs.add(port)
+      }
+    })
+
+    port.onDisconnect.addListener(() => {
+      for (const [tabId, subs] of devtoolsSubscribers) {
+        subs.delete(port)
+        if (subs.size === 0) devtoolsSubscribers.delete(tabId)
+      }
+    })
+  }
+
   const handleNativeHostMessage = (msg: NativeMessage): void => {
     switch (msg.type) {
       case 'command_request':
@@ -109,13 +134,21 @@ export function createBackgroundMessageRouter(options: BackgroundMessageRouterOp
           title: msg.title,
         } as NativeMessage)
         break
-      case 'snapshot':
+      case 'snapshot': {
         controller.postMessage({
           type: 'snapshot_update',
           tabId,
           snapshot: msg.snapshot,
         } as NativeMessage)
+        const subs = devtoolsSubscribers.get(tabId)
+        if (subs) {
+          const devMsg = { type: 'devtools_snapshot' as const, tabId, snapshot: msg.snapshot }
+          for (const p of subs) {
+            try { p.postMessage(devMsg) } catch { /* port may be dead */ }
+          }
+        }
         break
+      }
       case 'command_result':
         controller.postMessage({
           type: 'command_result',
@@ -131,8 +164,10 @@ export function createBackgroundMessageRouter(options: BackgroundMessageRouterOp
 
   const register = (): void => {
     api.runtime.onMessage.addListener(handleRuntimeMessage)
+    api.runtime.onConnect.addListener(handleDevtoolsConnect)
     api.tabs.onRemoved.addListener((tabId) => {
       controller.postMessage({ type: 'session_close', tabId } as NativeMessage)
+      devtoolsSubscribers.delete(tabId)
     })
     api.tabs.onUpdated.addListener((tabId, changeInfo) => {
       if (changeInfo.url) {
