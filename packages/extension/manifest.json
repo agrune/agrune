@@ -33,6 +33,7 @@
   "action": {
     "default_popup": "src/popup/popup.html"
   },
+  "devtools_page": "src/devtools/devtools.html",
   "web_accessible_resources": [
     {
       "resources": [

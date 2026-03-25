@@ -63,6 +63,22 @@ export default defineConfig({
           fileName: 'page-runtime.js',
           name: 'agrunePageRuntime',
         })
+        await buildEntry({
+          entry: 'src/devtools/devtools.ts',
+          fileName: 'devtools.js',
+          name: 'agruneDevtools',
+        })
+        await buildEntry({
+          entry: 'src/devtools/panel.ts',
+          fileName: 'panel.js',
+          name: 'agruneDevtoolsPanel',
+        })
+
+        const { copyFileSync } = await import('fs')
+        copyFileSync(
+          resolve(__dirname, 'src/devtools/panel.css'),
+          resolve(__dirname, 'dist/panel.css'),
+        )
       },
     },
   ],
