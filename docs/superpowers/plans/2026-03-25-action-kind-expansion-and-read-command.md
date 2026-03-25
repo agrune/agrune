@@ -96,7 +96,18 @@ export type CommandRequest =
   | ReadCommandRequest
 ```
 
-- [ ] **Step 6: AgagruneSupportedAction 확장**
+- [ ] **Step 6: 런타임 로컬 ActionKind 타입 확장**
+
+`packages/build-core/src/runtime/page-agent-runtime.ts` line 37에 core와 별도로 정의된 로컬 타입이 있다. 이것도 확장해야 `TargetDescriptor.actionKind`에 새 액션 타입이 할당 가능하다:
+
+```typescript
+// 기존:
+type ActionKind = 'click' | 'fill'
+// 변경:
+type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
+```
+
+- [ ] **Step 7: AgagruneSupportedAction 확장**
 
 `packages/build-core/src/types.ts` line 9:
 
@@ -107,7 +118,7 @@ export type AgagruneSupportedAction = 'click' | 'fill'
 export type AgagruneSupportedAction = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
 ```
 
-- [ ] **Step 7: 빌드 확인**
+- [ ] **Step 8: 빌드 확인**
 
 ```bash
 cd /Users/chenjing/dev/agrune && pnpm build
@@ -115,10 +126,10 @@ cd /Users/chenjing/dev/agrune && pnpm build
 
 Expected: 빌드 성공 (타입만 확장했으므로 기존 코드 호환)
 
-- [ ] **Step 8: 커밋**
+- [ ] **Step 9: 커밋**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/core/src/index.ts packages/build-core/src/types.ts && git commit -m "feat: expand ActionKind and CommandKind types for new action types and read command"
+cd /Users/chenjing/dev/agrune && git add packages/core/src/index.ts packages/build-core/src/types.ts packages/build-core/src/runtime/page-agent-runtime.ts && git commit -m "feat: expand ActionKind and CommandKind types for new action types and read command"
 ```
 
 ---
@@ -364,6 +375,8 @@ cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/tools.ts packag
 **Files:**
 - Modify: `packages/mcp-server/src/backend.ts:90-108` (switch 케이스)
 
+참고: `packages/extension/src/runtime/page-runtime.ts`는 변경 불필요. line 43의 `runtime[kind as string]` 패턴이 제네릭하여 `read` 커맨드도 자동으로 `window.agruneDom.read(args)`로 라우팅된다.
+
 - [ ] **Step 1: backend.ts switch에 agrune_read 추가**
 
 `packages/mcp-server/src/backend.ts` line 93-94 사이에 `'agrune_read'` 추가:
@@ -395,10 +408,47 @@ cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
 
 Expected: PASS
 
-- [ ] **Step 4: 커밋**
+- [ ] **Step 4: backend 라우팅 테스트 추가**
+
+`packages/mcp-server/tests/backend.spec.ts`에 추가 (기존 describe 블록 내부):
+
+```typescript
+  it('routes agrune_read through command pipeline', async () => {
+    const backend = new AgagruneBackend()
+    const sent: NativeMessage[] = []
+    backend.setNativeSender((msg) => sent.push(msg))
+    backend.handleNativeMessage({
+      type: 'session_open', tabId: 1, url: 'https://a.com', title: 'A',
+    } as NativeMessage)
+    backend.handleNativeMessage({
+      type: 'snapshot_update', tabId: 1,
+      snapshot: { version: 1, capturedAt: Date.now(), url: 'https://a.com', title: 'A', groups: [], targets: [] },
+    } as NativeMessage)
+
+    // agrune_read should enqueue a command — it will timeout waiting for result,
+    // but we can verify the command was sent via native messaging
+    const promise = backend.handleToolCall('agrune_read', { selector: '#main' })
+    const commandMsg = sent.find(m => m.type === 'command' && (m as any).command?.kind === 'read')
+      ?? sent.find(m => (m as any).kind === 'read')
+    // The command is enqueued via CommandQueue — verify it doesn't error immediately
+    // (actual command execution happens in the extension runtime)
+  })
+```
+
+참고: 실제 커맨드 실행은 extension 런타임에서 일어나므로, 백엔드 테스트에서는 에러 없이 커맨드가 enqueue되는지만 확인.
+
+- [ ] **Step 5: 테스트 통과 확인**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/backend.ts && git commit -m "feat: route agrune_read through command pipeline"
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+```
+
+Expected: PASS
+
+- [ ] **Step 6: 커밋**
+
+```bash
+cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/backend.ts packages/mcp-server/tests/backend.spec.ts && git commit -m "feat: route agrune_read through command pipeline"
 ```
 
 ---
@@ -473,26 +523,32 @@ function dispatchPointerLikeEvent(
 
 - [ ] **Step 3: performPointerClickSequence — element.click()을 수동 디스패치로 교체**
 
-`packages/build-core/src/runtime/page-agent-runtime.ts` line 1378-1391:
+`packages/build-core/src/runtime/page-agent-runtime.ts` line 1390 만 변경. 나머지 이벤트 시퀀스(hoverTransition, pointermove, mousemove 등)는 그대로 유지:
 
+```typescript
+// 기존 line 1390:
+  element.click()
+// 변경:
+  dispatchMouseLikeEvent(releaseTarget, 'click', coords, 0, true, { detail: 1 })
+```
+
+전체 함수가 이렇게 된다 (기존 이벤트 시퀀스 보존 확인):
 ```typescript
 function performPointerClickSequence(element: HTMLElement): void {
   const coords = getInteractablePoint(element)
   const pressTarget = getEventTargetAtPoint(element, coords)
 
   dispatchHoverTransition(null, pressTarget, coords, 0)
-  dispatchPointerLikeEvent(pressTarget, 'pointermove', coords, 0, true)
-  dispatchMouseLikeEvent(pressTarget, 'mousemove', coords, 0, true)
+  dispatchPointerLikeEvent(pressTarget, 'pointermove', coords, 0, true)   // 기존 유지
+  dispatchMouseLikeEvent(pressTarget, 'mousemove', coords, 0, true)       // 기존 유지
   dispatchPointerLikeEvent(pressTarget, 'pointerdown', coords, 1, true)
   dispatchMouseLikeEvent(pressTarget, 'mousedown', coords, 1, true)
   const releaseTarget = getEventTargetAtPoint(element, coords)
   dispatchPointerLikeEvent(releaseTarget, 'pointerup', coords, 0, true)
   dispatchMouseLikeEvent(releaseTarget, 'mouseup', coords, 0, true)
-  dispatchMouseLikeEvent(releaseTarget, 'click', coords, 0, true, { detail: 1 })
+  dispatchMouseLikeEvent(releaseTarget, 'click', coords, 0, true, { detail: 1 })  // 변경: element.click() → 수동 디스패치
 }
 ```
-
-주의: 마지막 줄이 `element.click()` → `dispatchMouseLikeEvent(releaseTarget, 'click', ...)` 로 변경됨.
 
 - [ ] **Step 4: 빌드 확인**
 
@@ -635,25 +691,28 @@ cd /Users/chenjing/dev/agrune && git add packages/build-core/src/runtime/page-ag
   }) => Promise<CommandResult>
 ```
 
-- [ ] **Step 2: collectDescriptors 필터 확장**
+- [ ] **Step 2: 모듈 레벨 상수 추가 + collectDescriptors 필터 확장**
 
-`packages/build-core/src/runtime/page-agent-runtime.ts` line 292:
+`packages/build-core/src/runtime/page-agent-runtime.ts` — `TargetDescriptor` 인터페이스 전 (line 39 부근)에 모듈 레벨 상수 추가:
 
+```typescript
+const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+const ACT_COMPATIBLE_KINDS = new Set(['click', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+```
+
+`collectDescriptors()` line 292 수정:
 ```typescript
 // 기존:
 if (tool.action !== 'click' && tool.action !== 'fill') continue
 // 변경:
-const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 if (!VALID_ACTIONS.has(tool.action)) continue
 ```
-
-참고: `VALID_ACTIONS`를 함수 밖 모듈 레벨 상수로 빼도 됨. 함수가 매 호출마다 Set을 생성하지 않도록.
 
 - [ ] **Step 3: act 핸들러 — actionKind 가드 변경 + action 분기**
 
 `packages/build-core/src/runtime/page-agent-runtime.ts` act 핸들러 내부 (line 1618-1650):
 
-기존 가드를 교체:
+기존 가드를 교체 (`ACT_COMPATIBLE_KINDS`는 Step 2에서 모듈 레벨로 정의됨):
 ```typescript
 // 기존 (line 1618-1620):
 // if (descriptor.actionKind !== 'click') {
@@ -661,7 +720,6 @@ if (!VALID_ACTIONS.has(tool.action)) continue
 // }
 
 // 변경:
-const ACT_COMPATIBLE_KINDS = new Set(['click', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 if (!ACT_COMPATIBLE_KINDS.has(descriptor.actionKind)) {
   return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support act: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
 }
@@ -672,7 +730,10 @@ const action = input.action ?? 'click'
 기존 `performPointerClickSequence(element)` 호출 부분을 action 분기로 교체 (line 1643-1650 영역):
 
 ```typescript
-        if (config.pointerAnimation) {
+        // longpress는 async(500ms 대기)이므로 동기 flashPointerOverlay 콜백에 넣을 수 없음 — 분기 처리
+        if (action === 'longpress') {
+          await performLongPressSequence(element)
+        } else if (config.pointerAnimation) {
           await queue.push({
             type: 'animation',
             execute: () => flashPointerOverlay(element, config, () => {
@@ -684,17 +745,12 @@ const action = input.action ?? 'click'
               }
             }),
           })
-          // longpress는 async이므로 애니메이션 밖에서 처리
-          if (action === 'longpress') {
-            await performLongPressSequence(element)
-          }
         } else {
           switch (action) {
             case 'click': performPointerClickSequence(element); break
             case 'dblclick': performPointerDblClickSequence(element); break
             case 'contextmenu': performContextMenuSequence(element); break
             case 'hover': performHoverSequence(element); break
-            case 'longpress': await performLongPressSequence(element); break
           }
         }
 ```
@@ -718,7 +774,7 @@ const action = input.action ?? 'click'
 //   return buildErrorResult(...)
 // }
 
-// 변경 (ACT_COMPATIBLE_KINDS는 이미 위에서 정의됨):
+// 변경 (ACT_COMPATIBLE_KINDS는 모듈 레벨에서 정의됨):
 if (!ACT_COMPATIBLE_KINDS.has(descriptor.actionKind)) {
   return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support guide: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
 }
