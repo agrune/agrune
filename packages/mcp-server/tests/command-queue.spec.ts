@@ -80,4 +80,24 @@ describe('CommandQueue', () => {
     // Should not throw
     queue.resolve('unknown-id', { commandId: 'unknown-id', ok: true })
   })
+
+  describe('hasSender', () => {
+    it('returns false when no sender is set', () => {
+      const queue = new CommandQueue()
+      expect(queue.hasSender()).toBe(false)
+    })
+
+    it('returns true when a sender is set', () => {
+      const queue = new CommandQueue()
+      queue.setSender(vi.fn())
+      expect(queue.hasSender()).toBe(true)
+    })
+
+    it('returns false after sender is cleared', () => {
+      const queue = new CommandQueue()
+      queue.setSender(vi.fn())
+      queue.setSender(null)
+      expect(queue.hasSender()).toBe(false)
+    })
+  })
 })

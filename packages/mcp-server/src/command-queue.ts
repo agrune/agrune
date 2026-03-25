@@ -20,6 +20,10 @@ export class CommandQueue {
     if (this.sender) this.sender(msg)
   }
 
+  hasSender(): boolean {
+    return this.sender !== null
+  }
+
   enqueue(
     tabId: number,
     command: Record<string, unknown> & { kind: string },
