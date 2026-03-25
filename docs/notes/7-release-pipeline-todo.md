@@ -22,7 +22,7 @@
 
 배포 완료:
 1. `@agrune/core@0.1.0`
-2. `@agrune/build-core@0.2.0`
+2. `@agrune/build-core@0.1.0`
 3. `@agrune/cli@0.1.0`
 
 ### 3. CWS 등록 ✅
