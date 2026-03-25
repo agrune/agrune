@@ -11,6 +11,7 @@ import { SessionManager } from './session-manager.js'
 import type { ToolHandlerResult } from './mcp-tools.js'
 
 const ACTIVITY_TAIL_BLOCK_MS = 5_000
+const ENSURE_READY_TIMEOUT_MS = 3_000
 
 export class RuneBackend {
   readonly sessions = new SessionManager()
@@ -20,6 +21,8 @@ export class RuneBackend {
   })
   private manualAgentBlockId: string | null = null
   private lastAgentActivityAt: number | null = null
+  onActivity: (() => void) | null = null
+  private pendingResync: Promise<boolean> | null = null
 
   setNativeSender(sender: ((msg: NativeMessage) => void) | null): void {
     this.commands.setSender(sender)
@@ -45,6 +48,7 @@ export class RuneBackend {
       case 'get_status':
         this.commands.sendRaw(this.createStatusResponse())
         break
+      case 'resync_request':
       case 'pong':
       case 'status_response':
         break
@@ -56,6 +60,12 @@ export class RuneBackend {
     args: Record<string, unknown>,
   ): Promise<ToolHandlerResult> {
     this.lastAgentActivityAt = Date.now()
+    this.onActivity?.()
+
+    if (name !== 'rune_config') {
+      const readyError = await this.ensureReady()
+      if (readyError) return readyError
+    }
 
     switch (name) {
       case 'rune_sessions': {
@@ -147,6 +157,34 @@ export class RuneBackend {
       ...(groupIds.size > 0 ? { groupIds: [...groupIds] } : {}),
       ...(args.includeTextContent === true ? { includeTextContent: true } : {}),
     }
+  }
+
+  private async ensureReady(): Promise<ToolHandlerResult | null> {
+    if (!this.commands.hasSender()) {
+      return this.textResult(
+        'Native host not connected. Ensure the browser extension is installed and running.',
+        true,
+      )
+    }
+
+    if (this.sessions.hasReadySession()) return null
+
+    // Dedup: join existing resync if already in progress
+    if (!this.pendingResync) {
+      this.commands.sendRaw({ type: 'resync_request' } as NativeMessage)
+      this.pendingResync = this.sessions.waitForSnapshot(ENSURE_READY_TIMEOUT_MS)
+        .finally(() => { this.pendingResync = null })
+    }
+
+    const ready = await this.pendingResync
+    if (!ready) {
+      return this.textResult(
+        'No browser sessions available. Ensure a page with rune annotations is open.',
+        true,
+      )
+    }
+
+    return null
   }
 
   private async withActivityBlocks<T>(kind: string, effect: () => Promise<T>): Promise<T> {
