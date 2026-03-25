@@ -74,11 +74,12 @@ jobs:
       - name: Package extension zip
         working-directory: packages/extension
         run: |
-          mkdir -p /tmp/ext-pkg/dist /tmp/ext-pkg/src/popup
+          mkdir -p /tmp/ext-pkg/dist /tmp/ext-pkg/src/popup /tmp/ext-pkg/src/devtools
           jq 'del(.key)' manifest.json > /tmp/ext-pkg/manifest.json
           cp icon-128.png /tmp/ext-pkg/
-          cp dist/content.js dist/service-worker.js dist/popup.js dist/page-runtime.js /tmp/ext-pkg/dist/
+          cp dist/content.js dist/service-worker.js dist/popup.js dist/page-runtime.js dist/devtools.js dist/panel.js dist/panel.css /tmp/ext-pkg/dist/
           cp src/popup/popup.html /tmp/ext-pkg/src/popup/
+          cp src/devtools/devtools.html src/devtools/panel.html /tmp/ext-pkg/src/devtools/
           cd /tmp/ext-pkg && zip -r /tmp/extension.zip .
 
       - name: Upload to Chrome Web Store
