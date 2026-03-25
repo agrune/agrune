@@ -2,7 +2,7 @@ import { existsSync, accessSync, constants, readFileSync } from 'node:fs'
 import type { Check } from './types.js'
 import { getNativeHostManifestPath, NATIVE_HOST_WRAPPER } from '../utils/paths.js'
 import { installNativeHostWrapper, installNativeHostManifest } from '../utils/native-host.js'
-import { CWS_EXTENSION_ID } from '../constants.js'
+import { CWS_EXTENSION_ID, DEV_EXTENSION_ID } from '../constants.js'
 
 export function nativeHostManifestCheck(): Check {
   return {
@@ -23,7 +23,7 @@ export function nativeHostManifestCheck(): Check {
       }
     },
     async fix() {
-      installNativeHostManifest(CWS_EXTENSION_ID)
+      installNativeHostManifest([CWS_EXTENSION_ID, DEV_EXTENSION_ID])
     },
   }
 }

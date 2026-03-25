@@ -1,7 +1,7 @@
 import * as p from '@clack/prompts'
 import { readVersionFile } from '../utils/version.js'
 import { VERSION_FILE } from '../utils/paths.js'
-import { AGRUNE_HOME, CLI_VERSION, CWS_EXTENSION_ID } from '../constants.js'
+import { AGRUNE_HOME, CLI_VERSION, CWS_EXTENSION_ID, DEV_EXTENSION_ID } from '../constants.js'
 import { installRuntime, getAssetsDir } from './setup.js'
 import { installNativeHostWrapper, installNativeHostManifest } from '../utils/native-host.js'
 
@@ -31,7 +31,7 @@ export async function runUpdate(): Promise<void> {
 
   s.start('네이티브 호스트 재등록 중...')
   installNativeHostWrapper()
-  installNativeHostManifest(CWS_EXTENSION_ID)
+  installNativeHostManifest([CWS_EXTENSION_ID, DEV_EXTENSION_ID])
   s.stop('네이티브 호스트 재등록 완료')
 
   p.outro(`${CLI_VERSION}으로 업데이트 완료!`)

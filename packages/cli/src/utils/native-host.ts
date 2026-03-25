@@ -4,13 +4,13 @@ import { dirname } from 'node:path'
 import { HOST_NAME } from '../constants.js'
 import { getNativeHostManifestPath, MCP_SERVER_ENTRY, NATIVE_HOST_WRAPPER } from './paths.js'
 
-export function getNativeHostManifest(binaryPath: string, extensionId: string) {
+export function getNativeHostManifest(binaryPath: string, extensionIds: string[]) {
   return {
     name: HOST_NAME,
     description: 'agrune MCP server native messaging host',
     path: binaryPath,
     type: 'stdio' as const,
-    allowed_origins: [`chrome-extension://${extensionId}/`],
+    allowed_origins: extensionIds.map(id => `chrome-extension://${id}/`),
   }
 }
 
@@ -41,9 +41,9 @@ export function installNativeHostWrapper(): string {
   return NATIVE_HOST_WRAPPER
 }
 
-export function installNativeHostManifest(extensionId: string): string {
+export function installNativeHostManifest(extensionIds: string[]): string {
   const manifestPath = getNativeHostManifestPath()
-  const manifest = getNativeHostManifest(NATIVE_HOST_WRAPPER, extensionId)
+  const manifest = getNativeHostManifest(NATIVE_HOST_WRAPPER, extensionIds)
   mkdirSync(dirname(manifestPath), { recursive: true })
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
   return manifestPath

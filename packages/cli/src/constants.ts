@@ -5,7 +5,8 @@ export const HOST_NAME = 'com.agrune.agrune'
 export const AGRUNE_HOME = join(homedir(), '.agrune')
 export const CLI_VERSION = '0.1.0'
 
-// Derived from packages/extension/manifest.json key field.
-// This is deterministic — the same key always produces the same ID.
-// Update this if the extension key changes.
-export const CWS_EXTENSION_ID = 'homjkbmhgmccfjpcllcbofcnpciephlh'
+// CWS production extension ID (assigned by Chrome Web Store)
+export const CWS_EXTENSION_ID = 'gchelkphnedibjihiomlbpjhjlajplke'
+
+// Local dev extension ID (derived from manifest.json key field)
+export const DEV_EXTENSION_ID = 'homjkbmhgmccfjpcllcbofcnpciephlh'

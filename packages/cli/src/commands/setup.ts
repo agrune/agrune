@@ -6,7 +6,7 @@ import { execSync, execFileSync } from 'node:child_process'
 import { copyDir } from '../utils/fs-helpers.js'
 import { writeVersionFile, readVersionFile, type VersionData } from '../utils/version.js'
 import { installNativeHostWrapper, installNativeHostManifest } from '../utils/native-host.js'
-import { CWS_EXTENSION_ID, CLI_VERSION, AGRUNE_HOME } from '../constants.js'
+import { CWS_EXTENSION_ID, DEV_EXTENSION_ID, CLI_VERSION, AGRUNE_HOME } from '../constants.js'
 import { MCP_SERVER_ENTRY } from '../utils/paths.js'
 import { readJsonFile, writeJsonFile, backupFile } from '../utils/fs-helpers.js'
 import { getClaudeConfigPath } from '../utils/paths.js'
@@ -87,7 +87,7 @@ export async function runSetup(opts: { force?: boolean } = {}): Promise<void> {
 
   s.start('네이티브 호스트 등록 중...')
   installNativeHostWrapper()
-  installNativeHostManifest(CWS_EXTENSION_ID)
+  installNativeHostManifest([CWS_EXTENSION_ID, DEV_EXTENSION_ID])
   s.stop('네이티브 호스트 등록 완료')
 
   const versionPath = join(AGRUNE_HOME, 'version.json')
