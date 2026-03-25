@@ -85,6 +85,53 @@ export type AgagruneSupportedAction = 'click' | 'fill' | 'dblclick' | 'contextme
 - `performHoverSequence()` — 신규
 - `performLongPressSequence()` — 신규 (async, 500ms 대기 포함)
 
+### 이벤트 헬퍼 함수 변경
+
+현재 `dispatchMouseLikeEvent()`와 `dispatchPointerLikeEvent()`는 `button: 0`, `detail: 1`을 하드코딩한다. 새 액션들은 다른 값이 필요하다:
+- `contextmenu`: `button: 2`
+- `dblclick`: 두 번째 click의 `detail: 2`
+- 기존 `click`: `element.click()` 호출 → 프로그래밍 방식은 `detail: 0`이므로, `detail: 1`로 맞추려면 수동 디스패치 필요
+
+**접근: 기존 헬퍼에 옵셔널 파라미터 추가**
+
+```typescript
+function dispatchMouseLikeEvent(
+  target: EventTarget,
+  type: string,
+  coords: PointerCoords,
+  buttons: number,
+  bubbles: boolean,
+  options?: { button?: number; detail?: number },  // 신규
+): void {
+  const event = new MouseEvent(type, {
+    bubbles,
+    button: options?.button ?? 0,
+    buttons,
+    cancelable: true,
+    clientX: coords.clientX,
+    clientY: coords.clientY,
+    composed: true,
+    detail: options?.detail ?? 1,
+    screenX: coords.clientX,
+    screenY: coords.clientY,
+  })
+  target.dispatchEvent(event)
+}
+
+function dispatchPointerLikeEvent(
+  target: EventTarget,
+  type: string,
+  coords: PointerCoords,
+  buttons: number,
+  bubbles: boolean,
+  options?: { button?: number },  // 신규
+): void {
+  // ... button: options?.button ?? 0
+}
+```
+
+**`performPointerClickSequence` 변경**: 마지막 `element.click()` 호출을 `dispatchMouseLikeEvent(releaseTarget, 'click', coords, 0, true, { detail: 1 })`로 교체하여 `detail` 값을 명시적으로 제어한다.
+
 ### `PageAgentRuntime.act` 입력 타입 변경
 
 현재 `act()` 메서드의 input 타입에 `action` 필드가 없다. 확장이 필요하다:
@@ -100,9 +147,21 @@ act: (input: {
 }) => Promise<CommandResult>
 ```
 
+### `collectDescriptors()` 필터 변경
+
+현재 `collectDescriptors()` 함수(line 292)에 `tool.action !== 'click' && tool.action !== 'fill'` 필터가 있어 새 액션 타입을 가진 타겟이 디스크립터로 등록되지 않는다. 이를 확장한다:
+
+```typescript
+// page-agent-runtime.ts - collectDescriptors() 내부
+// 기존: if (tool.action !== 'click' && tool.action !== 'fill') continue
+// 변경: 모든 유효한 ActionKind 허용
+const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+if (!VALID_ACTIONS.has(tool.action)) continue
+```
+
 ### actionKind 가드 로직 변경
 
-현재 act 핸들러에 `descriptor.actionKind !== 'click'` 가드가 있어 새 액션 타입을 가진 타겟을 거부한다. 이를 **action 파라미터와 어노테이션의 actionKind가 일치하는지** 검증하는 로직으로 교체한다:
+**act 핸들러와 guide 핸들러 모두 수정이 필요하다.** 현재 두 핸들러 모두 `descriptor.actionKind !== 'click'` 가드가 있어 새 액션 타입을 가진 타겟을 거부한다. 이를 **ACT_COMPATIBLE_KINDS 기반 검증**으로 교체한다:
 
 ```typescript
 // page-agent-runtime.ts - act() 핸들러 내부
@@ -127,6 +186,7 @@ if (!ACT_COMPATIBLE_KINDS.includes(descriptor.actionKind as any)) {
 - `actionKind` 어노테이션은 "이 요소의 주요 인터랙션이 무엇인지" LLM에게 알려주는 힌트
 - 에이전트는 어노테이션과 다른 action을 보낼 수 있음 (예: click 타겟에 contextmenu)
 - 단, `fill` 타겟에는 act 커맨드를 거부 (`agrune_fill` 사용 유도)
+- **guide 핸들러(line 1936)도 동일한 `ACT_COMPATIBLE_KINDS` 가드를 적용** — dblclick/contextmenu/hover/longpress 타겟도 가이드(하이라이트) 가능해야 함
 
 ### act 핸들러 분기
 
@@ -323,7 +383,16 @@ MCP 응답으로 마크다운 문자열 반환
 
 ### DOM→마크다운 변환 로직 위치
 
-변환 로직은 `page-agent-runtime.ts`에 `read()` 메서드로 구현한다. `page-runtime.ts`는 브릿지 역할만 하며, `window.agruneDom.read(args)`를 호출하여 런타임으로 위임한다.
+변환 로직은 `page-agent-runtime.ts`에 `read()` 메서드로 구현한다. `page-runtime.ts`는 브릿지 역할만 하며, `window.agruneDom.read(args)`를 호출하여 런타임으로 위임한다. `PageAgentRuntime` 인터페이스에 `read` 메서드를 추가한다:
+
+```typescript
+// packages/build-core/src/runtime/page-agent-runtime.ts - PageAgentRuntime 인터페이스
+read: (input: {
+  commandId?: string
+  selector?: string
+  expectedVersion?: number
+}) => Promise<CommandResult>
+```
 
 ```typescript
 // packages/build-core/src/runtime/page-agent-runtime.ts
@@ -355,7 +424,7 @@ read: async (input) => {
 |------|----------|
 | `packages/core/src/index.ts` | `ActionKind` 확장, `CommandKind`에 `read` 추가, `ReadCommandRequest` 추가 |
 | `packages/build-core/src/types.ts` | `AgagruneSupportedAction` 확장 |
-| `packages/build-core/src/runtime/page-agent-runtime.ts` | `PageAgentRuntime.act` 입력 타입에 `action` 필드 추가, actionKind 가드 로직 변경, 4개 이벤트 시퀀스 함수 추가, act 핸들러 분기, `read()` 핸들러 + DOM→마크다운 변환 로직 |
+| `packages/build-core/src/runtime/page-agent-runtime.ts` | `PageAgentRuntime` 인터페이스에 `act.action` 필드 + `read` 메서드 추가, `collectDescriptors()` 필터 확장, act/guide 핸들러 가드 로직 변경, `dispatchMouseLikeEvent`/`dispatchPointerLikeEvent` 옵셔널 파라미터 추가, `performPointerClickSequence`에서 `element.click()` → 수동 디스패치, 4개 이벤트 시퀀스 함수 추가, act 핸들러 분기, `read()` 핸들러 + `domToMarkdown()` 변환 로직 |
 | `packages/extension/src/content/dom-scanner.ts` | `ScannedTarget.actionKind` 타입을 `ActionKind`로 변경, 런타임 유효성 검증 추가 |
 | `packages/extension/src/runtime/page-runtime.ts` | `read` 커맨드를 `window.agruneDom.read()`로 위임 (브릿지 역할) |
 | `packages/mcp-server/src/tools.ts` | `agrune_act` 스키마에 `action` 파라미터 추가 + 설명 변경, `agrune_read` 툴 정의 추가 |
