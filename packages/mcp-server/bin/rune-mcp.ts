@@ -192,6 +192,22 @@ if (args[0] === '--native-host') {
     })
   })
 
+  // Idle shutdown: exit after 10 minutes of no tool activity
+  const IDLE_TIMEOUT_MS = 10 * 60 * 1000
+
+  const shutdown = () => {
+    process.stderr.write('[rune-backend] idle timeout — shutting down\n')
+    tcpServer.close()
+    process.exit(0)
+  }
+
+  let idleTimer = setTimeout(shutdown, IDLE_TIMEOUT_MS)
+
+  backend.onActivity = () => {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(shutdown, IDLE_TIMEOUT_MS)
+  }
+
 } else {
   // ============================================================
   // Mode: MCP frontend (launched by Claude Code / AI Agent)
