@@ -3,6 +3,7 @@ import { buildManifest } from './manifest-builder'
 import { injectRuntime } from './runtime-injector'
 import { setupBridge, sendToBridge } from './bridge'
 import { syncStoredConfigToRuntime } from './runtime-config'
+import { showHighlight, clearHighlight } from './highlight-overlay'
 
 const SNAPSHOT_INTERVAL_MS = 800
 const MUTATION_DEBOUNCE_MS = 500
@@ -82,6 +83,12 @@ function init() {
     }
     if (msg.type === 'agent_activity') {
       sendToBridge('agent_activity', { active: msg.active })
+    }
+    if (msg.type === 'highlight_target') {
+      showHighlight({ selector: msg.selector, targetId: msg.targetId })
+    }
+    if (msg.type === 'clear_highlight') {
+      clearHighlight()
     }
     if (msg.type === 'resync') {
       safeSendMessage({
