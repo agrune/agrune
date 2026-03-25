@@ -26,13 +26,13 @@ export function registerAgagruneTools(
     tabId: z.number().optional().describe('Tab ID (omit for active tab)'),
   }
 
-  mcp.tool('agrune_sessions', 'List browser tabs. Only needed to switch between multiple tabs.', {}, async () =>
+  mcp.tool('agrune_sessions', 'List active browser sessions (tabs). Only call this when switching between multiple tabs. agrune_snapshot automatically uses the active tab.', {}, async () =>
     toMcpToolResult(await handleToolCall('agrune_sessions', {})),
   )
 
   mcp.tool(
     'agrune_snapshot',
-    'Get page snapshot. Returns outline by default — expand specific groups by groupId to get targetIds. Do not re-snapshot after actions. Defaults: reason=ready, sensitive=false.',
+    'Get page snapshot with actionable targets. Calling with outline mode (default) returns a group summary. To get targetIds for a specific group, specify groupId to expand it. To get all targets at once, use mode=full. Do not re-snapshot after actions — one snapshot per task is enough. Defaults: reason=ready, sensitive=false.',
     {
       groupId: z.string().optional().describe('Expand a group to get its targetIds'),
       groupIds: z.array(z.string()).optional().describe('Expand multiple groups'),
@@ -45,7 +45,7 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_act',
-    'Click a target. Do not re-snapshot after.',
+    'Click an annotated target element by targetId. When ok:true is returned, the click succeeded — do not call agrune_snapshot to verify. Only re-snapshot when you need targets on a completely different page.',
     {
       targetId: z.string().describe('Target ID'),
       ...optionalTabId,
@@ -55,7 +55,7 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_fill',
-    'Fill input/textarea. Do not re-snapshot after.',
+    'Fill an input/textarea with a value by targetId. When ok:true is returned, do not re-snapshot to verify.',
     {
       targetId: z.string().describe('Target ID'),
       value: z.string().describe('Value to fill'),
@@ -66,7 +66,7 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_drag',
-    'Drag target to another. Do not re-snapshot after.',
+    'Drag one target to another. When ok:true is returned, do not re-snapshot to verify.',
     {
       sourceTargetId: z.string().describe('Source target ID'),
       destinationTargetId: z.string().describe('Destination target ID'),
