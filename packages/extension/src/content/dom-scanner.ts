@@ -1,9 +1,13 @@
+import type { ActionKind } from '@agrune/core'
+
+const VALID_ACTION_KINDS: Set<string> = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+
 export interface ScannedTarget {
   targetId: string
   selector: string
   name: string
   description: string
-  actionKind: 'click' | 'fill'
+  actionKind: ActionKind
   groupId?: string
   sensitive: boolean
 }
@@ -23,7 +27,9 @@ export function scanAnnotations(doc: Document): ScannedTarget[] {
   const targets: ScannedTarget[] = []
 
   elements.forEach((el, index) => {
-    const action = el.getAttribute('data-agrune-action') as 'click' | 'fill'
+    const rawAction = el.getAttribute('data-agrune-action') ?? ''
+    if (!VALID_ACTION_KINDS.has(rawAction)) return
+    const action = rawAction as ActionKind
     const name = el.getAttribute('data-agrune-name') ?? ''
     const description = el.getAttribute('data-agrune-desc') ?? ''
     const key = el.getAttribute('data-agrune-key')
