@@ -66,6 +66,10 @@ export interface PongMessage {
   type: 'pong'
 }
 
+export interface ResyncRequestMessage {
+  type: 'resync_request'
+}
+
 export interface GetStatusMessage {
   type: 'get_status'
 }
@@ -85,6 +89,7 @@ export type NativeMessage =
   | AgentActivityMessage
   | PingMessage
   | PongMessage
+  | ResyncRequestMessage
   | GetStatusMessage
   | StatusResponseMessage
 
@@ -126,4 +131,8 @@ export function isGetStatus(msg: NativeMessage): msg is GetStatusMessage {
 
 export function isStatusResponse(msg: NativeMessage): msg is StatusResponseMessage {
   return msg.type === 'status_response'
+}
+
+export function isResyncRequest(msg: NativeMessage): msg is ResyncRequestMessage {
+  return msg.type === 'resync_request'
 }

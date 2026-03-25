@@ -9,6 +9,7 @@ import {
   isConfigUpdate,
 } from '../src/native-messages'
 
+
 describe('NativeMessage type guards', () => {
   it('identifies snapshot_update', () => {
     const msg: NativeMessage = {
@@ -56,5 +57,19 @@ describe('NativeMessage type guards', () => {
       config: { pointerAnimation: true, auroraGlow: false },
     }
     expect(isConfigUpdate(msg)).toBe(true)
+  })
+})
+
+describe('ResyncRequestMessage', () => {
+  it('is assignable to NativeMessage', () => {
+    const msg: NativeMessage = { type: 'resync_request' }
+    expect(msg.type).toBe('resync_request')
+  })
+
+  it('has isResyncRequest type guard', async () => {
+    const { isResyncRequest } = await import('../src/native-messages')
+    const msg: NativeMessage = { type: 'resync_request' }
+    expect(isResyncRequest(msg)).toBe(true)
+    expect(isResyncRequest({ type: 'ping' } as NativeMessage)).toBe(false)
   })
 })
