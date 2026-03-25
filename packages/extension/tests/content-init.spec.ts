@@ -86,4 +86,37 @@ describe('content bootstrap', () => {
       }),
     )
   })
+
+  it('sends immediate request_snapshot on runtime_ready before starting loop', async () => {
+    await import('../src/content/index')
+
+    // Simulate runtime_ready
+    mocks.getBridgeHandler()?.('runtime_ready', {})
+
+    // First call should be immediate request_snapshot
+    expect(mocks.sendToBridge).toHaveBeenCalledWith('request_snapshot', {})
+    expect(mocks.syncStoredConfigToRuntime).toHaveBeenCalled()
+  })
+
+  it('handles resync message by re-sending session_open and requesting snapshot', async () => {
+    await import('../src/content/index')
+
+    const runtimeSendMessage = (globalThis as unknown as { chrome: { runtime: { sendMessage: ReturnType<typeof vi.fn> } } }).chrome.runtime.sendMessage
+    const onMessageListener = (globalThis as unknown as { chrome: { runtime: { onMessage: { addListener: ReturnType<typeof vi.fn> } } } }).chrome.runtime.onMessage.addListener
+
+    // Get the listener that was registered
+    const listener = onMessageListener.mock.calls[0]?.[0]
+    expect(listener).toBeDefined()
+
+    // Emit resync message
+    listener({ type: 'resync' })
+
+    // Should re-send session_open
+    expect(runtimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'session_open' }),
+    )
+
+    // Should request immediate snapshot
+    expect(mocks.sendToBridge).toHaveBeenCalledWith('request_snapshot', {})
+  })
 })

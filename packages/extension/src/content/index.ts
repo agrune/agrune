@@ -50,6 +50,7 @@ function init() {
     }
 
     if (type === 'runtime_ready') {
+      sendToBridge('request_snapshot', {})
       startSnapshotLoop()
       void syncStoredConfigToRuntime(sendToBridge)
     }
@@ -81,6 +82,14 @@ function init() {
     }
     if (msg.type === 'agent_activity') {
       sendToBridge('agent_activity', { active: msg.active })
+    }
+    if (msg.type === 'resync') {
+      safeSendMessage({
+        type: 'session_open',
+        url: location.href,
+        title: document.title,
+      })
+      sendToBridge('request_snapshot', {})
     }
   })
 
