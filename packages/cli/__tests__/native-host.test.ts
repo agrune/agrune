@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { getNativeHostManifest, deriveExtensionIdFromManifestKey } from '../src/utils/native-host.js'
+import {
+  getNativeHostManifest,
+  deriveExtensionIdFromManifestKey,
+  getNativeHostWrapper,
+} from '../src/utils/native-host.js'
 
 describe('native-host', () => {
   it('creates correct manifest shape', () => {
@@ -18,5 +22,11 @@ describe('native-host', () => {
     const id = deriveExtensionIdFromManifestKey(key)
     expect(id).toMatch(/^[a-p]{32}$/)
     expect(deriveExtensionIdFromManifestKey(key)).toBe(id)
+  })
+
+  it('creates wrapper with an absolute node path', () => {
+    const wrapper = getNativeHostWrapper('/opt/homebrew/bin/node')
+    expect(wrapper).toContain('exec "/opt/homebrew/bin/node"')
+    expect(wrapper).not.toContain('exec node ')
   })
 })

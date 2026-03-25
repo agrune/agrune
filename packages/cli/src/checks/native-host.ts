@@ -1,4 +1,5 @@
 import { existsSync, accessSync, constants, readFileSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import type { Check } from './types.js'
 import { getNativeHostManifestPath, NATIVE_HOST_WRAPPER } from '../utils/paths.js'
 import { installNativeHostWrapper, installNativeHostManifest } from '../utils/native-host.js'
@@ -37,10 +38,36 @@ export function nativeHostWrapperCheck(): Check {
       }
       try {
         accessSync(NATIVE_HOST_WRAPPER, constants.X_OK)
-        return { ok: true, message: 'Native host wrapper executable' }
       } catch {
         return { ok: false, message: 'Native host wrapper not executable' }
       }
+
+      const content = readFileSync(NATIVE_HOST_WRAPPER, 'utf-8')
+      const execLine = content
+        .split('\n')
+        .map(line => line.trim())
+        .find(line => line.startsWith('exec '))
+
+      if (!execLine) {
+        return { ok: false, message: 'Native host wrapper has no exec line' }
+      }
+
+      const match = execLine.match(/^exec\s+(?:"([^"]+)"|'([^']+)'|(\S+))/)
+      const command = match?.[1] ?? match?.[2] ?? match?.[3] ?? null
+
+      if (!command) {
+        return { ok: false, message: 'Native host wrapper has invalid exec command' }
+      }
+
+      if (!isAbsolute(command)) {
+        return { ok: false, message: 'Native host wrapper must use an absolute Node path' }
+      }
+
+      if (!existsSync(command)) {
+        return { ok: false, message: 'Native host wrapper references a missing Node binary' }
+      }
+
+      return { ok: true, message: 'Native host wrapper executable' }
     },
     async fix() {
       installNativeHostWrapper()

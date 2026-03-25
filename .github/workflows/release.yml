@@ -33,11 +33,18 @@ jobs:
           echo "All versions match: $TAG_VERSION"
 
       - name: Build packages
+        run: pnpm run build:cli
+
+      - name: Verify CLI package payload
         run: |
-          pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp-server run build
-          mkdir -p packages/cli/assets
-          cp -r packages/mcp-server/dist packages/cli/assets/mcp-server
-          pnpm --filter @agrune/cli run build
+          PACK_DIR="$(mktemp -d)"
+          pnpm --filter @agrune/cli pack --pack-destination "$PACK_DIR"
+          TAR_FILE="$(find "$PACK_DIR" -name '*.tgz' -maxdepth 1 | head -n 1)"
+          test -n "$TAR_FILE"
+          EXTRACT_DIR="$(mktemp -d)"
+          tar -xzf "$TAR_FILE" -C "$EXTRACT_DIR"
+          if grep -R -n 'exec node "' "$EXTRACT_DIR/package/dist"; then exit 1; fi
+          if grep -R -n "version: ['\"]0\\.1\\.0['\"]" "$EXTRACT_DIR/package/dist" "$EXTRACT_DIR/package/assets"; then exit 1; fi
 
       - name: Setup npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc

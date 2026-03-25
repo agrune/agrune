@@ -5,6 +5,7 @@ import { AgagruneBackend } from './backend.js'
 import { createNativeMessagingTransport, type NativeMessagingTransport } from './native-messaging.js'
 import { getToolDefinitions } from './tools.js'
 import { registerAgagruneTools } from './mcp-tools.js'
+import { MCP_SERVER_VERSION } from './version.js'
 
 export { AgagruneBackend } from './backend.js'
 export { SessionManager } from './session-manager.js'
@@ -22,7 +23,7 @@ export function createMcpServer() {
   let nativeTransport: NativeMessagingTransport | null = null
 
   const mcp = new McpServer(
-    { name: 'agrune', version: '0.1.0' },
+    { name: 'agrune', version: MCP_SERVER_VERSION },
     { capabilities: { tools: {} } },
   )
 

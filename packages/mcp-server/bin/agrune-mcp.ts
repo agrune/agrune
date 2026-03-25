@@ -4,6 +4,7 @@ import { createServer as createNetServer, connect as netConnect, type Socket } f
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
+import { MCP_SERVER_VERSION } from '../src/version.js'
 
 const args = process.argv.slice(2)
 const AGRUNE_HOME = join(homedir(), '.agrune')
@@ -241,7 +242,7 @@ if (args[0] === '--native-host') {
   const { registerAgagruneTools } = await import('../src/mcp-tools.js')
 
   const mcp = new McpServer(
-    { name: 'agrune', version: '0.1.0' },
+    { name: 'agrune', version: MCP_SERVER_VERSION },
     { capabilities: { tools: {} } },
   )
 
