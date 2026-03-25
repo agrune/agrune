@@ -52,7 +52,7 @@ TUI wizard (@clack/prompts). 멀티셀렉트로 설치 항목 선택:
 
 - **Chrome Extension** — CWS 페이지를 브라우저에서 열어줌
 - **Claude MCP** — `~/.claude/settings.json`에 `mcpServers.agrune` 등록
-- **Codex MCP** — Codex MCP 설정 등록
+- **Codex MCP** — `codex mcp add agrune` CLI 명령으로 등록
 
 공통 동작:
 - `~/.agrune/mcp-server/` 에 빌드된 런타임 파일 복사
@@ -154,6 +154,20 @@ interface Check {
 
 `packages/mcp-server/src/install.ts`의 핵심 로직(네이티브 호스트 등록, 경로 탐지 등)을 `packages/cli/src/`로 이전.
 mcp-server에서 `install` 서브커맨드 제거.
+
+## Chrome Extension ID
+
+네이티브 호스트 매니페스트의 `allowed_origins`에 extension ID가 필요하다.
+Extension은 CWS를 통해 배포하므로, CWS 등록 후 발급되는 고정 extension ID를 CLI에 상수로 하드코딩한다.
+(`src/utils/constants.ts`에 `CWS_EXTENSION_ID` 정의)
+
+현재 `manifest.json`에 고정 `key` 필드가 있어 extension ID가 결정적이므로,
+CWS 등록 전에도 이 key에서 파생되는 ID를 사용할 수 있다.
+
+## 네이티브 호스트 wrapper
+
+`~/.agrune/native-host` wrapper 스크립트는 `#!/usr/bin/env node` shebang을 사용하여
+시스템에 설치된 Node.js를 찾는다. `pnpm dlx`의 임시 Node 경로에 의존하지 않는다.
 
 ## 플랫폼 지원
 
