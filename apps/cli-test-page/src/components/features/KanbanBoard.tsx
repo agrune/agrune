@@ -152,7 +152,7 @@ export function KanbanBoard({ tasks, members, onTasksChange, onNewTask }: Kanban
               Drag tasks between columns, or double-click any card to inspect and edit it.
             </p>
           </div>
-          <Button onClick={onNewTask} size="sm">
+          <Button onClick={onNewTask} size="sm" data-agrune-action="click" data-agrune-name="New Task" data-agrune-desc="Open new task wizard" data-agrune-key="btn-new-task" data-agrune-group="board-actions" data-agrune-group-name="Board Actions" data-agrune-group-desc="Create and manage tasks on the kanban board">
             <Plus className="mr-1 h-4 w-4" />
             New Task
           </Button>
@@ -220,6 +220,13 @@ export function KanbanBoard({ tasks, members, onTasksChange, onNewTask }: Kanban
                               e.stopPropagation()
                               handleDeleteTask(task.id)
                             }}
+                            data-agrune-action="click"
+                            data-agrune-name={`Delete ${task.title}`}
+                            data-agrune-desc={`Remove task "${task.title}" from the board`}
+                            data-agrune-key={`delete-${task.id}`}
+                            data-agrune-group="task-actions"
+                            data-agrune-group-name="Task Actions"
+                            data-agrune-group-desc="Delete or interact with individual task cards"
                           >
                             <Trash2 className="h-3 w-3 text-muted-foreground" />
                           </Button>

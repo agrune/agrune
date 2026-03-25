@@ -23,21 +23,21 @@ export function registerAgagruneTools(
   handleToolCall: ToolHandler,
 ): void {
   const optionalTabId = {
-    tabId: z.number().optional().describe('Tab ID. Omit to use the most recent active tab.'),
+    tabId: z.number().optional().describe('Tab ID (omit for active tab)'),
   }
 
-  mcp.tool('agrune_sessions', 'List active browser sessions (tabs). Only needed when switching between multiple tabs — agrune_snapshot already targets the active tab automatically.', {}, async () =>
+  mcp.tool('agrune_sessions', 'List browser tabs. Only needed to switch between multiple tabs.', {}, async () =>
     toMcpToolResult(await handleToolCall('agrune_sessions', {})),
   )
 
   mcp.tool(
     'agrune_snapshot',
-    'Get the current page snapshot with actionable targets. Automatically uses the active tab — no need to call agrune_sessions first. Use mode=full to get all targets with their targetIds for acting. Use outline mode (default) only when you need a high-level overview of available groups. One snapshot call before acting is sufficient — do not re-snapshot after every action. Omitted fields use defaults: reason=ready, sensitive=false.',
+    'Get page snapshot. Returns outline by default — expand specific groups by groupId to get targetIds. Do not re-snapshot after actions. Defaults: reason=ready, sensitive=false.',
     {
-      groupId: z.string().optional().describe('Expand a single group by groupId'),
-      groupIds: z.array(z.string()).optional().describe('Expand multiple groups by groupId'),
-      mode: z.enum(['outline', 'full']).optional().describe('full returns all targets with targetIds (use this before acting); outline returns group summary only'),
-      includeTextContent: z.boolean().optional().describe('Include visible text content of each target element'),
+      groupId: z.string().optional().describe('Expand a group to get its targetIds'),
+      groupIds: z.array(z.string()).optional().describe('Expand multiple groups'),
+      mode: z.enum(['outline', 'full']).optional().describe('outline (default): group summary; full: all targets'),
+      includeTextContent: z.boolean().optional().describe('Include text content'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_snapshot', args)),
@@ -45,9 +45,9 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_act',
-    'Click an annotated target element. After a successful click, do NOT call agrune_snapshot to verify — trust the ok:true result and move on to the next action. Only re-snapshot if you need targets for a completely different task.',
+    'Click a target. Do not re-snapshot after.',
     {
-      targetId: z.string().describe('The target ID to click'),
+      targetId: z.string().describe('Target ID'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_act', args)),
@@ -55,10 +55,10 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_fill',
-    'Fill an input/textarea with a value. Trust the ok:true result — do not re-snapshot to verify.',
+    'Fill input/textarea. Do not re-snapshot after.',
     {
-      targetId: z.string().describe('The target ID to fill'),
-      value: z.string().describe('The value to fill'),
+      targetId: z.string().describe('Target ID'),
+      value: z.string().describe('Value to fill'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_fill', args)),
@@ -66,7 +66,7 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_drag',
-    'Drag one target to another. Trust the ok:true result — do not re-snapshot to verify.',
+    'Drag target to another. Do not re-snapshot after.',
     {
       sourceTargetId: z.string().describe('Source target ID'),
       destinationTargetId: z.string().describe('Destination target ID'),
@@ -78,11 +78,11 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_wait',
-    'Wait for a target to reach a specific state',
+    'Wait for target state change.',
     {
-      targetId: z.string().describe('The target ID to wait for'),
+      targetId: z.string().describe('Target ID'),
       state: z.enum(['visible', 'hidden', 'enabled', 'disabled']).describe('Desired state'),
-      timeoutMs: z.number().optional().describe('Timeout in milliseconds (default: 10000)'),
+      timeoutMs: z.number().optional().describe('Timeout ms (default: 10000)'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_wait', args)),
@@ -90,9 +90,9 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_guide',
-    'Visually highlight a target element without executing an action',
+    'Highlight a target visually.',
     {
-      targetId: z.string().describe('The target ID to highlight'),
+      targetId: z.string().describe('Target ID'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_guide', args)),
@@ -100,18 +100,15 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_config',
-    'Update runtime visual configuration. Do NOT call this unless the user explicitly asks to change these settings. The defaults are already optimized.',
+    'Update visual config. Only call when user explicitly requests.',
     {
-      pointerAnimation: z.boolean().optional().describe('Enable/disable pointer animation'),
-      auroraGlow: z.boolean().optional().describe('Enable/disable aurora glow effect'),
-      auroraTheme: z.enum(['dark', 'light']).optional().describe('Aurora color theme'),
-      clickDelayMs: z.number().optional().describe('Delay before click execution in ms'),
-      pointerDurationMs: z.number().optional().describe('Pointer animation duration in ms'),
-      autoScroll: z.boolean().optional().describe('Auto-scroll to target before action'),
-      agentActive: z
-        .boolean()
-        .optional()
-        .describe('Activate/deactivate agent visual presence (aurora glow persists until explicitly deactivated)'),
+      pointerAnimation: z.boolean().optional(),
+      auroraGlow: z.boolean().optional(),
+      auroraTheme: z.enum(['dark', 'light']).optional(),
+      clickDelayMs: z.number().optional(),
+      pointerDurationMs: z.number().optional(),
+      autoScroll: z.boolean().optional(),
+      agentActive: z.boolean().optional().describe('Toggle agent visual presence'),
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_config', args)),
   )

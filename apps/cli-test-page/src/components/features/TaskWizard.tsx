@@ -198,6 +198,8 @@ export function TaskWizard({ open, onOpenChange, members, onSubmit }: TaskWizard
                     if (errors.title) setErrors({ ...errors, title: undefined })
                   }}
                   className={errors.title ? 'border-destructive' : ''}
+                  data-agrune-action="fill" data-agrune-name="Task Name" data-agrune-desc="Enter the task title" data-agrune-key="wizard-title"
+                  data-agrune-group="wizard-fields" data-agrune-group-name="Wizard Fields" data-agrune-group-desc="Form fields in the new task wizard"
                 />
                 {errors.title && (
                   <p className="text-xs text-destructive flex items-center gap-1">
@@ -296,6 +298,8 @@ export function TaskWizard({ open, onOpenChange, members, onSubmit }: TaskWizard
                     if (errors.description) setErrors({ ...errors, description: undefined })
                   }}
                   className={errors.description ? 'border-destructive' : ''}
+                  data-agrune-action="fill" data-agrune-name="Description" data-agrune-desc="Enter task description" data-agrune-key="wizard-description"
+                  data-agrune-group="wizard-fields" data-agrune-group-name="Wizard Fields"
                 />
                 {errors.description && (
                   <p className="text-xs text-destructive flex items-center gap-1">
@@ -497,14 +501,14 @@ export function TaskWizard({ open, onOpenChange, members, onSubmit }: TaskWizard
 
         <DialogFooter className="gap-2">
           {step > 0 && (
-            <Button variant="outline" onClick={handleBack}>
+            <Button variant="outline" onClick={handleBack} data-agrune-action="click" data-agrune-name="Back" data-agrune-desc="Go to previous wizard step" data-agrune-key="wizard-back" data-agrune-group="wizard-nav" data-agrune-group-name="Wizard Navigation" data-agrune-group-desc="Navigate between wizard steps">
               Back
             </Button>
           )}
           {step < 2 ? (
-            <Button onClick={handleNext}>Next</Button>
+            <Button onClick={handleNext} data-agrune-action="click" data-agrune-name="Next" data-agrune-desc="Go to next wizard step" data-agrune-key="wizard-next" data-agrune-group="wizard-nav" data-agrune-group-name="Wizard Navigation">Next</Button>
           ) : (
-            <Button onClick={handleSubmit}>Create Task</Button>
+            <Button onClick={handleSubmit} data-agrune-action="click" data-agrune-name="Create Task" data-agrune-desc="Submit and create the task" data-agrune-key="wizard-submit" data-agrune-group="wizard-nav" data-agrune-group-name="Wizard Navigation">Create Task</Button>
           )}
         </DialogFooter>
       </DialogContent>
