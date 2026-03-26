@@ -1,11 +1,9 @@
-import type { AuroraTheme, AgagruneRuntimeConfig, DragPlacement } from '@agrune/core'
+import type { AuroraTheme, AgagruneRuntimeConfig } from '@agrune/core'
 import { getCursorMeta, DEFAULT_CURSOR_NAME, POINTER_FILL_SVG, POINTER_BORDER_MASK_SVG } from './cursors/index'
 import type { CursorMeta } from './cursors/index'
 import { Motion } from 'ai-motion'
 import {
   type PointerCoords,
-  getDragPlacementCoords,
-  getEventTargetAtPoint,
   getInteractablePoint,
 } from './dom-utils'
 
@@ -15,7 +13,6 @@ import {
 
 export const CURSOR_STYLE_ID = 'agrune-cursor-style'
 export const CURSOR_CLICK_PRESS_MS = 100
-export const CURSOR_POST_ANIMATION_DELAY_MS = 200
 export const IDLE_TIMEOUT_MS = 5_000
 
 const DEFAULT_POINTER_DURATION_MS = 600
@@ -38,11 +35,6 @@ export interface CursorState {
 }
 
 export let cursorState: CursorState | null = null
-
-/** Reset cursorState — exported for testing and disposal */
-export function resetCursorState(): void {
-  cursorState = null
-}
 
 // ---------------------------------------------------------------------------
 // Cursor element creation
@@ -320,281 +312,6 @@ export async function flashPointerOverlay(
 }
 
 // ---------------------------------------------------------------------------
-// Animated action wrappers (these call event dispatch functions inline —
-// they will be rewritten in Task 12b to use CDP event sequences)
-// ---------------------------------------------------------------------------
-
-/**
- * Dependencies that the animated drag wrappers need from the event dispatch
- * system. Passed in to avoid circular imports. Will be removed in Task 12b.
- */
-export interface AnimationEventDeps {
-  dispatchHoverTransition: (
-    previousTarget: HTMLElement | null,
-    nextTarget: HTMLElement | null,
-    coords: PointerCoords,
-    buttons: number,
-  ) => void
-  dispatchPointerLikeEvent: (
-    target: EventTarget,
-    type: string,
-    coords: PointerCoords,
-    buttons: number,
-    bubbles: boolean,
-    options?: { button?: number },
-  ) => void
-  dispatchMouseLikeEvent: (
-    target: EventTarget,
-    type: string,
-    coords: PointerCoords,
-    buttons: number,
-    bubbles: boolean,
-    options?: { button?: number; detail?: number },
-  ) => void
-  dispatchDragMove: (
-    sourceElement: HTMLElement,
-    hoverTarget: HTMLElement,
-    coords: PointerCoords,
-  ) => void
-  dispatchDragRelease: (
-    sourceElement: HTMLElement,
-    dropTarget: HTMLElement,
-    coords: PointerCoords,
-  ) => void
-  dispatchDragLikeEvent: (
-    target: EventTarget,
-    type: string,
-    coords: PointerCoords,
-    dataTransfer: DataTransfer,
-  ) => void
-  createSyntheticDataTransfer: () => DataTransfer
-  sleep: (ms: number) => Promise<void>
-}
-
-export async function animatePointerDragWithCursor(
-  sourceElement: HTMLElement,
-  destinationElement: HTMLElement,
-  placement: DragPlacement,
-  cursorName: string,
-  durationMs: number,
-  deps: AnimationEventDeps,
-): Promise<void> {
-  const animationDurationMs = resolvePointerDurationMs(durationMs)
-  const meta = getCursorMeta(cursorName)
-  const state = getOrCreateCursorElement(cursorName)
-  const el = state.element
-
-  const sourceCoords = getInteractablePoint(sourceElement)
-  const destinationCoords = getDragPlacementCoords(destinationElement, placement)
-  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
-  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
-  const { x: startX, y: startY } = getCursorStartPosition(state)
-
-  el.style.display = 'block'
-  setCursorTransform(el, startX, startY)
-
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = easeOutCubic(raw)
-    const cx = startX + (sourceX - startX) * t
-    const cy = startY + (sourceY - startY) * t
-    setCursorTransform(el, cx, cy)
-  })
-
-  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
-  deps.dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
-  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
-  setCursorTransform(el, sourceX, sourceY, 0.85)
-  await waitForCursorTransition(el)
-
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
-
-  let previousHover = pressTarget
-  el.style.transition = ''
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = raw
-    const coords = {
-      clientX:
-        sourceCoords.clientX +
-        (destinationCoords.clientX - sourceCoords.clientX) * t,
-      clientY:
-        sourceCoords.clientY +
-        (destinationCoords.clientY - sourceCoords.clientY) * t,
-    }
-    const { x, y } = getCursorTranslatePosition(coords, meta)
-    setCursorTransform(el, x, y, 0.85)
-
-    const nextHover = getEventTargetAtPoint(destinationElement, coords)
-    deps.dispatchHoverTransition(previousHover, nextHover, coords, 1)
-    deps.dispatchDragMove(sourceElement, nextHover, coords)
-    previousHover = nextHover
-  })
-
-  const dropTarget = getEventTargetAtPoint(destinationElement, destinationCoords)
-  deps.dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
-  deps.dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
-
-  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-out`
-  setCursorTransform(el, destinationX, destinationY, 1)
-  await waitForCursorTransition(el)
-  el.style.transition = ''
-
-  state.lastX = destinationX
-  state.lastY = destinationY
-}
-
-export async function animatePointerDragToCoordsWithCursor(
-  sourceElement: HTMLElement,
-  destinationCoords: PointerCoords,
-  cursorName: string,
-  durationMs: number,
-  deps: AnimationEventDeps,
-): Promise<void> {
-  const animationDurationMs = resolvePointerDurationMs(durationMs)
-  const meta = getCursorMeta(cursorName)
-  const state = getOrCreateCursorElement(cursorName)
-  const el = state.element
-
-  const sourceCoords = getInteractablePoint(sourceElement)
-  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
-  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
-  const { x: startX, y: startY } = getCursorStartPosition(state)
-
-  el.style.display = 'block'
-  setCursorTransform(el, startX, startY)
-
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = easeOutCubic(raw)
-    const cx = startX + (sourceX - startX) * t
-    const cy = startY + (sourceY - startY) * t
-    setCursorTransform(el, cx, cy)
-  })
-
-  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
-  deps.dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
-
-  applyCursorPressStyle(el)
-  await deps.sleep(CURSOR_CLICK_PRESS_MS)
-
-  let previousHover = pressTarget
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = easeOutCubic(raw)
-    const cx = sourceX + (destinationX - sourceX) * t
-    const cy = sourceY + (destinationY - sourceY) * t
-    setCursorTransform(el, cx, cy)
-
-    const coords: PointerCoords = {
-      clientX: sourceCoords.clientX + (destinationCoords.clientX - sourceCoords.clientX) * t,
-      clientY: sourceCoords.clientY + (destinationCoords.clientY - sourceCoords.clientY) * t,
-    }
-    const nextHover = (document.elementFromPoint(coords.clientX, coords.clientY) as HTMLElement | null) ?? sourceElement
-    deps.dispatchHoverTransition(previousHover, nextHover, coords, 1)
-    deps.dispatchDragMove(sourceElement, nextHover, coords)
-    previousHover = nextHover
-  })
-
-  const dropTarget = (document.elementFromPoint(destinationCoords.clientX, destinationCoords.clientY) as HTMLElement | null) ?? sourceElement
-  deps.dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
-  deps.dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
-
-  removeCursorPressStyle(el)
-  saveCursorPosition(state, destinationX, destinationY)
-}
-
-export async function animateHtmlDragWithCursor(
-  sourceElement: HTMLElement,
-  destinationElement: HTMLElement,
-  placement: DragPlacement,
-  cursorName: string,
-  durationMs: number,
-  deps: AnimationEventDeps,
-): Promise<void> {
-  const animationDurationMs = resolvePointerDurationMs(durationMs)
-  const dataTransfer = deps.createSyntheticDataTransfer()
-  const sourceCoords = getInteractablePoint(sourceElement)
-  const destinationCoords = getDragPlacementCoords(destinationElement, placement)
-  const meta = getCursorMeta(cursorName)
-  const state = getOrCreateCursorElement(cursorName)
-  const el = state.element
-  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
-  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
-  const { x: startX, y: startY } = getCursorStartPosition(state)
-
-  el.style.display = 'block'
-  setCursorTransform(el, startX, startY)
-
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = easeOutCubic(raw)
-    const cx = startX + (sourceX - startX) * t
-    const cy = startY + (sourceY - startY) * t
-    setCursorTransform(el, cx, cy)
-  })
-
-  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
-  deps.dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
-  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
-  setCursorTransform(el, sourceX, sourceY, 0.85)
-  await waitForCursorTransition(el)
-
-  deps.dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
-  deps.dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
-  deps.dispatchDragLikeEvent(sourceElement, 'dragstart', sourceCoords, dataTransfer)
-  await deps.sleep(0)
-
-  let previousHover = pressTarget
-  let previousDropTarget: HTMLElement | null = null
-  el.style.transition = ''
-  await animateWithRAF(animationDurationMs, raw => {
-    const t = raw
-    const coords = {
-      clientX:
-        sourceCoords.clientX +
-        (destinationCoords.clientX - sourceCoords.clientX) * t,
-      clientY:
-        sourceCoords.clientY +
-        (destinationCoords.clientY - sourceCoords.clientY) * t,
-    }
-    const { x, y } = getCursorTranslatePosition(coords, meta)
-    setCursorTransform(el, x, y, 0.85)
-
-    const nextHover = getEventTargetAtPoint(destinationElement, coords)
-    deps.dispatchHoverTransition(previousHover, nextHover, coords, 1)
-    if (nextHover !== previousDropTarget) {
-      deps.dispatchDragLikeEvent(nextHover, 'dragenter', coords, dataTransfer)
-      previousDropTarget = nextHover
-    }
-    deps.dispatchDragLikeEvent(nextHover, 'dragover', coords, dataTransfer)
-    previousHover = nextHover
-  })
-
-  const dropTarget = getEventTargetAtPoint(destinationElement, destinationCoords)
-  deps.dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
-  if (dropTarget !== previousDropTarget) {
-    deps.dispatchDragLikeEvent(dropTarget, 'dragenter', destinationCoords, dataTransfer)
-  }
-  deps.dispatchDragLikeEvent(dropTarget, 'dragover', destinationCoords, dataTransfer)
-  deps.dispatchDragLikeEvent(dropTarget, 'drop', destinationCoords, dataTransfer)
-  await deps.sleep(0)
-  deps.dispatchDragLikeEvent(sourceElement, 'dragend', destinationCoords, dataTransfer)
-
-  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-out`
-  setCursorTransform(el, destinationX, destinationY, 1)
-  await waitForCursorTransition(el)
-  el.style.transition = ''
-
-  state.lastX = destinationX
-  state.lastY = destinationY
-}
-
-// ---------------------------------------------------------------------------
 // Aurora glow border effect (ai-motion WebGL)
 // ---------------------------------------------------------------------------
 
@@ -666,15 +383,3 @@ export function hideAuroraGlow(): void {
   setTimeout(() => wrapper.remove(), 500)
 }
 
-// ---------------------------------------------------------------------------
-// Animated pointer click (cursor + click overlay convenience)
-// ---------------------------------------------------------------------------
-
-export function animatePointerClickWithCursor(
-  element: HTMLElement,
-  cursorName: string,
-  durationMs: number,
-  onPress?: () => void,
-): Promise<void> {
-  return animateCursorTo(element, cursorName, durationMs, onPress)
-}
