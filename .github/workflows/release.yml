@@ -20,6 +20,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Sync extension manifest version
+        run: pnpm --filter @agrune/extension run sync:manifest-version
+
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
@@ -30,6 +33,11 @@ jobs:
               exit 1
             fi
           done
+          MANIFEST_VERSION=$(node -p "require('./packages/extension/manifest.json').version")
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "::error::packages/extension/manifest.json version ($MANIFEST_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
           echo "All versions match: $TAG_VERSION"
 
       - name: Build packages
