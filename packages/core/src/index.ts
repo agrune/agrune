@@ -60,7 +60,7 @@ export interface PageTarget {
   groupDesc?: string
   name: string
   description: string
-  actionKind: ActionKind
+  actionKinds: ActionKind[]
   selector: string
   visible: boolean
   inViewport: boolean
