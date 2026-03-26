@@ -16,7 +16,7 @@ export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
 export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
-export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide' | 'read'
+export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide' | 'read' | 'pointer'
 export type AuroraTheme = 'dark' | 'light'
 export type PageTargetReason =
   | 'ready'
@@ -121,7 +121,8 @@ export interface GuideCommandRequest extends BaseCommandRequest {
 export interface DragCommandRequest extends BaseCommandRequest {
   kind: 'drag'
   sourceTargetId: string
-  destinationTargetId: string
+  destinationTargetId?: string
+  destinationCoords?: { x: number; y: number }
   placement?: DragPlacement
   expectedVersion?: number
 }
@@ -146,6 +147,22 @@ export interface ReadCommandRequest extends BaseCommandRequest {
   expectedVersion?: number
 }
 
+export type PointerActionType = 'pointerdown' | 'pointermove' | 'pointerup' | 'wheel'
+
+export type PointerAction =
+  | { type: 'pointerdown'; x: number; y: number }
+  | { type: 'pointermove'; x: number; y: number }
+  | { type: 'pointerup'; x: number; y: number }
+  | { type: 'wheel'; x: number; y: number; deltaY: number; ctrlKey?: boolean }
+
+export interface PointerCommandRequest extends BaseCommandRequest {
+  kind: 'pointer'
+  targetId?: string
+  selector?: string
+  coords?: { x: number; y: number }
+  actions: PointerAction[]
+}
+
 export type CommandRequest =
   | ActCommandRequest
   | DragCommandRequest
@@ -153,6 +170,7 @@ export type CommandRequest =
   | FillCommandRequest
   | WaitCommandRequest
   | ReadCommandRequest
+  | PointerCommandRequest
 
 export interface CommandExecutionMetadata {
   snapshotVersion?: number
