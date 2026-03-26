@@ -2835,6 +2835,7 @@ export function createPageAgentRuntime(
           case 'pointerup':
             dispatchPointerLikeEvent(eventTarget, 'pointerup', coords, 0, true)
             dispatchMouseLikeEvent(eventTarget, 'mouseup', coords, 0, true)
+            dispatchMouseLikeEvent(eventTarget, 'click', coords, 0, true, { detail: 1 })
             break
           case 'wheel':
             dispatchWheelEvent(eventTarget, coords, action.deltaY, action.ctrlKey ?? false)
