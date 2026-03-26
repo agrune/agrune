@@ -22,7 +22,7 @@ describe('scanAnnotations', () => {
     expect(result[0]).toMatchObject({
       name: 'submit-btn',
       description: 'Submits the form',
-      actionKind: 'click',
+      actionKinds: ['click'],
       sensitive: false,
     })
     expect(result[0].targetId).toBe('agrune_0')
@@ -42,7 +42,7 @@ describe('scanAnnotations', () => {
     expect(result).toHaveLength(1)
     expect(result[0].targetId).toBe('email-field')
     expect(result[0].selector).toBe('[data-agrune-key="email-field"]')
-    expect(result[0].actionKind).toBe('fill')
+    expect(result[0].actionKinds).toEqual(['fill'])
   })
 
   it('handles data-agrune-sensitive flag', () => {
@@ -91,6 +91,49 @@ describe('scanAnnotations', () => {
     expect(result).toHaveLength(1)
     expect(result[0].name).toBe('')
     expect(result[0].description).toBe('')
+  })
+
+  it('parses comma-separated multiple actions', () => {
+    document.body.innerHTML = `
+      <div
+        data-agrune-action="click,dblclick"
+        data-agrune-name="card"
+        data-agrune-desc="클릭으로 선택, 더블클릭으로 상세 보기"
+      >Card</div>
+    `
+    const result = scanAnnotations(document)
+    expect(result).toHaveLength(1)
+    expect(result[0].actionKinds).toEqual(['click', 'dblclick'])
+  })
+
+  it('trims whitespace around action values', () => {
+    document.body.innerHTML = `<div data-agrune-action="click, dblclick" data-agrune-name="a" data-agrune-desc="b">X</div>`
+    const result = scanAnnotations(document)
+    expect(result[0].actionKinds).toEqual(['click', 'dblclick'])
+  })
+
+  it('deduplicates repeated actions', () => {
+    document.body.innerHTML = `<div data-agrune-action="click,click" data-agrune-name="a" data-agrune-desc="b">X</div>`
+    const result = scanAnnotations(document)
+    expect(result[0].actionKinds).toEqual(['click'])
+  })
+
+  it('filters out invalid action values', () => {
+    document.body.innerHTML = `<div data-agrune-action="click,invalid,dblclick" data-agrune-name="a" data-agrune-desc="b">X</div>`
+    const result = scanAnnotations(document)
+    expect(result[0].actionKinds).toEqual(['click', 'dblclick'])
+  })
+
+  it('skips element when all action values are invalid', () => {
+    document.body.innerHTML = `<div data-agrune-action="invalid,nope" data-agrune-name="a" data-agrune-desc="b">X</div>`
+    const result = scanAnnotations(document)
+    expect(result).toHaveLength(0)
+  })
+
+  it('ignores empty entries from consecutive commas', () => {
+    document.body.innerHTML = `<div data-agrune-action="click,,dblclick" data-agrune-name="a" data-agrune-desc="b">X</div>`
+    const result = scanAnnotations(document)
+    expect(result[0].actionKinds).toEqual(['click', 'dblclick'])
   })
 })
 

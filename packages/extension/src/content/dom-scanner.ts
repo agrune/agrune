@@ -7,7 +7,7 @@ export interface ScannedTarget {
   selector: string
   name: string
   description: string
-  actionKind: ActionKind
+  actionKinds: ActionKind[]
   groupId?: string
   sensitive: boolean
 }
@@ -28,8 +28,10 @@ export function scanAnnotations(doc: Document): ScannedTarget[] {
 
   elements.forEach((el, index) => {
     const rawAction = el.getAttribute('data-agrune-action') ?? ''
-    if (!VALID_ACTION_KINDS.has(rawAction)) return
-    const action = rawAction as ActionKind
+    const actionKinds = [...new Set(
+      rawAction.split(',').map(a => a.trim()).filter(a => VALID_ACTION_KINDS.has(a))
+    )] as ActionKind[]
+    if (actionKinds.length === 0) return
     const name = el.getAttribute('data-agrune-name') ?? ''
     const description = el.getAttribute('data-agrune-desc') ?? ''
     const key = el.getAttribute('data-agrune-key')
@@ -51,7 +53,7 @@ export function scanAnnotations(doc: Document): ScannedTarget[] {
       selector,
       name,
       description,
-      actionKind: action,
+      actionKinds,
       groupId,
       sensitive,
     })
