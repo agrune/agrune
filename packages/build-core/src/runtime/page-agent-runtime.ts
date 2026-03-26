@@ -886,6 +886,17 @@ function captureTarget(
   const name = descriptor.target.name ?? element.getAttribute('data-agrune-name') ?? textContent
   const description = descriptor.target.desc ?? element.getAttribute('data-agrune-desc') ?? ''
 
+  let rect: PageTarget['rect'] | undefined
+  if (state.actionableNow) {
+    const domRect = element.getBoundingClientRect()
+    rect = {
+      x: Math.round(domRect.left),
+      y: Math.round(domRect.top),
+      width: Math.round(domRect.width),
+      height: Math.round(domRect.height),
+    }
+  }
+
   return {
     actionKinds: descriptor.actionKinds,
     description,
@@ -905,6 +916,7 @@ function captureTarget(
     overlay: state.overlay,
     textContent,
     valuePreview,
+    rect,
     sourceFile: descriptor.target.sourceFile,
     sourceLine: descriptor.target.sourceLine,
     sourceColumn: descriptor.target.sourceColumn,
