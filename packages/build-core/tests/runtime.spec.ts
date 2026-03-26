@@ -242,7 +242,7 @@ describe('page agent runtime', () => {
     expect(snapshot.targets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          actionKind: 'click',
+          actionKinds: ['click'],
           enabled: true,
           reason: 'ready',
           sensitive: false,
@@ -252,7 +252,7 @@ describe('page agent runtime', () => {
           overlay: false,
         }),
         expect.objectContaining({
-          actionKind: 'fill',
+          actionKinds: ['fill'],
           reason: 'covered',
           sensitive: true,
           targetId: 'email',

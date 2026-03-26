@@ -208,7 +208,7 @@ function walkNode(node: Node, parts: string[], listDepth: number): void {
 }
 
 interface TargetDescriptor {
-  actionKind: ActionKind
+  actionKinds: ActionKind[]
   groupId: string
   groupName?: string
   groupDesc?: string
@@ -467,10 +467,13 @@ function collectDescriptors(manifest: AgagruneManifest): TargetDescriptor[] {
   for (const group of manifest.groups) {
     for (const tool of group.tools) {
       if (tool.status !== 'active') continue
-      if (!VALID_ACTIONS.has(tool.action)) continue
+      const actionKinds = [...new Set(
+        tool.action.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a))
+      )] as ActionKind[]
+      if (actionKinds.length === 0) continue
       for (const target of tool.targets) {
         result.push({
-          actionKind: tool.action as ActionKind,
+          actionKinds,
           groupId: group.groupId,
           groupName: group.groupName,
           groupDesc: group.groupDesc,
@@ -531,14 +534,17 @@ function collectLiveDescriptors(): TargetDescriptor[] {
 
   elements.forEach((element, index) => {
     const rawAction = element.getAttribute('data-agrune-action') ?? ''
-    if (!VALID_ACTIONS.has(rawAction)) return
+    const actionKinds = [...new Set(
+      rawAction.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a))
+    )] as ActionKind[]
+    if (actionKinds.length === 0) return
 
     const key = element.getAttribute('data-agrune-key')?.trim()
     const groupEl = element.closest<HTMLElement>(LIVE_SCAN_GROUP_SELECTOR)
     const groupId = groupEl?.getAttribute('data-agrune-group')?.trim() || LIVE_SCAN_DEFAULT_GROUP_ID
 
     result.push({
-      actionKind: rawAction as ActionKind,
+      actionKinds,
       groupId,
       groupName: groupEl?.getAttribute('data-agrune-group-name') || (
         groupId === LIVE_SCAN_DEFAULT_GROUP_ID ? LIVE_SCAN_DEFAULT_GROUP_NAME : groupId
@@ -665,7 +671,7 @@ function normalizeExecutionConfig(
 }
 
 function resolveTargetReason(input: {
-  actionKind: ActionKind
+  actionKinds: ActionKind[]
   visible: boolean
   inViewport: boolean
   enabled: boolean
@@ -684,13 +690,13 @@ function resolveTargetReason(input: {
   if (!input.enabled) {
     return 'disabled'
   }
-  if (input.actionKind === 'fill' && input.sensitive) {
+  if (input.actionKinds.includes('fill') && input.sensitive) {
     return 'sensitive'
   }
   return 'ready'
 }
 
-function captureTargetState(actionKind: ActionKind, element: HTMLElement): TargetState {
+function captureTargetState(actionKinds: ActionKind[], element: HTMLElement): TargetState {
   const sensitive = isSensitive(element)
   const rect = element.getBoundingClientRect()
   const visible = isVisible(element)
@@ -709,7 +715,7 @@ function captureTargetState(actionKind: ActionKind, element: HTMLElement): Targe
     overlay,
     sensitive,
     reason: resolveTargetReason({
-      actionKind,
+      actionKinds,
       visible,
       inViewport,
       enabled,
@@ -724,7 +730,7 @@ function captureTarget(
   element: HTMLElement,
   targetId: string,
 ): PageTarget {
-  const state = captureTargetState(descriptor.actionKind, element)
+  const state = captureTargetState(descriptor.actionKinds, element)
   const textContent = element.textContent?.trim() ?? ''
   const valuePreview =
     isFillableElement(element) && !state.sensitive ? element.value : null
@@ -734,7 +740,7 @@ function captureTarget(
   const description = descriptor.target.desc ?? element.getAttribute('data-agrune-desc') ?? ''
 
   return {
-    actionKind: descriptor.actionKind,
+    actionKinds: descriptor.actionKinds,
     description,
     enabled: state.enabled,
     groupId: descriptor.groupId,
@@ -791,7 +797,7 @@ function makeSnapshot(
 
   const signature = JSON.stringify({
     targets: targets.map(target => ({
-      actionKind: target.actionKind,
+      actionKinds: target.actionKinds,
       actionableNow: target.actionableNow,
       covered: target.covered,
       enabled: target.enabled,
@@ -1960,11 +1966,15 @@ export function createPageAgentRuntime(
           return buildFlowBlockedResult(input.commandId ?? input.targetId, snapshot, input.targetId)
         }
 
-        if (!ACT_COMPATIBLE_KINDS.has(descriptor.actionKind)) {
+        if (!descriptor.actionKinds.some(k => ACT_COMPATIBLE_KINDS.has(k))) {
           return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support act: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
         const action = input.action ?? 'click'
+
+        if (!descriptor.actionKinds.includes(action as ActionKind)) {
+          return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support action "${action}": ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
+        }
 
         if (!isVisible(element)) {
           return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is not visible: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
@@ -2186,7 +2196,7 @@ export function createPageAgentRuntime(
           return buildFlowBlockedResult(input.commandId ?? input.targetId, snapshot, input.targetId)
         }
 
-        if (descriptor.actionKind !== 'fill') {
+        if (!descriptor.actionKinds.includes('fill')) {
           return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support fill: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
         if (!isFillableElement(element)) {
@@ -2295,7 +2305,7 @@ export function createPageAgentRuntime(
           return buildFlowBlockedResult(input.commandId ?? input.targetId, snapshot, input.targetId)
         }
 
-        if (!ACT_COMPATIBLE_KINDS.has(descriptor.actionKind)) {
+        if (!descriptor.actionKinds.some(k => ACT_COMPATIBLE_KINDS.has(k))) {
           return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support guide: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
         }
 
