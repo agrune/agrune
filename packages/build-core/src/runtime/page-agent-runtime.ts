@@ -271,7 +271,8 @@ export interface PageAgentRuntime {
   drag: (input: {
     commandId?: string
     sourceTargetId: string
-    destinationTargetId: string
+    destinationTargetId?: string
+    destinationCoords?: { x: number; y: number }
     placement?: DragPlacement
     expectedVersion?: number
     config?: Partial<AgagruneRuntimeConfig>
@@ -299,6 +300,18 @@ export interface PageAgentRuntime {
     commandId?: string
     selector?: string
     expectedVersion?: number
+  }) => Promise<CommandResult>
+  pointer: (input: {
+    commandId?: string
+    targetId?: string
+    selector?: string
+    coords?: { x: number; y: number }
+    actions: Array<
+      | { type: 'pointerdown'; x: number; y: number }
+      | { type: 'pointermove'; x: number; y: number }
+      | { type: 'pointerup'; x: number; y: number }
+      | { type: 'wheel'; x: number; y: number; deltaY: number; ctrlKey?: boolean }
+    >
   }) => Promise<CommandResult>
   applyConfig: (config: Partial<AgagruneRuntimeConfig>) => void
   /** Returns true while a command or agent-driven activity is actively in progress. */
@@ -1276,6 +1289,19 @@ async function waitForCursorTransition(el: HTMLDivElement): Promise<void> {
   })
 }
 
+function applyCursorPressStyle(el: HTMLDivElement): void {
+  el.style.transition = `transform ${CURSOR_CLICK_PRESS_MS}ms ease-in`
+}
+
+function removeCursorPressStyle(el: HTMLDivElement): void {
+  el.style.transition = ''
+}
+
+function saveCursorPosition(state: CursorState, x: number, y: number): void {
+  state.lastX = x
+  state.lastY = y
+}
+
 function getCursorStartPosition(state: CursorState): { x: number; y: number } {
   if (state.lastX !== null && state.lastY !== null) {
     return {
@@ -1437,6 +1463,67 @@ async function animatePointerDragWithCursor(
 
   state.lastX = destinationX
   state.lastY = destinationY
+}
+
+async function animatePointerDragToCoordsWithCursor(
+  sourceElement: HTMLElement,
+  destinationCoords: PointerCoords,
+  cursorName: string,
+  durationMs: number,
+): Promise<void> {
+  const animationDurationMs = resolvePointerDurationMs(durationMs)
+  const meta = getCursorMeta(cursorName)
+  const state = getOrCreateCursorElement(cursorName)
+  const el = state.element
+
+  const sourceCoords = getInteractablePoint(sourceElement)
+  const { x: sourceX, y: sourceY } = getCursorTranslatePosition(sourceCoords, meta)
+  const { x: destinationX, y: destinationY } = getCursorTranslatePosition(destinationCoords, meta)
+  const { x: startX, y: startY } = getCursorStartPosition(state)
+
+  el.style.display = 'block'
+  setCursorTransform(el, startX, startY)
+
+  await animateWithRAF(animationDurationMs, raw => {
+    const t = easeOutCubic(raw)
+    const cx = startX + (sourceX - startX) * t
+    const cy = startY + (sourceY - startY) * t
+    setCursorTransform(el, cx, cy)
+  })
+
+  const pressTarget = getEventTargetAtPoint(sourceElement, sourceCoords)
+  dispatchHoverTransition(null, pressTarget, sourceCoords, 0)
+  dispatchPointerLikeEvent(pressTarget, 'pointermove', sourceCoords, 0, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousemove', sourceCoords, 0, true)
+  dispatchPointerLikeEvent(pressTarget, 'pointerdown', sourceCoords, 1, true)
+  dispatchMouseLikeEvent(pressTarget, 'mousedown', sourceCoords, 1, true)
+
+  applyCursorPressStyle(el)
+  await sleep(CURSOR_CLICK_PRESS_MS)
+
+  let previousHover = pressTarget
+  await animateWithRAF(animationDurationMs, raw => {
+    const t = easeOutCubic(raw)
+    const cx = sourceX + (destinationX - sourceX) * t
+    const cy = sourceY + (destinationY - sourceY) * t
+    setCursorTransform(el, cx, cy)
+
+    const coords: PointerCoords = {
+      clientX: sourceCoords.clientX + (destinationCoords.clientX - sourceCoords.clientX) * t,
+      clientY: sourceCoords.clientY + (destinationCoords.clientY - sourceCoords.clientY) * t,
+    }
+    const nextHover = (document.elementFromPoint(coords.clientX, coords.clientY) as HTMLElement | null) ?? sourceElement
+    dispatchHoverTransition(previousHover, nextHover, coords, 1)
+    dispatchDragMove(sourceElement, nextHover, coords)
+    previousHover = nextHover
+  })
+
+  const dropTarget = (document.elementFromPoint(destinationCoords.clientX, destinationCoords.clientY) as HTMLElement | null) ?? sourceElement
+  dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
+  dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
+
+  removeCursorPressStyle(el)
+  saveCursorPosition(state, destinationX, destinationY)
 }
 
 async function animateHtmlDragWithCursor(
@@ -1712,6 +1799,27 @@ function dispatchPointerLikeEvent(
     pressure: buttons === 0 ? 0 : 0.5,
     screenX: coords.clientX,
     screenY: coords.clientY,
+  })
+  target.dispatchEvent(event)
+}
+
+function dispatchWheelEvent(
+  target: EventTarget,
+  coords: PointerCoords,
+  deltaY: number,
+  ctrlKey: boolean,
+): void {
+  const event = new WheelEvent('wheel', {
+    bubbles: true,
+    cancelable: true,
+    clientX: coords.clientX,
+    clientY: coords.clientY,
+    screenX: coords.clientX,
+    screenY: coords.clientY,
+    deltaY,
+    deltaMode: 0,
+    ctrlKey,
+    composed: true,
   })
   target.dispatchEvent(event)
 }
@@ -2005,6 +2113,39 @@ async function performPointerDragSequence(
   dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
 }
 
+async function performPointerDragToCoords(
+  sourceElement: HTMLElement,
+  destinationCoords: PointerCoords,
+): Promise<void> {
+  const sourceCoords = getElementCenter(sourceElement)
+  dispatchHoverTransition(null, sourceElement, sourceCoords, 0)
+  dispatchPointerLikeEvent(sourceElement, 'pointerdown', sourceCoords, 1, true)
+  dispatchMouseLikeEvent(sourceElement, 'mousedown', sourceCoords, 1, true)
+
+  let previousHover: HTMLElement = sourceElement
+
+  for (let step = 1; step <= DRAG_MOVE_STEPS; step += 1) {
+    const progress = step / DRAG_MOVE_STEPS
+    const coords: PointerCoords = {
+      clientX:
+        sourceCoords.clientX +
+        (destinationCoords.clientX - sourceCoords.clientX) * progress,
+      clientY:
+        sourceCoords.clientY +
+        (destinationCoords.clientY - sourceCoords.clientY) * progress,
+    }
+
+    const nextHover = (document.elementFromPoint(coords.clientX, coords.clientY) as HTMLElement | null) ?? sourceElement
+    dispatchHoverTransition(previousHover, nextHover, coords, 1)
+    dispatchDragMove(sourceElement, nextHover, coords)
+    previousHover = nextHover
+  }
+
+  const dropTarget = (document.elementFromPoint(destinationCoords.clientX, destinationCoords.clientY) as HTMLElement | null) ?? sourceElement
+  dispatchHoverTransition(previousHover, dropTarget, destinationCoords, 1)
+  dispatchDragRelease(sourceElement, dropTarget, destinationCoords)
+}
+
 export function createPageAgentRuntime(
   manifest: AgagruneManifest,
   options: Partial<AgagruneRuntimeOptions> = {},
@@ -2240,7 +2381,22 @@ export function createPageAgentRuntime(
         input.expectedVersion,
         async (sourceDescriptor, sourceElement, snapshot) => {
           const sourceSnapshotTarget = findSnapshotTarget(snapshot, input.sourceTargetId)
-          if (input.sourceTargetId === input.destinationTargetId) {
+
+          const hasTargetId = input.destinationTargetId != null
+          const hasCoords = input.destinationCoords != null
+          if (hasTargetId === hasCoords) {
+            return buildErrorResult(
+              input.commandId ?? input.sourceTargetId,
+              'INVALID_COMMAND',
+              hasTargetId
+                ? 'Cannot specify both destinationTargetId and destinationCoords'
+                : 'Must specify either destinationTargetId or destinationCoords',
+              snapshot,
+              input.sourceTargetId,
+            )
+          }
+
+          if (hasTargetId && input.sourceTargetId === input.destinationTargetId) {
             return buildErrorResult(
               input.commandId ?? input.sourceTargetId,
               'INVALID_COMMAND',
@@ -2250,34 +2406,24 @@ export function createPageAgentRuntime(
             )
           }
 
-          const destinationTarget = resolveRuntimeTarget(getDescriptors(), input.destinationTargetId)
-          if (!destinationTarget) {
+          if (hasCoords && input.placement != null) {
             return buildErrorResult(
               input.commandId ?? input.sourceTargetId,
-              'TARGET_NOT_FOUND',
-              `target not found: ${input.destinationTargetId}`,
+              'INVALID_COMMAND',
+              'placement cannot be used with destinationCoords',
               snapshot,
-              input.destinationTargetId,
+              input.sourceTargetId,
             )
           }
 
-          const destinationDescriptor = destinationTarget.descriptor
-          const destinationElement = destinationTarget.element
-          const destinationSnapshotTarget = findSnapshotTarget(snapshot, input.destinationTargetId)
-
           if (
             isOverlayFlowLocked(snapshot) &&
-            (
-              !sourceSnapshotTarget?.overlay ||
-              !destinationSnapshotTarget?.overlay
-            )
+            !sourceSnapshotTarget?.overlay
           ) {
             return buildFlowBlockedResult(
               input.commandId ?? input.sourceTargetId,
               snapshot,
-              !sourceSnapshotTarget?.overlay
-                ? input.sourceTargetId
-                : input.destinationTargetId,
+              input.sourceTargetId,
             )
           }
 
@@ -2324,6 +2470,64 @@ export function createPageAgentRuntime(
 
           if (config.clickDelayMs > 0) {
             await sleep(config.clickDelayMs)
+          }
+
+          // --- Branch: coordinate-based drag ---
+          if (hasCoords) {
+            const destCoords: PointerCoords = {
+              clientX: input.destinationCoords!.x,
+              clientY: input.destinationCoords!.y,
+            }
+
+            if (config.pointerAnimation) {
+              await queue.push({
+                type: 'animation',
+                execute: async () => {
+                  await animatePointerDragToCoordsWithCursor(
+                    sourceElement,
+                    destCoords,
+                    config.cursorName ?? DEFAULT_CURSOR_NAME,
+                    config.pointerDurationMs,
+                  )
+                },
+              })
+            } else {
+              await performPointerDragToCoords(sourceElement, destCoords)
+            }
+
+            const nextSnapshot = await captureSettledSnapshot(2)
+            return buildSuccessResult(input.commandId ?? input.sourceTargetId, nextSnapshot, {
+              actionKind: 'drag',
+              sourceTargetId: input.sourceTargetId,
+              destinationCoords: input.destinationCoords,
+            })
+          }
+
+          // --- Branch: target-based drag (existing logic) ---
+          const destinationTarget = resolveRuntimeTarget(getDescriptors(), input.destinationTargetId!)
+          if (!destinationTarget) {
+            return buildErrorResult(
+              input.commandId ?? input.sourceTargetId,
+              'TARGET_NOT_FOUND',
+              `target not found: ${input.destinationTargetId}`,
+              snapshot,
+              input.destinationTargetId!,
+            )
+          }
+
+          const destinationDescriptor = destinationTarget.descriptor
+          const destinationElement = destinationTarget.element
+          const destinationSnapshotTarget = findSnapshotTarget(snapshot, input.destinationTargetId!)
+
+          if (
+            isOverlayFlowLocked(snapshot) &&
+            !destinationSnapshotTarget?.overlay
+          ) {
+            return buildFlowBlockedResult(
+              input.commandId ?? input.sourceTargetId,
+              snapshot,
+              input.destinationTargetId!,
+            )
           }
 
           await smoothScrollIntoView(destinationElement)
@@ -2385,6 +2589,7 @@ export function createPageAgentRuntime(
           } else {
             await performPointerDragSequence(sourceElement, destinationElement, placement)
           }
+
           const nextSnapshot = await captureSettledSnapshot(2)
           return buildSuccessResult(input.commandId ?? input.sourceTargetId, nextSnapshot, {
             actionKind: 'drag',
@@ -2577,6 +2782,70 @@ export function createPageAgentRuntime(
         markdown,
         truncated,
         charCount: fullMarkdown.length,
+      })
+    },
+
+    pointer: async input => {
+      const commandId = input.commandId ?? 'pointer'
+
+      let element: HTMLElement | null = null
+
+      if (input.targetId) {
+        const target = resolveRuntimeTarget(getDescriptors(), input.targetId)
+        if (!target) {
+          const snapshot = await captureSettledSnapshot(0)
+          return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${input.targetId}`, snapshot, input.targetId)
+        }
+        element = target.element
+      } else if (input.selector) {
+        element = document.querySelector<HTMLElement>(input.selector)
+        if (!element) {
+          const snapshot = await captureSettledSnapshot(0)
+          return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `element not found for selector: ${input.selector}`, snapshot)
+        }
+      } else if (input.coords) {
+        element = document.elementFromPoint(input.coords.x, input.coords.y) as HTMLElement | null
+        if (!element) {
+          const snapshot = await captureSettledSnapshot(0)
+          return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `no element at coordinates (${input.coords.x}, ${input.coords.y})`, snapshot)
+        }
+      } else {
+        const snapshot = await captureSettledSnapshot(0)
+        return buildErrorResult(commandId, 'INVALID_COMMAND', 'Must specify targetId, selector, or coords', snapshot)
+      }
+
+      if (!input.actions || input.actions.length === 0) {
+        const snapshot = await captureSettledSnapshot(0)
+        return buildErrorResult(commandId, 'INVALID_COMMAND', 'actions array must not be empty', snapshot)
+      }
+
+      for (const action of input.actions) {
+        const coords: PointerCoords = { clientX: action.x, clientY: action.y }
+        const eventTarget = (document.elementFromPoint(action.x, action.y) as HTMLElement | null) ?? element
+
+        switch (action.type) {
+          case 'pointerdown':
+            dispatchPointerLikeEvent(eventTarget, 'pointerdown', coords, 1, true)
+            dispatchMouseLikeEvent(eventTarget, 'mousedown', coords, 1, true)
+            break
+          case 'pointermove':
+            dispatchPointerLikeEvent(eventTarget, 'pointermove', coords, 1, true)
+            dispatchMouseLikeEvent(eventTarget, 'mousemove', coords, 1, true)
+            break
+          case 'pointerup':
+            dispatchPointerLikeEvent(eventTarget, 'pointerup', coords, 0, true)
+            dispatchMouseLikeEvent(eventTarget, 'mouseup', coords, 0, true)
+            break
+          case 'wheel':
+            dispatchWheelEvent(eventTarget, coords, action.deltaY, action.ctrlKey ?? false)
+            break
+        }
+      }
+
+      const nextSnapshot = await captureSettledSnapshot(2)
+      return buildSuccessResult(commandId, nextSnapshot, {
+        actionKind: 'pointer',
+        actionsCount: input.actions.length,
       })
     },
 
