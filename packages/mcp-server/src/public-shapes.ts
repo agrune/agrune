@@ -19,7 +19,7 @@ export interface PublicSnapshotGroup {
   groupName?: string
   groupDesc?: string
   targetCount: number
-  actionKinds: PageTarget['actionKind'][]
+  actionKinds: PageTarget['actionKinds'][number][]
   sampleTargetNames: string[]
 }
 
@@ -28,7 +28,7 @@ export interface PublicSnapshotTarget {
   groupId: string
   name: string
   description: string
-  actionKind: PageTarget['actionKind']
+  actionKinds: PageTarget['actionKinds']
   reason?: PageTarget['reason']
   sensitive?: boolean
   textContent?: string
@@ -77,7 +77,7 @@ function toPublicTarget(target: PageTarget, includeTextContent: boolean): Public
     groupId: target.groupId,
     name: target.name,
     description: target.description,
-    actionKind: target.actionKind,
+    actionKinds: target.actionKinds,
     ...(target.reason !== 'ready' ? { reason: target.reason } : {}),
     ...(target.sensitive ? { sensitive: true } : {}),
     ...(includeTextContent && target.textContent ? { textContent: target.textContent } : {}),
@@ -127,7 +127,7 @@ function toPublicGroups(targets: PageTarget[]): PublicSnapshotGroup[] {
     groupName: group.groupName,
     groupDesc: group.groupDesc,
     targetCount: group.targets.length,
-    actionKinds: [...new Set(group.targets.map(target => target.actionKind))],
+    actionKinds: [...new Set(group.targets.flatMap(target => target.actionKinds))],
     sampleTargetNames: group.targets
       .map(target => target.name)
       .filter(name => name.length > 0)

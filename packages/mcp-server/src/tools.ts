@@ -46,7 +46,7 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: 'agrune_act',
-      description: 'Perform an interaction (click, dblclick, contextmenu, hover, longpress) on a target element. Defaults to click.',
+      description: 'Perform an interaction (click, dblclick, contextmenu, hover, longpress) on a target element. Defaults to click. A target may support multiple actions — check actionKinds in the snapshot.',
       inputSchema: {
         type: 'object',
         properties: {
