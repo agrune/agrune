@@ -93,6 +93,7 @@ export class AgagruneBackend {
       case 'agrune_act':
       case 'agrune_fill':
       case 'agrune_drag':
+      case 'agrune_pointer':
       case 'agrune_wait':
       case 'agrune_guide':
       case 'agrune_read': {

@@ -67,14 +67,57 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_drag',
-    'Drag one target to another. When ok:true is returned, do not re-snapshot to verify.',
+    'Drag a source target to a destination. Destination can be another target (destinationTargetId) or viewport coordinates (destinationCoords). Specify exactly one. When ok:true is returned, do not re-snapshot to verify.',
     {
       sourceTargetId: z.string().describe('Source target ID'),
-      destinationTargetId: z.string().describe('Destination target ID'),
-      placement: z.enum(['before', 'inside', 'after']).optional().describe('Drop placement'),
+      destinationTargetId: z.string().optional().describe('Destination target ID'),
+      destinationCoords: z.object({
+        x: z.number().describe('Viewport X coordinate'),
+        y: z.number().describe('Viewport Y coordinate'),
+      }).optional().describe('Destination viewport coordinates (alternative to destinationTargetId)'),
+      placement: z.enum(['before', 'inside', 'after']).optional().describe('Drop placement (only with destinationTargetId)'),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_drag', args)),
+  )
+
+  mcp.tool(
+    'agrune_pointer',
+    'Execute a low-level pointer/wheel event sequence on an element. Use for canvas pan, zoom, freeform drawing, or any interaction requiring raw coordinates. Specify target element via targetId, selector, or coords (priority: targetId > selector > coords).',
+    {
+      targetId: z.string().optional().describe('Annotated target ID'),
+      selector: z.string().optional().describe('CSS selector for target element'),
+      coords: z.object({
+        x: z.number().describe('Viewport X coordinate'),
+        y: z.number().describe('Viewport Y coordinate'),
+      }).optional().describe('Viewport coordinates to find element via elementFromPoint'),
+      actions: z.array(z.discriminatedUnion('type', [
+        z.object({
+          type: z.literal('pointerdown'),
+          x: z.number().describe('Viewport X'),
+          y: z.number().describe('Viewport Y'),
+        }),
+        z.object({
+          type: z.literal('pointermove'),
+          x: z.number().describe('Viewport X'),
+          y: z.number().describe('Viewport Y'),
+        }),
+        z.object({
+          type: z.literal('pointerup'),
+          x: z.number().describe('Viewport X'),
+          y: z.number().describe('Viewport Y'),
+        }),
+        z.object({
+          type: z.literal('wheel'),
+          x: z.number().describe('Viewport X'),
+          y: z.number().describe('Viewport Y'),
+          deltaY: z.number().describe('Scroll delta (negative = zoom in)'),
+          ctrlKey: z.boolean().optional().describe('Hold Ctrl (for pinch-zoom)'),
+        }),
+      ])).describe('Ordered sequence of pointer/wheel events'),
+      ...optionalTabId,
+    },
+    async (args) => toMcpToolResult(await handleToolCall('agrune_pointer', args)),
   )
 
   mcp.tool(
