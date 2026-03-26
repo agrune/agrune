@@ -79,6 +79,27 @@ export interface StatusResponseMessage {
   status: NativeHostStatus
 }
 
+export interface CdpRequestMessage {
+  type: 'cdp_request'
+  tabId?: number
+  requestId: string
+  method: string
+  params: Record<string, unknown>
+}
+
+export interface CdpResponseMessage {
+  type: 'cdp_response'
+  requestId: string
+  result?: Record<string, unknown>
+  error?: string
+}
+
+export interface CdpEventMessage {
+  type: 'cdp_event'
+  method: string
+  params: Record<string, unknown>
+}
+
 export type NativeMessage =
   | SnapshotUpdateMessage
   | CommandRequestMessage
@@ -92,6 +113,9 @@ export type NativeMessage =
   | ResyncRequestMessage
   | GetStatusMessage
   | StatusResponseMessage
+  | CdpRequestMessage
+  | CdpResponseMessage
+  | CdpEventMessage
 
 export function isSnapshotUpdate(msg: NativeMessage): msg is SnapshotUpdateMessage {
   return msg.type === 'snapshot_update'
@@ -135,4 +159,16 @@ export function isStatusResponse(msg: NativeMessage): msg is StatusResponseMessa
 
 export function isResyncRequest(msg: NativeMessage): msg is ResyncRequestMessage {
   return msg.type === 'resync_request'
+}
+
+export function isCdpRequest(msg: NativeMessage): msg is CdpRequestMessage {
+  return msg.type === 'cdp_request'
+}
+
+export function isCdpResponse(msg: NativeMessage): msg is CdpResponseMessage {
+  return msg.type === 'cdp_response'
+}
+
+export function isCdpEvent(msg: NativeMessage): msg is CdpEventMessage {
+  return msg.type === 'cdp_event'
 }
