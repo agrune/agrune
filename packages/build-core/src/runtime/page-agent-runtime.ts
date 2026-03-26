@@ -40,6 +40,10 @@ type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 const ACT_COMPATIBLE_KINDS = new Set(['click', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 const MAX_READ_CHARS = 50_000
+const LIVE_SCAN_ACTION_SELECTOR = '[data-agrune-action]'
+const LIVE_SCAN_GROUP_SELECTOR = '[data-agrune-group]'
+const LIVE_SCAN_DEFAULT_GROUP_ID = 'default'
+const LIVE_SCAN_DEFAULT_GROUP_NAME = 'Default'
 
 const SKIP_TAGS = new Set([
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG',
@@ -477,6 +481,106 @@ function collectDescriptors(manifest: AgagruneManifest): TargetDescriptor[] {
   }
 
   return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
+}
+
+function escapeAttributeValue(value: string): string {
+  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
+}
+
+function buildDomPathSelector(element: HTMLElement): string {
+  const segments: string[] = []
+  let current: HTMLElement | null = element
+
+  while (current && current !== document.body) {
+    const tagName = current.tagName.toLowerCase()
+    let siblingIndex = 1
+    let sibling = current.previousElementSibling
+    while (sibling) {
+      if (sibling.tagName === current.tagName) {
+        siblingIndex += 1
+      }
+      sibling = sibling.previousElementSibling
+    }
+    segments.unshift(`${tagName}:nth-of-type(${siblingIndex})`)
+    current = current.parentElement
+  }
+
+  return `body > ${segments.join(' > ')}`
+}
+
+function buildLiveSelector(element: HTMLElement): string {
+  const key = element.getAttribute('data-agrune-key')?.trim()
+  if (key) {
+    return `[data-agrune-key="${escapeAttributeValue(key)}"]`
+  }
+
+  const name = element.getAttribute('data-agrune-name')?.trim()
+  if (name) {
+    const selector = `[data-agrune-name="${escapeAttributeValue(name)}"]`
+    if (document.querySelectorAll(selector).length === 1) {
+      return selector
+    }
+  }
+
+  return buildDomPathSelector(element)
+}
+
+function collectLiveDescriptors(): TargetDescriptor[] {
+  const result: TargetDescriptor[] = []
+  const elements = document.querySelectorAll<HTMLElement>(LIVE_SCAN_ACTION_SELECTOR)
+
+  elements.forEach((element, index) => {
+    const rawAction = element.getAttribute('data-agrune-action') ?? ''
+    if (!VALID_ACTIONS.has(rawAction)) return
+
+    const key = element.getAttribute('data-agrune-key')?.trim()
+    const groupEl = element.closest<HTMLElement>(LIVE_SCAN_GROUP_SELECTOR)
+    const groupId = groupEl?.getAttribute('data-agrune-group')?.trim() || LIVE_SCAN_DEFAULT_GROUP_ID
+
+    result.push({
+      actionKind: rawAction as ActionKind,
+      groupId,
+      groupName: groupEl?.getAttribute('data-agrune-group-name') || (
+        groupId === LIVE_SCAN_DEFAULT_GROUP_ID ? LIVE_SCAN_DEFAULT_GROUP_NAME : groupId
+      ),
+      groupDesc: groupEl?.getAttribute('data-agrune-group-desc') || undefined,
+      target: {
+        targetId: key || `agrune_${index}`,
+        name: element.getAttribute('data-agrune-name'),
+        desc: element.getAttribute('data-agrune-desc'),
+        selector: buildLiveSelector(element),
+        sourceFile: '',
+        sourceLine: 0,
+        sourceColumn: 0,
+      },
+    })
+  })
+
+  return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
+}
+
+function mergeDescriptors(
+  manifestDescriptors: TargetDescriptor[],
+  liveDescriptors: TargetDescriptor[],
+): TargetDescriptor[] {
+  if (liveDescriptors.length === 0) {
+    return manifestDescriptors
+  }
+
+  const seenTargetIds = new Set(manifestDescriptors.map(descriptor => descriptor.target.targetId))
+  const merged = [...manifestDescriptors]
+
+  for (const descriptor of liveDescriptors) {
+    if (seenTargetIds.has(descriptor.target.targetId)) continue
+    seenTargetIds.add(descriptor.target.targetId)
+    merged.push(descriptor)
+  }
+
+  if (merged.length === manifestDescriptors.length) {
+    return manifestDescriptors
+  }
+
+  return merged.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
 }
 
 const REPEATED_TARGET_ID_DELIMITER = '__agrune_idx_'
@@ -1736,7 +1840,7 @@ export function createPageAgentRuntime(
   }
 
   const runtimeOptions = { ...DEFAULT_OPTIONS, ...options }
-  const descriptors = collectDescriptors(manifest)
+  const manifestDescriptors = collectDescriptors(manifest)
   const snapshotStore: MutableSnapshotStore = {
     latest: null,
     signature: null,
@@ -1747,7 +1851,8 @@ export function createPageAgentRuntime(
   let activityIdleTimer: ReturnType<typeof setTimeout> | null = null
   const queue = new ActionQueue({ idleTimeoutMs: IDLE_TIMEOUT_MS })
 
-  const captureSnapshot = () => makeSnapshot(descriptors, snapshotStore)
+  const getDescriptors = () => mergeDescriptors(manifestDescriptors, collectLiveDescriptors())
+  const captureSnapshot = () => makeSnapshot(getDescriptors(), snapshotStore)
 
   const resolveExecutionConfig = (
     patch?: Partial<AgagruneRuntimeConfig>,
@@ -1824,7 +1929,7 @@ export function createPageAgentRuntime(
       )
     }
 
-    const resolvedTarget = resolveRuntimeTarget(descriptors, targetId)
+    const resolvedTarget = resolveRuntimeTarget(getDescriptors(), targetId)
     if (!resolvedTarget) {
       return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${targetId}`, currentSnapshot, targetId)
     }
@@ -1929,7 +2034,7 @@ export function createPageAgentRuntime(
             )
           }
 
-          const destinationTarget = resolveRuntimeTarget(descriptors, input.destinationTargetId)
+          const destinationTarget = resolveRuntimeTarget(getDescriptors(), input.destinationTargetId)
           if (!destinationTarget) {
             return buildErrorResult(
               input.commandId ?? input.sourceTargetId,
@@ -2129,7 +2234,7 @@ export function createPageAgentRuntime(
         typeof input.timeoutMs === 'number' && input.timeoutMs > 0 ? input.timeoutMs : 5_000
       const startedAt = Date.now()
       const { baseTargetId } = parseRuntimeTargetId(input.targetId)
-      const descriptor = descriptors.find(entry => entry.target.targetId === baseTargetId)
+      const descriptor = getDescriptors().find(entry => entry.target.targetId === baseTargetId)
 
       if (!descriptor) {
         const snapshot = captureSnapshot()
@@ -2144,7 +2249,7 @@ export function createPageAgentRuntime(
 
       for (;;) {
         const snapshot = captureSnapshot()
-        const resolvedTarget = resolveRuntimeTarget(descriptors, input.targetId)
+        const resolvedTarget = resolveRuntimeTarget(getDescriptors(), input.targetId)
         if (!resolvedTarget) {
           return buildErrorResult(
             input.commandId ?? input.targetId,

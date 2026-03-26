@@ -706,6 +706,91 @@ describe('page agent runtime', () => {
     )
   })
 
+  it('act는 동적으로 추가된 overlay target을 즉시 snapshot에 반영하고 실행할 수 있다', async () => {
+    const button = document.createElement('button')
+    button.setAttribute('data-agrune-key', 'login')
+    button.getBoundingClientRect = () => mockRect()
+
+    let dialog: HTMLDivElement | null = null
+    let confirmButton: HTMLButtonElement | null = null
+    let confirmed = 0
+
+    button.addEventListener('click', () => {
+      dialog = document.createElement('div')
+      dialog.setAttribute('role', 'dialog')
+      dialog.setAttribute('aria-modal', 'true')
+      dialog.setAttribute('data-agrune-group', 'modal')
+      dialog.setAttribute('data-agrune-group-name', 'Modal')
+      dialog.style.position = 'fixed'
+      dialog.style.zIndex = '10'
+      dialog.getBoundingClientRect = () =>
+        ({
+          ...mockRect(),
+          bottom: 240,
+          height: 240,
+          right: 240,
+          width: 240,
+        }) as DOMRect
+
+      confirmButton = document.createElement('button')
+      confirmButton.textContent = '확인'
+      confirmButton.setAttribute('data-agrune-action', 'click')
+      confirmButton.setAttribute('data-agrune-key', 'confirm')
+      confirmButton.getBoundingClientRect = () =>
+        ({
+          ...mockRect(),
+          bottom: 200,
+          top: 160,
+          y: 160,
+        }) as DOMRect
+      confirmButton.addEventListener('click', () => {
+        confirmed += 1
+      })
+
+      dialog.appendChild(confirmButton)
+      document.body.appendChild(dialog)
+    })
+
+    document.body.appendChild(button)
+    ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      (_x: number, y: number) => {
+        if (confirmButton && y >= 160 && y < 200) return confirmButton
+        if (dialog) return dialog
+        return button
+      },
+    )
+
+    const runtime = createPageAgentRuntime(makeManifest())
+    const snapshot = runtime.getSnapshot()
+    const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
+
+    expect(result.ok).toBe(true)
+    expect(result.snapshot?.targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'login',
+          covered: true,
+          actionableNow: false,
+        }),
+        expect.objectContaining({
+          targetId: 'confirm',
+          groupId: 'modal',
+          groupName: 'Modal',
+          overlay: true,
+          actionableNow: true,
+        }),
+      ]),
+    )
+
+    const confirmResult = await runtime.act({
+      expectedVersion: result.snapshotVersion,
+      targetId: 'confirm',
+    })
+
+    expect(confirmResult.ok).toBe(true)
+    expect(confirmed).toBe(1)
+  })
+
   it('act는 mousedown 기반 상호작용도 실행한다', async () => {
     const button = document.createElement('button')
     button.setAttribute('data-agrune-key', 'login')

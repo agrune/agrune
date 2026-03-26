@@ -189,6 +189,136 @@ describe('AgagruneBackend agent activity lease', () => {
     const parsedWithout = JSON.parse(withoutText.text)
     expect(parsedWithout.targets[0].textContent).toBeUndefined()
   })
+
+  it('command_result에 포함된 snapshot으로 세션 캐시를 즉시 갱신한다', async () => {
+    const backend = new AgagruneBackend()
+    backend.setNativeSender(vi.fn())
+    backend.handleNativeMessage({
+      type: 'session_open',
+      tabId: 42,
+      url: 'http://localhost:5173',
+      title: 'Project Management Tool',
+    } as NativeMessage)
+    backend.handleNativeMessage({
+      type: 'snapshot_update',
+      tabId: 42,
+      snapshot: {
+        version: 1,
+        capturedAt: Date.now(),
+        url: 'http://localhost:5173',
+        title: 'Project Management Tool',
+        groups: [],
+        targets: [
+          {
+            targetId: 'login',
+            groupId: 'auth',
+            groupName: 'Auth',
+            name: '로그인',
+            description: '로그인 버튼',
+            actionKind: 'click',
+            selector: '[data-agrune-key="login"]',
+            visible: true,
+            inViewport: true,
+            enabled: true,
+            covered: false,
+            actionableNow: true,
+            reason: 'ready',
+            overlay: false,
+            sensitive: false,
+            textContent: '로그인',
+            valuePreview: null,
+            sourceFile: '',
+            sourceLine: 0,
+            sourceColumn: 0,
+          },
+        ],
+      },
+    } as NativeMessage)
+
+    backend.handleNativeMessage({
+      type: 'command_result',
+      tabId: 42,
+      commandId: 'cmd-1',
+      result: {
+        commandId: 'cmd-1',
+        ok: true,
+        snapshotVersion: 2,
+        result: { actionKind: 'click', targetId: 'login' },
+        snapshot: {
+          version: 2,
+          capturedAt: Date.now(),
+          url: 'http://localhost:5173',
+          title: 'Project Management Tool',
+          groups: [],
+          targets: [
+            {
+              targetId: 'login',
+              groupId: 'auth',
+              groupName: 'Auth',
+              name: '로그인',
+              description: '로그인 버튼',
+              actionKind: 'click',
+              selector: '[data-agrune-key="login"]',
+              visible: true,
+              inViewport: true,
+              enabled: true,
+              covered: true,
+              actionableNow: false,
+              reason: 'covered',
+              overlay: false,
+              sensitive: false,
+              textContent: '로그인',
+              valuePreview: null,
+              sourceFile: '',
+              sourceLine: 0,
+              sourceColumn: 0,
+            },
+            {
+              targetId: 'confirm',
+              groupId: 'modal',
+              groupName: 'Modal',
+              groupDesc: 'Overlay actions',
+              name: '확인',
+              description: '모달 확인 버튼',
+              actionKind: 'click',
+              selector: '[data-agrune-key="confirm"]',
+              visible: true,
+              inViewport: true,
+              enabled: true,
+              covered: false,
+              actionableNow: true,
+              reason: 'ready',
+              overlay: true,
+              sensitive: false,
+              textContent: '확인',
+              valuePreview: null,
+              sourceFile: '',
+              sourceLine: 0,
+              sourceColumn: 0,
+            },
+          ],
+        },
+      },
+    } as NativeMessage)
+
+    const outline = await backend.handleToolCall('agrune_snapshot', { tabId: 42 })
+    expect(JSON.parse(outline.text)).toEqual({
+      version: 2,
+      url: 'http://localhost:5173',
+      title: 'Project Management Tool',
+      context: 'overlay',
+      groups: [
+        {
+          groupId: 'modal',
+          groupName: 'Modal',
+          groupDesc: 'Overlay actions',
+          targetCount: 1,
+          actionKinds: ['click'],
+          sampleTargetNames: ['확인'],
+        },
+      ],
+    })
+  })
 })
 
 describe('ensureReady', () => {

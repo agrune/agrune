@@ -40,6 +40,9 @@ export class AgagruneBackend {
         this.sessions.updateSnapshot(msg.tabId, msg.snapshot)
         break
       case 'command_result':
+        if (msg.result.snapshot) {
+          this.sessions.updateSnapshot(msg.tabId, msg.result.snapshot)
+        }
         this.commands.resolve(msg.commandId, msg.result)
         break
       case 'ping':
