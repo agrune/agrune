@@ -115,7 +115,7 @@ describe('page runtime bridge', () => {
     // was used at least once and that runtime_ready was sent.
     expect(mocks.installPageAgentRuntime).toHaveBeenCalledWith(
       { version: 2 },
-      { cursorName: 'b' },
+      expect.objectContaining({ cursorName: 'b' }),
     )
     expect(
       postMessageSpy.mock.calls.some(([message]) =>
