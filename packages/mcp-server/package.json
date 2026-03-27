@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup",
+    "postbuild": "./scripts/postbuild.sh",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "dev": "tsx src/index.ts"

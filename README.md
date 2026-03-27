@@ -177,6 +177,12 @@ cd packages/mcp-server
 pnpm dev
 ```
 
+#### 빌드 후 자동 배포
+
+`pnpm build` 실행 시 MCP 서버의 빌드 결과물이 자동으로 `~/.agrune/mcp-server/`에 동기화되고, 실행 중인 백엔드 데몬이 재시작됩니다. 다음 MCP 도구 호출 시 새 버전의 데몬이 자동으로 시작됩니다.
+
+> **사전 조건:** `pnpm dlx @agrune/cli` 또는 `agrune setup`으로 초기 설치가 완료되어 있어야 합니다. `~/.agrune/mcp-server/` 디렉터리가 없으면 동기화를 건너뜁니다.
+
 ### 기술 스택
 
 - **TypeScript** (ES2022, ESNext 모듈)
