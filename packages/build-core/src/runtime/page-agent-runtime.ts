@@ -49,6 +49,8 @@ import {
   normalizeExecutionConfig,
 } from './command-handlers'
 import { createSyntheticDispatchFallback } from './synthetic-dispatch'
+import { createCdpClient, type CdpClient } from './cdp-client'
+import { createEventSequences, type EventSequences } from './event-sequences'
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -264,17 +266,23 @@ export function createPageAgentRuntime(
     }, IDLE_TIMEOUT_MS)
   }
 
+  // CDP event sequences — activated when cdpPostMessage callback is provided
+  let cdpClient: CdpClient | null = null
+  let eventSequences: EventSequences | null = null
+
+  if (runtimeOptions.cdpPostMessage) {
+    cdpClient = createCdpClient(runtimeOptions.cdpPostMessage)
+    eventSequences = createEventSequences(cdpClient)
+  }
+
   const deps: CommandHandlerDeps = {
     captureSnapshot,
     captureSettledSnapshot,
     getDescriptors,
     resolveExecutionConfig,
     queue,
-    // CDP event sequences are not yet wired — the synthetic fallback
-    // handles all pointer/mouse/drag dispatch (sufficient for jsdom tests).
-    // When a CDP bridge is integrated, set eventSequences here.
-    eventSequences: null,
-    syntheticFallback: createSyntheticDispatchFallback(),
+    eventSequences,
+    syntheticFallback: eventSequences ? null : createSyntheticDispatchFallback(),
   }
 
   const runtime: PageAgentRuntime = {
@@ -325,6 +333,7 @@ export function createPageAgentRuntime(
     clearActivityIdleTimer()
     mutationObserver?.disconnect()
     queue.dispose()
+    cdpClient?.dispose()
   })
 
   return runtime
