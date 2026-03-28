@@ -117,6 +117,8 @@ export function registerAgagruneTools(
           deltaY: z.number().describe('Scroll delta (negative = zoom in)'),
           ctrlKey: z.boolean().optional().describe('Hold Ctrl (for pinch-zoom)'),
           delayMs: z.number().optional().describe('Delay in ms after this action'),
+          steps: z.number().int().min(1).optional().describe('Split deltaY into N equal steps for smooth zoom'),
+          durationMs: z.number().optional().describe('Total duration across all steps in ms'),
         }),
       ])).describe('Ordered sequence of pointer/wheel events'),
       ...optionalTabId,
