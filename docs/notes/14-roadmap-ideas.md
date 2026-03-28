@@ -24,6 +24,14 @@
 - AI가 테스트 실행 시 자동으로 참조 (폼 채울 때 여기서 값 가져옴)
 - 환경별 분리 가능 (dev, staging, prod)
 
+### 시스템 인터랙션 (CDP 기반)
+
+- 파일 업로드: `agrune_upload(targetId, filePath)` — CDP `DOM.setFileInputFiles`로 다이얼로그 없이 주입
+- 파일 다운로드: `agrune_download(targetId, savePath)` — CDP `Browser.setDownloadBehavior`로 자동 수락
+- alert/confirm/prompt: CDP `Page.handleJavaScriptDialog`로 자동 감지 + 응답
+- 권한 팝업 (카메라 등): CDP `Browser.grantPermissions`로 자동 허용
+- 유저 프로젝트에 설치할 것 없음 — 전부 agrune MCP 서버 + 확장에서 처리
+
 ## WebMCP 호환
 
 - agrune 확장이 어노테이션 스캔 시 `navigator.modelContext.registerTool()`도 호출
