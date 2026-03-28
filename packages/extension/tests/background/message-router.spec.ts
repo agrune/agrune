@@ -361,6 +361,7 @@ describe('createBackgroundMessageRouter', () => {
       detach: vi.fn(),
       detachAll: vi.fn(),
       isAttached: vi.fn(() => false),
+      ensureAttached: vi.fn(() => Promise.resolve()),
       register: vi.fn(),
     }
 
@@ -406,6 +407,7 @@ describe('createBackgroundMessageRouter', () => {
       detach: vi.fn(),
       detachAll: vi.fn(),
       isAttached: vi.fn(() => false),
+      ensureAttached: vi.fn(() => Promise.resolve()),
       register: vi.fn(),
     }
 
@@ -457,6 +459,7 @@ describe('createBackgroundMessageRouter', () => {
       detach: vi.fn(),
       detachAll: vi.fn(),
       isAttached: vi.fn(() => false),
+      ensureAttached: vi.fn(() => Promise.resolve()),
       register: vi.fn(),
     }
 
@@ -482,6 +485,54 @@ describe('createBackgroundMessageRouter', () => {
       requestId: 'req-3',
       error: 'CDP failed',
     })
+  })
+
+  it('calls cdpHandler.ensureAttached on command_request from native host', () => {
+    const chrome = createChromeMock()
+    const controller = {
+      postMessage: vi.fn(),
+      requestStatus: vi.fn(),
+      reconnect: vi.fn(),
+      getStatus: vi.fn(() => ({
+        hostName: 'com.agrune.agrune',
+        phase: 'connected' as NativeHostPhase,
+        connected: true,
+        lastError: null,
+      })),
+    }
+    const broadcaster = {
+      broadcastToAllTabs: vi.fn(),
+      sendToTab: vi.fn(),
+      broadcastConfig: vi.fn(),
+      broadcastAgentActivity: vi.fn(),
+      broadcastNativeHostStatus: vi.fn(),
+    }
+    const cdpHandler = {
+      handleRequest: vi.fn(() => Promise.resolve({})),
+      notifyActivity: vi.fn(),
+      ensureAttached: vi.fn(() => Promise.resolve()),
+    }
+
+    const router = createBackgroundMessageRouter({
+      api: chrome.chromeMock,
+      controller,
+      broadcaster,
+      cdpHandler,
+    })
+    router.register()
+
+    router.handleNativeHostMessage({
+      type: 'command_request',
+      tabId: 42,
+      commandId: 'cmd-1',
+      command: { kind: 'snapshot' },
+    } as never)
+
+    expect(cdpHandler.ensureAttached).toHaveBeenCalledWith(42)
+    expect(broadcaster.sendToTab).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({ type: 'command_request', tabId: 42 }),
+    )
   })
 
   it('broadcasts resync to all tabs when receiving resync_request from native host', () => {
