@@ -23,6 +23,7 @@ export interface PublicSnapshotGroup {
   actionKinds: PageTarget['actionKinds'][number][]
   sampleTargetNames: string[]
   viewportTransform?: { translateX: number; translateY: number; scale: number }
+  meta?: unknown
 }
 
 export interface PublicSnapshotTarget {
@@ -34,14 +35,16 @@ export interface PublicSnapshotTarget {
   reason?: PageTarget['reason']
   sensitive?: boolean
   textContent?: string
-  rect?: { x: number; y: number; width: number; height: number }
+  center?: { x: number; y: number }
+  size?: { w: number; h: number }
+  coordSpace?: 'viewport' | 'canvas'
 }
 
 export interface PublicSnapshotOptions {
   mode?: 'outline' | 'full'
   groupIds?: string[]
   includeTextContent?: boolean
-  includeRect?: boolean
+  // includeRect removed — center+size always included when present
 }
 
 export interface PublicSnapshot {
@@ -75,7 +78,7 @@ export function toPublicSession(session: Session): PublicSession {
   }
 }
 
-function toPublicTarget(target: PageTarget, includeTextContent: boolean, includeRect: boolean): PublicSnapshotTarget {
+function toPublicTarget(target: PageTarget, includeTextContent: boolean): PublicSnapshotTarget {
   return {
     targetId: target.targetId,
     groupId: target.groupId,
@@ -85,7 +88,9 @@ function toPublicTarget(target: PageTarget, includeTextContent: boolean, include
     ...(target.reason !== 'ready' ? { reason: target.reason } : {}),
     ...(target.sensitive ? { sensitive: true } : {}),
     ...(includeTextContent && target.textContent ? { textContent: target.textContent } : {}),
-    ...(includeRect && target.rect ? { rect: target.rect } : {}),
+    ...(target.center ? { center: target.center } : {}),
+    ...(target.size ? { size: target.size } : {}),
+    ...(target.coordSpace ? { coordSpace: target.coordSpace } : {}),
   }
 }
 
@@ -114,6 +119,11 @@ function toPublicGroups(targets: PageTarget[], snapshotGroups: PageSnapshotGroup
     snapshotGroups
       .filter(g => g.viewportTransform)
       .map(g => [g.groupId, g.viewportTransform]),
+  )
+  const metaMap = new Map(
+    snapshotGroups
+      .filter(g => g.meta !== undefined)
+      .map(g => [g.groupId, g.meta]),
   )
 
   const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targets: PageTarget[] }>()
@@ -144,6 +154,7 @@ function toPublicGroups(targets: PageTarget[], snapshotGroups: PageSnapshotGroup
       .filter(name => name.length > 0)
       .slice(0, 3),
     ...(transformMap.has(group.groupId) ? { viewportTransform: transformMap.get(group.groupId) } : {}),
+    ...(metaMap.has(group.groupId) ? { meta: metaMap.get(group.groupId) } : {}),
   }))
 }
 
@@ -160,7 +171,6 @@ export function toPublicSnapshot(
       : activeContext.targets
 
   const includeGroups = !includeTargets
-  const includeRect = options.includeRect ?? includeTargets
 
   return {
     version: snapshot.version,
@@ -168,7 +178,7 @@ export function toPublicSnapshot(
     title: snapshot.title,
     context: activeContext.context,
     ...(includeGroups ? { groups: toPublicGroups(activeContext.targets, snapshot.groups) } : {}),
-    ...(includeTargets ? { targets: expandedTargets.map(t => toPublicTarget(t, options.includeTextContent ?? false, includeRect)) } : {}),
+    ...(includeTargets ? { targets: expandedTargets.map(t => toPublicTarget(t, options.includeTextContent ?? false)) } : {}),
   }
 }
 
