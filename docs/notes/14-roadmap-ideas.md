@@ -16,6 +16,34 @@
 - 한 모델은 agrune 정보 부족(6):추론(4), 다른 모델은 추론(6):agrune 부족(4)으로 평가
 - 공통 결론: 캔버스 절대 좌표 접근이 핵심. 현재 정보로는 거친 정리만 가능, 정밀 정렬 불가
 
+**AI가 원하는 스냅샷 구조:**
+
+```json
+// 현재 (viewport 좌표만, rect 기반)
+{
+  "targetId": "agrune_4",
+  "name": "기획",
+  "rect": { "x": 249, "y": 392, "width": 78, "height": 38 }
+}
+
+// 개선안 (center + size 기본, canvas 좌표 포함)
+{
+  "targetId": "agrune_4",
+  "groupId": "workflow-nodes",
+  "name": "기획",
+  "description": "스테이지 노드. 드래그하여 이동, 핸들로 연결",
+  "actionKinds": ["click"],
+  "textContent": "기획요구사항 분석 및 기획",
+  "center": { "x": 288, "y": 411 },
+  "size": { "w": 78, "h": 38 },
+  "coordSpace": "canvas",
+  "bounds": { "left": 651, "top": 282, "right": 789, "bottom": 357 },
+  "visible": true
+}
+```
+
+핵심 변경: `rect` → `center` + `size` 기본, `coordSpace: "canvas"` 명시, `bounds`는 옵션.
+
 **현재 문제:**
 - viewport 좌표와 canvas 좌표의 관계가 불명확
 - 드래그 시 "카드의 어느 점을 잡아서 옮기는지" 정보 없음
