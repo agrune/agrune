@@ -413,7 +413,7 @@ function callMetaFunction(groupEl: HTMLElement): unknown | null {
   const fnName = groupEl.getAttribute('data-agrune-meta')?.trim()
   if (!fnName) return null
 
-  const fn = (window as Record<string, unknown>)[fnName]
+  const fn = (window as unknown as Record<string, unknown>)[fnName]
   if (typeof fn !== 'function') {
     console.warn(`[agrune] meta function not found: ${fnName}`)
     return null
