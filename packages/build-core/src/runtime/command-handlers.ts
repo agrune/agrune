@@ -837,14 +837,15 @@ function getCanvasGroupTransform(
   const transformEl = groupEl.querySelector<HTMLElement>(canvasSelector)
   if (!transformEl) return undefined
 
+  const rect = transformEl.getBoundingClientRect()
   const style = window.getComputedStyle(transformEl)
   if (!style.transform || style.transform === 'none') {
-    return { translateX: 0, translateY: 0, scale: 1 }
+    return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 }
   }
   const m = new DOMMatrix(style.transform)
   return {
-    translateX: Math.round(m.e),
-    translateY: Math.round(m.f),
+    translateX: Math.round(rect.left),
+    translateY: Math.round(rect.top),
     scale: Math.round(m.a * 1000) / 1000,
   }
 }

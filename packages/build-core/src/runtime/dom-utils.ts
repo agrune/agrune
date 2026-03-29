@@ -487,14 +487,15 @@ export function canvasToViewport(
 }
 
 export function parseTransform(element: HTMLElement): ViewportTransform {
+  const rect = element.getBoundingClientRect()
   const style = window.getComputedStyle(element)
   if (!style.transform || style.transform === 'none') {
-    return { translateX: 0, translateY: 0, scale: 1 }
+    return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 }
   }
   const m = new DOMMatrix(style.transform)
   return {
-    translateX: Math.round(m.e),
-    translateY: Math.round(m.f),
+    translateX: Math.round(rect.left),
+    translateY: Math.round(rect.top),
     scale: Math.round(m.a * 1000) / 1000,
   }
 }
