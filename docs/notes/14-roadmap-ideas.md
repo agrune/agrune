@@ -26,6 +26,7 @@
 - `agrune_move(targetId, x, y, anchor?)` — 드래그 없이 직접 배치하는 API 검토
 - 스냅 그리드 정보 노출 (있다면)
 - 엣지(연결선) 정보를 스냅샷에 포함 — SVG라 어노테이션 불가, JS 상태에서 추출 필요 (예: `reactFlowInstance.getEdges()` → `{ source, target }` 배열). AI가 노드 간 관계를 이해해야 정렬/레이아웃 판단 가능
+- 좌표 표현 변경: 기본값을 center + size로 전환 (`{ center: {x, y}, width, height }`), rect는 옵션으로 제공. AI가 정렬/간격/드래그 판단 시 중심점 기반이 더 직관적
 
 ### 1-1. 비전 도구 `agrune_capture` [높음]
 
