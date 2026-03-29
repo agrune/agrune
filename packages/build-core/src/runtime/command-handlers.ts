@@ -12,6 +12,7 @@ import {
   autoPanToCanvasPoint,
   canvasToViewport,
   getElementCenter,
+  getVisibleCenter,
   getDragPlacementCoords,
   getInteractablePoint,
   isElementInViewport,
@@ -1052,7 +1053,11 @@ export async function handleDrag(
         }
 
         const transform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
-        const srcCoords = getElementCenter(sourceElement)
+        // Use visible center for canvas groups so drag pickup works when the
+        // element center is offscreen but an edge is still visible.
+        const srcCoords = transform
+          ? getVisibleCenter(sourceElement)
+          : getElementCenter(sourceElement)
 
         let destCoords: PointerCoords
         if (transform) {
@@ -1107,8 +1112,8 @@ export async function handleDrag(
             }
           }
 
-          // Re-read source coords after potential pan
-          const freshSrcCoords = getElementCenter(sourceElement)
+          // Re-read source coords after potential pan (use visible center for canvas)
+          const freshSrcCoords = getVisibleCenter(sourceElement)
           Object.assign(srcCoords, freshSrcCoords)
         } else {
           destCoords = {
@@ -1126,21 +1131,58 @@ export async function handleDrag(
           ? viewportToCanvas(srcVpCx, srcVpCy, currentTransform)
           : { x: Math.round(srcVpCx), y: Math.round(srcVpCy) }
 
-        // Check if a different agrune target is on top at this position
+        // Check if other agrune targets are stacked on top at this position.
+        // Gather ALL overlapping targets so the AI can plan the full peeling
+        // sequence in one shot instead of discovering one blocker at a time.
         if (transform) {
           const srcVpCenter = getElementCenter(sourceElement)
           const topEl = document.elementFromPoint(srcVpCenter.clientX, srcVpCenter.clientY)
           if (topEl && topEl !== sourceElement) {
-            // Walk up to find if topEl or its ancestor is an agrune-annotated element
             const blockingEl = topEl.closest<HTMLElement>('[data-agrune-action]')
             if (blockingEl && blockingEl !== sourceElement) {
-              const blockingName = blockingEl.getAttribute('data-agrune-name') || 'unknown'
-              const blockingTargetId = findTargetIdForElement(deps.getDescriptors(), blockingEl)
-              if (blockingTargetId) {
+              // Found at least one blocker — collect the full stack
+              const srcRect = sourceElement.getBoundingClientRect()
+              const srcCx = srcRect.left + srcRect.width / 2
+              const srcCy = srcRect.top + srcRect.height / 2
+              const PROXIMITY_PX = 10
+
+              const stackedTargets: Array<{ targetId: string; name: string; element: HTMLElement }> = []
+              for (const d of deps.getDescriptors()) {
+                if (d.target.targetId === sourceDescriptor.target.targetId) continue
+                if (d.groupId !== sourceDescriptor.groupId) continue
+                const elements = findElements(d)
+                for (const el of elements) {
+                  const r = el.getBoundingClientRect()
+                  const cx = r.left + r.width / 2
+                  const cy = r.top + r.height / 2
+                  if (Math.abs(cx - srcCx) < PROXIMITY_PX && Math.abs(cy - srcCy) < PROXIMITY_PX) {
+                    stackedTargets.push({
+                      targetId: d.target.targetId,
+                      name: d.target.name || el.getAttribute('data-agrune-name') || 'unknown',
+                      element: el,
+                    })
+                  }
+                }
+              }
+
+              if (stackedTargets.length > 0) {
+                // Sort by DOM order (later in DOM = higher z-index in React Flow)
+                // so the message lists from top to bottom (reverse DOM order).
+                stackedTargets.sort((a, b) => {
+                  const pos = a.element.compareDocumentPosition(b.element)
+                  if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return 1  // b is after a
+                  if (pos & Node.DOCUMENT_POSITION_PRECEDING) return -1 // b is before a
+                  return 0
+                })
+                stackedTargets.reverse()
+
+                const stackList = stackedTargets
+                  .map(t => `${t.targetId}(${t.name})`)
+                  .join(', ')
                 return buildErrorResult(
                   input.commandId ?? input.sourceTargetId,
                   'NOT_VISIBLE',
-                  `Target is covered by ${blockingTargetId}(${blockingName}) at the same position. Move ${blockingTargetId} first.`,
+                  `Target is covered by stacked nodes at the same position. Move them in this order: ${stackList}`,
                   snapshot,
                   input.sourceTargetId,
                 )

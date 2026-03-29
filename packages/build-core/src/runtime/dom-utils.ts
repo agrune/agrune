@@ -239,6 +239,32 @@ export function getElementCenter(element: HTMLElement): PointerCoords {
   }
 }
 
+/**
+ * Returns the center of the visible portion of an element within the viewport.
+ * When the element's true center is offscreen but an edge is visible, this
+ * returns a point inside the visible area so that drag pickup can succeed.
+ */
+export function getVisibleCenter(element: HTMLElement): PointerCoords {
+  const rect = element.getBoundingClientRect()
+  const visibleLeft = Math.max(rect.left, 0)
+  const visibleTop = Math.max(rect.top, 0)
+  const visibleRight = Math.min(rect.right, window.innerWidth)
+  const visibleBottom = Math.min(rect.bottom, window.innerHeight)
+
+  if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) {
+    // Completely offscreen — fall back to geometric center
+    return {
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    }
+  }
+
+  return {
+    clientX: (visibleLeft + visibleRight) / 2,
+    clientY: (visibleTop + visibleBottom) / 2,
+  }
+}
+
 export function getDragPlacementCoords(
   element: HTMLElement,
   placement: DragPlacement,

@@ -452,15 +452,12 @@ export function makeSnapshot(
     return { translateX: Math.round(m.e), translateY: Math.round(m.f), scale: Math.round(m.a * 1000) / 1000 }
   }
 
-  const groupTransforms = new Map<string, ViewportTransform>()
-  for (const [groupId] of canvasSelectors) {
-    const transform = parseViewportTransform(groupId)
-    if (transform) groupTransforms.set(groupId, transform)
-  }
-
   const targets = descriptors.flatMap(descriptor => {
     const elements = findElements(descriptor)
-    const transform = groupTransforms.get(descriptor.groupId)
+    // Read transform FRESH for each group's targets to avoid stale values after zoom
+    const transform = canvasSelectors.has(descriptor.groupId)
+      ? parseViewportTransform(descriptor.groupId)
+      : undefined
     return elements.map((element, index) =>
       captureTarget(
         descriptor,
