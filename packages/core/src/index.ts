@@ -9,7 +9,7 @@ export const COMMAND_ERROR_CODES = [
   'AGENT_STOPPED',
   'INVALID_TARGET',
   'INVALID_COMMAND',
-  'OFFSCREEN',
+  'CANVAS_PAN_FAILED',
 ] as const
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
