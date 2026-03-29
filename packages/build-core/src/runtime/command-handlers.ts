@@ -3,20 +3,24 @@ import {
   type DragPlacement,
   type PageSnapshot,
   type AgagruneRuntimeConfig,
+  type ViewportTransform,
   mergeRuntimeConfig,
 } from '@agrune/core'
 import type { AgagruneRuntimeOptions } from '../types'
 import {
   type PointerCoords,
+  canvasToViewport,
   getElementCenter,
   getDragPlacementCoords,
   getInteractablePoint,
   isElementInViewport,
   isEnabled,
   isFillableElement,
+  isPointInsideViewport,
   isTopmostInteractable,
   isVisible,
   smoothScrollIntoView,
+  viewportToCanvas,
 } from './dom-utils'
 import {
   type ActionKind,
@@ -801,6 +805,71 @@ export async function handleAct(
 }
 
 // ---------------------------------------------------------------------------
+// drag helpers — canvas coordinate support
+// ---------------------------------------------------------------------------
+
+function getCanvasGroupTransform(
+  descriptors: TargetDescriptor[],
+  targetId: string,
+): ViewportTransform | undefined {
+  const { baseTargetId } = parseRuntimeTargetId(targetId)
+  const descriptor = descriptors.find(d => d.target.targetId === baseTargetId)
+  if (!descriptor) return undefined
+
+  const groupEl = document.querySelector<HTMLElement>(
+    `[data-agrune-group="${descriptor.groupId}"]`
+  )
+  if (!groupEl) return undefined
+
+  const canvasSelector = groupEl.getAttribute('data-agrune-canvas')?.trim()
+  if (!canvasSelector) return undefined
+
+  const transformEl = groupEl.querySelector<HTMLElement>(canvasSelector)
+  if (!transformEl) return undefined
+
+  const style = window.getComputedStyle(transformEl)
+  if (!style.transform || style.transform === 'none') {
+    return { translateX: 0, translateY: 0, scale: 1 }
+  }
+  const m = new DOMMatrix(style.transform)
+  return {
+    translateX: Math.round(m.e),
+    translateY: Math.round(m.f),
+    scale: Math.round(m.a * 1000) / 1000,
+  }
+}
+
+function buildMovedTarget(
+  element: HTMLElement,
+  targetId: string,
+  transform?: ViewportTransform,
+): Record<string, unknown> {
+  const domRect = element.getBoundingClientRect()
+  const cx = domRect.left + domRect.width / 2
+  const cy = domRect.top + domRect.height / 2
+
+  if (transform) {
+    const canvasCenter = viewportToCanvas(cx, cy, transform)
+    return {
+      targetId,
+      center: canvasCenter,
+      size: {
+        w: Math.round(domRect.width / transform.scale),
+        h: Math.round(domRect.height / transform.scale),
+      },
+      coordSpace: 'canvas',
+    }
+  }
+
+  return {
+    targetId,
+    center: { x: Math.round(cx), y: Math.round(cy) },
+    size: { w: Math.round(domRect.width), h: Math.round(domRect.height) },
+    coordSpace: 'viewport',
+  }
+}
+
+// ---------------------------------------------------------------------------
 // drag handler
 // ---------------------------------------------------------------------------
 
@@ -917,10 +986,28 @@ export async function handleDrag(
 
       // --- Branch: coordinate-based drag ---
       if (hasCoords) {
+        const transform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
         const srcCoords = getElementCenter(sourceElement)
-        const destCoords: PointerCoords = {
-          clientX: input.destinationCoords!.x,
-          clientY: input.destinationCoords!.y,
+
+        let destCoords: PointerCoords
+        if (transform) {
+          const vp = canvasToViewport(input.destinationCoords!.x, input.destinationCoords!.y, transform)
+          destCoords = { clientX: vp.x, clientY: vp.y }
+
+          if (!isPointInsideViewport(vp.x, vp.y)) {
+            return buildErrorResult(
+              input.commandId ?? input.sourceTargetId,
+              'OFFSCREEN',
+              'Target is outside viewport. Use wheel to pan/zoom first.',
+              snapshot,
+              input.sourceTargetId,
+            )
+          }
+        } else {
+          destCoords = {
+            clientX: input.destinationCoords!.x,
+            clientY: input.destinationCoords!.y,
+          }
         }
 
         if (config.pointerAnimation) {
@@ -946,6 +1033,7 @@ export async function handleDrag(
           actionKind: 'drag',
           sourceTargetId: input.sourceTargetId,
           destinationCoords: input.destinationCoords,
+          movedTarget: buildMovedTarget(sourceElement, input.sourceTargetId, transform),
         })
       }
 
