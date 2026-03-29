@@ -1006,6 +1006,39 @@ export async function handleDrag(
 
       // --- Branch: coordinate-based drag ---
       if (hasCoords) {
+        // --- Resolve relativeTo to absolute coords ---
+        if (input.destinationCoords && 'relativeTo' in input.destinationCoords) {
+          const relCoords = input.destinationCoords as unknown as { relativeTo: string; dx: number; dy: number }
+          const refDescriptor = resolveRuntimeTarget(deps.getDescriptors(), relCoords.relativeTo)
+          if (!refDescriptor) {
+            return buildErrorResult(
+              input.commandId ?? input.sourceTargetId,
+              'TARGET_NOT_FOUND',
+              `relativeTo target not found: ${relCoords.relativeTo}`,
+              snapshot,
+              relCoords.relativeTo,
+            )
+          }
+          const refElement = refDescriptor.element
+          const refRect = refElement.getBoundingClientRect()
+          const refCx = refRect.left + refRect.width / 2
+          const refCy = refRect.top + refRect.height / 2
+
+          const refTransform = getCanvasGroupTransform(deps.getDescriptors(), relCoords.relativeTo)
+          if (refTransform) {
+            const refCanvas = viewportToCanvas(refCx, refCy, refTransform)
+            input.destinationCoords = {
+              x: refCanvas.x + relCoords.dx,
+              y: refCanvas.y + relCoords.dy,
+            }
+          } else {
+            input.destinationCoords = {
+              x: Math.round(refCx + relCoords.dx),
+              y: Math.round(refCy + relCoords.dy),
+            }
+          }
+        }
+
         const transform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
         const srcCoords = getElementCenter(sourceElement)
 

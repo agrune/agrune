@@ -67,14 +67,21 @@ export function registerAgagruneTools(
 
   mcp.tool(
     'agrune_drag',
-    'Drag a source target to a destination. Destination can be another target (destinationTargetId) or coordinates (destinationCoords). For canvas groups, coords are in canvas space (auto-converted). Returns movedTarget with final position.',
+    'Drag a source target to a destination. Use destinationTargetId for target-to-target drag, or destinationCoords for coordinate-based placement. For canvas groups, coords are in canvas space (auto-converted). Use relativeTo to position relative to another target. Returns movedTarget with final position.',
     {
       sourceTargetId: z.string().describe('Source target ID'),
       destinationTargetId: z.string().optional().describe('Destination target ID'),
-      destinationCoords: z.object({
-        x: z.number().describe('X coordinate (canvas space for canvas groups, viewport otherwise)'),
-        y: z.number().describe('Y coordinate'),
-      }).optional().describe('Destination coordinates'),
+      destinationCoords: z.union([
+        z.object({
+          x: z.number().describe('X coordinate (canvas space for canvas groups)'),
+          y: z.number().describe('Y coordinate'),
+        }),
+        z.object({
+          relativeTo: z.string().describe('Reference target ID'),
+          dx: z.number().describe('X offset from reference target center'),
+          dy: z.number().describe('Y offset from reference target center'),
+        }),
+      ]).optional().describe('Destination: absolute coords or relative to another target'),
       placement: z.enum(['before', 'inside', 'after']).optional().describe('Drop placement (only with destinationTargetId)'),
       ...optionalTabId,
     },
