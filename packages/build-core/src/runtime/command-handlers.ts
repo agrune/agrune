@@ -506,7 +506,7 @@ export async function handleFill(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isTopmostInteractable(element)) {
+    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
@@ -758,7 +758,7 @@ export async function handleAct(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isTopmostInteractable(element)) {
+    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
@@ -805,8 +805,15 @@ export async function handleAct(
 }
 
 // ---------------------------------------------------------------------------
-// drag helpers — canvas coordinate support
+// canvas group helpers
 // ---------------------------------------------------------------------------
+
+function isInCanvasGroup(groupId: string): boolean {
+  const groupEl = document.querySelector<HTMLElement>(
+    `[data-agrune-group="${groupId}"]`,
+  )
+  return groupEl?.hasAttribute('data-agrune-canvas') ?? false
+}
 
 function getCanvasGroupTransform(
   descriptors: TargetDescriptor[],
@@ -961,7 +968,7 @@ export async function handleDrag(
           sourceDescriptor.target.targetId,
         )
       }
-      if (!isTopmostInteractable(sourceElement)) {
+      if (!isInCanvasGroup(sourceDescriptor.groupId) && !isTopmostInteractable(sourceElement)) {
         return buildErrorResult(
           input.commandId ?? input.sourceTargetId,
           'NOT_VISIBLE',
@@ -1029,11 +1036,12 @@ export async function handleDrag(
         }
 
         const nextSnapshot = await deps.captureSettledSnapshot(2)
+        const freshTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
         return buildSuccessResult(input.commandId ?? input.sourceTargetId, nextSnapshot, {
           actionKind: 'drag',
           sourceTargetId: input.sourceTargetId,
           destinationCoords: input.destinationCoords,
-          movedTarget: buildMovedTarget(sourceElement, input.sourceTargetId, transform),
+          movedTarget: buildMovedTarget(sourceElement, input.sourceTargetId, freshTransform),
         })
       }
 
@@ -1085,7 +1093,7 @@ export async function handleDrag(
           destinationDescriptor.target.targetId,
         )
       }
-      if (!isTopmostInteractable(destinationElement)) {
+      if (!isInCanvasGroup(destinationDescriptor.groupId) && !isTopmostInteractable(destinationElement)) {
         return buildErrorResult(
           input.commandId ?? input.sourceTargetId,
           'NOT_VISIBLE',
@@ -1326,7 +1334,7 @@ export async function handleGuide(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isTopmostInteractable(element)) {
+    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
