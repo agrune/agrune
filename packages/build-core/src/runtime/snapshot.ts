@@ -409,6 +409,26 @@ export function captureTarget(
 // Snapshot construction
 // ---------------------------------------------------------------------------
 
+function callMetaFunction(groupEl: HTMLElement): unknown | null {
+  const fnName = groupEl.getAttribute('data-agrune-meta')?.trim()
+  if (!fnName) return null
+
+  const fn = (window as Record<string, unknown>)[fnName]
+  if (typeof fn !== 'function') {
+    console.warn(`[agrune] meta function not found: ${fnName}`)
+    return null
+  }
+
+  try {
+    const result = fn()
+    JSON.stringify(result)  // verify serializable
+    return result
+  } catch (e) {
+    console.error(`[agrune] meta function error: ${fnName}`, e)
+    return null
+  }
+}
+
 export function makeSnapshot(
   descriptors: TargetDescriptor[],
   store: MutableSnapshotStore,
@@ -451,7 +471,7 @@ export function makeSnapshot(
     )
   })
 
-  const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targetIds: string[]; viewportTransform?: ViewportTransform }>()
+  const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targetIds: string[]; viewportTransform?: ViewportTransform; meta?: unknown }>()
   for (const target of targets) {
     const group = groups.get(target.groupId)
     if (group) {
@@ -459,12 +479,18 @@ export function makeSnapshot(
       continue
     }
 
+    const groupEl = document.querySelector<HTMLElement>(
+      `[data-agrune-group="${target.groupId}"]`
+    )
+    const meta = groupEl ? callMetaFunction(groupEl) : null
+
     groups.set(target.groupId, {
       groupId: target.groupId,
       groupName: target.groupName,
       groupDesc: target.groupDesc,
       targetIds: [target.targetId],
       viewportTransform: parseViewportTransform(target.groupId),
+      ...(meta !== null ? { meta } : {}),
     })
   }
 
@@ -499,6 +525,7 @@ export function makeSnapshot(
       groupDesc: group.groupDesc,
       targetIds: group.targetIds.sort(),
       ...(group.viewportTransform ? { viewportTransform: group.viewportTransform } : {}),
+      ...(group.meta !== undefined ? { meta: group.meta } : {}),
     })),
     targets,
     title: document.title,
