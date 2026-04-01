@@ -640,8 +640,11 @@ async function animateCursorDragWithCdp(
   setCursorTransform(el, srcX, srcY, 0.85)
   await waitForCursorTransition(el)
 
-  // CDP mouse press
+  // CDP: hover source → press (hover ensures correct target resolution)
+  await eventSeq.mouseMoved(toCoords(srcCoords))
   await eventSeq.mousePressed(toCoords(srcCoords))
+  // Wait one frame for framework drag-state initialisation
+  await raf()
 
   // Phase 2: Animate drag movement with interleaved CDP mouseMoved
   el.style.transition = ''
@@ -652,7 +655,7 @@ async function animateCursorDragWithCdp(
       meta,
     )
     setCursorTransform(el, cx, cy, 0.85)
-    await eventSeq.mouseMoved(step)
+    await eventSeq.mouseMoved(step, 1)
     await raf()
   }
 
@@ -1212,17 +1215,29 @@ export async function handleDrag(
 
         const nextSnapshot = await deps.captureSettledSnapshot(2)
         const freshTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
-        const movedTarget = buildMovedTarget(sourceElement, input.sourceTargetId, freshTransform)
+
+        // Re-resolve source element — the DOM node may have been replaced during
+        // the drag (e.g. React re-render).  Fall back to the original reference if
+        // resolution fails, but flag it as potentially stale.
+        const freshSource = resolveRuntimeTarget(deps.getDescriptors(), input.sourceTargetId)
+        const movedElement = freshSource?.element ?? sourceElement
+        const movedTarget = buildMovedTarget(movedElement, input.sourceTargetId, freshTransform)
 
         // Check if the node actually moved (within 5px tolerance)
         const movedCenter = movedTarget.center as { x: number; y: number } | undefined
         const destX = input.destinationCoords!.x
         const destY = input.destinationCoords!.y
+
+        // Detect stale element (detached from DOM after re-render) — treat as
+        // no-move because getBoundingClientRect returns zeros for detached nodes.
+        const elementStale = !movedElement.isConnected
+
         if (
-          movedCenter &&
-          Math.abs(movedCenter.x - destX) > 20 &&
-          Math.abs(movedCenter.x - srcCanvasCenter.x) < 5 &&
-          Math.abs(movedCenter.y - srcCanvasCenter.y) < 5
+          elementStale ||
+          (movedCenter &&
+            Math.abs(movedCenter.x - destX) > 20 &&
+            Math.abs(movedCenter.x - srcCanvasCenter.x) < 5 &&
+            Math.abs(movedCenter.y - srcCanvasCenter.y) < 5)
         ) {
           return buildErrorResult(
             input.commandId ?? input.sourceTargetId,

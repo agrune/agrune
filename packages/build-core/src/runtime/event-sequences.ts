@@ -9,7 +9,7 @@ export interface EventSequences {
   hover(coords: Coords): Promise<void>
   longpress(coords: Coords): Promise<void>
   mousePressed(coords: Coords, button?: 'left' | 'right'): Promise<void>
-  mouseMoved(coords: Coords): Promise<void>
+  mouseMoved(coords: Coords, buttons?: number): Promise<void>
   mouseReleased(coords: Coords, button?: 'left' | 'right'): Promise<void>
   pointerDrag(src: Coords, dst: Coords, steps: Coords[]): Promise<void>
   wheel(coords: Coords, deltaY: number, ctrlKey?: boolean): Promise<void>
@@ -52,16 +52,25 @@ export function createEventSequences(cdp: CdpClient): EventSequences {
     async mousePressed(coords, button = 'left') {
       await mouse('mousePressed', coords.x, coords.y, { button, clickCount: 1 })
     },
-    async mouseMoved(coords) {
-      await mouse('mouseMoved', coords.x, coords.y)
+    async mouseMoved(coords, buttons) {
+      await mouse('mouseMoved', coords.x, coords.y, buttons != null ? { buttons } : undefined)
     },
     async mouseReleased(coords, button = 'left') {
       await mouse('mouseReleased', coords.x, coords.y, { button, clickCount: 1 })
     },
     async pointerDrag(src, dst, steps) {
+      // Hover over source first so the browser resolves the correct target element
+      // before pressing (same pattern as click()).
+      await mouse('mouseMoved', src.x, src.y)
       await mouse('mousePressed', src.x, src.y, { button: 'left', clickCount: 1 })
+      // Yield one frame so the framework (e.g. ReactFlow) can initialise drag state
+      // before receiving the first move event.
+      await sleep(16)
       for (const step of steps) {
-        await mouse('mouseMoved', step.x, step.y)
+        // buttons: 1 signals "left button held" — without it the browser generates
+        // pointermove events with buttons===0, which frameworks like ReactFlow
+        // interpret as a hover rather than a drag continuation.
+        await mouse('mouseMoved', step.x, step.y, { buttons: 1 })
       }
       await mouse('mouseReleased', dst.x, dst.y, { button: 'left', clickCount: 1 })
     },

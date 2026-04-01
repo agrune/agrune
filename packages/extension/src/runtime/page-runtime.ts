@@ -80,6 +80,23 @@ function flushPendingInitRuntime(): void {
   installRuntime(payload)
 }
 
+// Patch CDP-dispatched events whose `event.view` is null.
+// Chrome's Input.dispatchMouseEvent may generate events without a `view` property,
+// but libraries like d3-drag rely on `event.view.document` and crash without it.
+// This capture-phase listener runs before any library handler and only touches
+// events that are missing `view` — normal user-initiated events are unaffected.
+for (const type of [
+  'mousedown', 'mousemove', 'mouseup',
+  'pointerdown', 'pointermove', 'pointerup',
+  'wheel', 'contextmenu', 'dblclick',
+]) {
+  document.addEventListener(type, (e: Event) => {
+    if ((e as UIEvent).view === null) {
+      Object.defineProperty(e, 'view', { value: window, configurable: true })
+    }
+  }, { capture: true })
+}
+
 // Listen for commands from the content script
 window.addEventListener('message', (event) => {
   if (event.source !== window) return

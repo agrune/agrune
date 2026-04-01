@@ -58,12 +58,20 @@ describe('EventSequences', () => {
     expect(cdp.sendCdpEvent).toHaveBeenCalledTimes(2)
   })
 
-  it('pointerDrag: sends mousePressed + N mouseMoved + mouseReleased', async () => {
+  it('pointerDrag: sends hover + mousePressed + sleep + N mouseMoved + mouseReleased', async () => {
+    vi.useFakeTimers()
     const cdp = mockCdpClient()
     const seq = createEventSequences(cdp)
     const steps = [{ x: 60, y: 60 }, { x: 70, y: 70 }]
-    await seq.pointerDrag({ x: 50, y: 50 }, { x: 80, y: 80 }, steps)
-    expect(cdp.sendCdpEvent).toHaveBeenCalledTimes(4)
+    const promise = seq.pointerDrag({ x: 50, y: 50 }, { x: 80, y: 80 }, steps)
+    // After hover + mousePressed, there is a 16ms sleep for drag initialisation
+    await vi.advanceTimersByTimeAsync(16)
+    await promise
+    // 1 mouseMoved(src) + 1 mousePressed + 2 mouseMoved(steps) + 1 mouseReleased = 5
+    expect(cdp.sendCdpEvent).toHaveBeenCalledTimes(5)
+    // First call should be the hover to source position
+    expect(cdp.sendCdpEvent).toHaveBeenNthCalledWith(1, 'Input.dispatchMouseEvent', expect.objectContaining({ type: 'mouseMoved', x: 50, y: 50 }))
+    vi.useRealTimers()
   })
 
   it('wheel: sends mouseMoved + mouseWheel with modifiers', async () => {
