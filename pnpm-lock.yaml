@@ -113,12 +113,21 @@ importers:
 
   packages/extension:
     dependencies:
+      '@agrune/browser':
+        specifier: workspace:*
+        version: link:../browser
       '@agrune/build-core':
         specifier: workspace:*
         version: link:../build-core
       '@agrune/core':
         specifier: workspace:*
         version: link:../core
+      '@agrune/devtools':
+        specifier: workspace:*
+        version: link:../devtools
+      '@agrune/runtime':
+        specifier: workspace:*
+        version: link:../runtime
     devDependencies:
       '@types/chrome':
         specifier: ^0.0.287
