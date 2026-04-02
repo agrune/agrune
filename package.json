@@ -7,6 +7,5 @@
     "build": "pnpm -r --filter \"@agrune/*\" run build",
     "typecheck": "pnpm -r --filter \"@agrune/*\" --if-present run typecheck && pnpm -r --filter \"@agrune/*\" --if-present run build",
     "test": "pnpm -r --filter \"@agrune/*\" --if-present run test",
-    "build:cli": "pnpm --filter @agrune/cli run build:package"
   }
 }

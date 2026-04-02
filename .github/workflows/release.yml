@@ -26,7 +26,7 @@ jobs:
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+          for pkg in . packages/core packages/build-core packages/extension packages/mcp-server; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -41,18 +41,7 @@ jobs:
           echo "All versions match: $TAG_VERSION"
 
       - name: Build packages
-        run: pnpm run build:cli
-
-      - name: Verify CLI package payload
-        run: |
-          PACK_DIR="$(mktemp -d)"
-          pnpm --filter @agrune/cli pack --pack-destination "$PACK_DIR"
-          TAR_FILE="$(find "$PACK_DIR" -name '*.tgz' -maxdepth 1 | head -n 1)"
-          test -n "$TAR_FILE"
-          EXTRACT_DIR="$(mktemp -d)"
-          tar -xzf "$TAR_FILE" -C "$EXTRACT_DIR"
-          if grep -R -n 'exec node "' "$EXTRACT_DIR/package/dist"; then exit 1; fi
-          if grep -R -n "version: ['\"]0\\.1\\.0['\"]" "$EXTRACT_DIR/package/dist" "$EXTRACT_DIR/package/assets"; then exit 1; fi
+        run: pnpm build
 
       - name: Setup npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
@@ -63,10 +52,6 @@ jobs:
 
       - name: Publish @agrune/build-core
         run: pnpm --filter @agrune/build-core publish --access public --no-git-checks
-        continue-on-error: true
-
-      - name: Publish @agrune/cli
-        run: pnpm --filter @agrune/cli publish --access public --no-git-checks
         continue-on-error: true
 
   publish-cws:

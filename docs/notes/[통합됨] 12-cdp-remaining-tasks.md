@@ -2,7 +2,7 @@
 
 > **상태:** 전체 해결 완료. `feat/cdp-migration` 브랜치 머지 준비 완료. (2026-03-28)
 
-이전 작업: `11-cdp-migration-issues.md` (전체 11건 이슈 추적)
+이전 작업: `[통합됨] 11-cdp-migration-issues.md` (전체 11건 이슈 추적)
 
 ---
 
@@ -13,4 +13,3 @@
 - ~~#9. pointer 액션 간 딜레이 지원~~ → `98d3668` 각 pointer 액션에 `delayMs?: number` 필드 추가
 - ~~#10. 캔버스 노드 좌표 계산 정확도~~ → `67a5ce9` 스냅샷에 캔버스 viewport transform 포함
 - ~~#11. CDP 디버거 자동 해제~~ → `bf7306f` 2분 idle timer + MCP 활동 기반 유지
-
