@@ -17,10 +17,10 @@
 **Files:**
 - Modify: `packages/core/src/driver.ts`
 - Modify: `packages/browser/src/extension-driver.ts`
-- Modify: `packages/server/src/index.ts`
+- Modify: `packages/mcp/src/index.ts`
 - Modify: `packages/browser/tests/extension-driver.spec.ts`
 
-- [ ] **Step 1: core/driver.ts에서 sendRaw 제거, updateConfig 추가**
+- [x] **Step 1: core/driver.ts에서 sendRaw 제거, updateConfig 추가**
 
 `packages/core/src/driver.ts`:
 
@@ -53,7 +53,7 @@ export interface BrowserDriver {
 }
 ```
 
-- [ ] **Step 2: ExtensionDriver에서 sendRaw를 BrowserDriver에서 제거, updateConfig 추가**
+- [x] **Step 2: ExtensionDriver에서 sendRaw를 BrowserDriver에서 제거, updateConfig 추가**
 
 `packages/browser/src/extension-driver.ts`에서:
 
@@ -67,9 +67,9 @@ updateConfig(config: Partial<AgruneRuntimeConfig>): void {
 }
 ```
 
-- [ ] **Step 3: server/index.ts에서 driver.sendRaw → driver.updateConfig 사용**
+- [x] **Step 3: server/index.ts에서 driver.sendRaw → driver.updateConfig 사용**
 
-`packages/server/src/index.ts`의 `agrune_config` case:
+`packages/mcp/src/index.ts`의 `agrune_config` case:
 
 ```typescript
 // 변경 전
@@ -79,7 +79,7 @@ if (Object.keys(config).length > 0) driver.sendRaw({ type: 'config_update', conf
 if (Object.keys(config).length > 0) driver.updateConfig(config)
 ```
 
-- [ ] **Step 4: server/index.ts에서 createMcpServer가 driver를 주입받도록 변경**
+- [x] **Step 4: server/index.ts에서 createMcpServer가 driver를 주입받도록 변경**
 
 ```typescript
 // 변경 전
@@ -92,16 +92,16 @@ export function createMcpServer(driver: BrowserDriver & { sessions: SessionManag
 
 이렇게 하면 CdpDriver도 주입 가능. `agrune-mcp.ts`에서 driver를 생성하여 넘김.
 
-- [ ] **Step 5: 빌드 + 테스트 확인**
+- [x] **Step 5: 빌드 + 테스트 확인**
 
 ```bash
 pnpm build && pnpm test
 ```
 
-- [ ] **Step 6: 커밋**
+- [x] **Step 6: 커밋**
 
 ```bash
-git add packages/core packages/browser packages/server
+git add packages/core packages/browser packages/mcp
 git commit -m "refactor: update BrowserDriver — remove sendRaw, add updateConfig, inject driver into createMcpServer"
 ```
 
@@ -113,7 +113,7 @@ git commit -m "refactor: update BrowserDriver — remove sendRaw, add updateConf
 - Create: `packages/browser/src/chrome-launcher.ts`
 - Create: `packages/browser/tests/chrome-launcher.spec.ts`
 
-- [ ] **Step 1: chrome-launcher 테스트 작성**
+- [x] **Step 1: chrome-launcher 테스트 작성**
 
 `packages/browser/tests/chrome-launcher.spec.ts`:
 
@@ -141,7 +141,7 @@ describe('findChromePath', () => {
 })
 ```
 
-- [ ] **Step 2: chrome-launcher 구현**
+- [x] **Step 2: chrome-launcher 구현**
 
 `packages/browser/src/chrome-launcher.ts`:
 
@@ -254,13 +254,13 @@ export async function launchChrome(options: LaunchOptions = {}): Promise<LaunchR
 }
 ```
 
-- [ ] **Step 3: 테스트 실행**
+- [x] **Step 3: 테스트 실행**
 
 ```bash
 cd packages/browser && pnpm test -- tests/chrome-launcher.spec.ts
 ```
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add packages/browser/src/chrome-launcher.ts packages/browser/tests/chrome-launcher.spec.ts
@@ -276,7 +276,7 @@ git commit -m "feat(browser): add ChromeLauncher for Chrome process management"
 - Create: `packages/browser/tests/cdp-connection.spec.ts`
 - Modify: `packages/browser/package.json` — `ws` 의존성 추가
 
-- [ ] **Step 1: ws 의존성 추가**
+- [x] **Step 1: ws 의존성 추가**
 
 `packages/browser/package.json`의 dependencies에:
 
@@ -292,7 +292,7 @@ devDependencies에:
 
 `pnpm install`
 
-- [ ] **Step 2: cdp-connection 구현**
+- [x] **Step 2: cdp-connection 구현**
 
 `packages/browser/src/cdp-connection.ts`:
 
@@ -411,7 +411,7 @@ export class CdpConnection {
 }
 ```
 
-- [ ] **Step 3: 테스트 작성 (단위 테스트 — WebSocket 모킹)**
+- [x] **Step 3: 테스트 작성 (단위 테스트 — WebSocket 모킹)**
 
 `packages/browser/tests/cdp-connection.spec.ts`:
 
@@ -441,13 +441,13 @@ describe('CdpConnection', () => {
 })
 ```
 
-- [ ] **Step 4: 빌드 + 테스트**
+- [x] **Step 4: 빌드 + 테스트**
 
 ```bash
 cd packages/browser && pnpm build && pnpm test
 ```
 
-- [ ] **Step 5: 커밋**
+- [x] **Step 5: 커밋**
 
 ```bash
 git add packages/browser
@@ -462,7 +462,7 @@ git commit -m "feat(browser): add CdpConnection for WebSocket CDP protocol"
 - Create: `packages/browser/src/cdp-target-manager.ts`
 - Create: `packages/browser/tests/cdp-target-manager.spec.ts`
 
-- [ ] **Step 1: cdp-target-manager 구현**
+- [x] **Step 1: cdp-target-manager 구현**
 
 `packages/browser/src/cdp-target-manager.ts`:
 
@@ -547,7 +547,7 @@ export class CdpTargetManager {
 }
 ```
 
-- [ ] **Step 2: 테스트 작성**
+- [x] **Step 2: 테스트 작성**
 
 `packages/browser/tests/cdp-target-manager.spec.ts`:
 
@@ -570,13 +570,13 @@ describe('CdpTargetManager', () => {
 })
 ```
 
-- [ ] **Step 3: 빌드 + 테스트**
+- [x] **Step 3: 빌드 + 테스트**
 
 ```bash
 cd packages/browser && pnpm build && pnpm test
 ```
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add packages/browser/src/cdp-target-manager.ts packages/browser/tests/cdp-target-manager.spec.ts
@@ -591,7 +591,7 @@ git commit -m "feat(browser): add CdpTargetManager for tab lifecycle tracking"
 - Create: `packages/runtime/src/cdp-bootstrap.ts`
 - Modify: `packages/runtime/tsup.config.ts` — cdp-page-runtime 엔트리 추가
 
-- [ ] **Step 1: cdp-bootstrap.ts 작성**
+- [x] **Step 1: cdp-bootstrap.ts 작성**
 
 extension mode에서는 content script가 DOM 스캔 → 매니페스트 빌드 → runtime init을 하지만, CDP mode에서는 주입된 스크립트가 이 전체를 자체 수행해야 한다.
 
@@ -680,7 +680,7 @@ if (document.readyState === 'loading') {
 }
 ```
 
-- [ ] **Step 2: tsup.config.ts에 cdp-page-runtime 엔트리 추가**
+- [x] **Step 2: tsup.config.ts에 cdp-page-runtime 엔트리 추가**
 
 `packages/runtime/tsup.config.ts`의 두 번째 엔트리 배열에 추가:
 
@@ -711,7 +711,7 @@ export default defineConfig([
 ])
 ```
 
-- [ ] **Step 3: 빌드 확인**
+- [x] **Step 3: 빌드 확인**
 
 ```bash
 cd packages/runtime && pnpm build
@@ -719,7 +719,7 @@ ls dist/cdp-page-runtime.global.js
 ```
 Expected: `cdp-page-runtime.global.js` 번들 생성
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add packages/runtime
@@ -733,7 +733,7 @@ git commit -m "feat(runtime): add CDP self-bootstrapping page-runtime bundle"
 **Files:**
 - Create: `packages/browser/src/cdp-runtime-injector.ts`
 
-- [ ] **Step 1: cdp-runtime-injector 구현**
+- [x] **Step 1: cdp-runtime-injector 구현**
 
 `packages/browser/src/cdp-runtime-injector.ts`:
 
@@ -810,7 +810,7 @@ export class CdpRuntimeInjector {
 }
 ```
 
-- [ ] **Step 2: 커밋**
+- [x] **Step 2: 커밋**
 
 ```bash
 git add packages/browser/src/cdp-runtime-injector.ts
@@ -826,7 +826,7 @@ git commit -m "feat(browser): add CdpRuntimeInjector for page-runtime injection 
 - Modify: `packages/browser/src/index.ts` — export 추가
 - Create: `packages/browser/tests/cdp-driver.spec.ts`
 
-- [ ] **Step 1: CdpDriver 구현**
+- [x] **Step 1: CdpDriver 구현**
 
 `packages/browser/src/cdp-driver.ts`:
 
@@ -1103,7 +1103,7 @@ export class CdpDriver implements BrowserDriver {
 }
 ```
 
-- [ ] **Step 2: browser/index.ts에 export 추가**
+- [x] **Step 2: browser/index.ts에 export 추가**
 
 `packages/browser/src/index.ts`에 추가:
 
@@ -1116,13 +1116,13 @@ export { CdpRuntimeInjector } from './cdp-runtime-injector.js'
 export { launchChrome, findChromePath } from './chrome-launcher.js'
 ```
 
-- [ ] **Step 3: 빌드 확인**
+- [x] **Step 3: 빌드 확인**
 
 ```bash
 cd packages/browser && pnpm build
 ```
 
-- [ ] **Step 4: 커밋**
+- [x] **Step 4: 커밋**
 
 ```bash
 git add packages/browser
@@ -1134,12 +1134,12 @@ git commit -m "feat(browser): add CdpDriver implementing BrowserDriver via WebSo
 ### Task 8: server 진입점 — `--mode cdp` 옵션
 
 **Files:**
-- Modify: `packages/server/src/index.ts` — createMcpServer에 driver 주입
-- Modify: `packages/server/bin/agrune-mcp.ts` — --mode cdp 옵션 추가
+- Modify: `packages/mcp/src/index.ts` — createMcpServer에 driver 주입
+- Modify: `packages/mcp/bin/agrune-mcp.ts` — --mode cdp 옵션 추가
 
-- [ ] **Step 1: agrune-mcp.ts에 --mode cdp 분기 추가**
+- [x] **Step 1: agrune-mcp.ts에 --mode cdp 분기 추가**
 
-`packages/server/bin/agrune-mcp.ts`의 시작 부분에서 mode를 파싱하고, CDP mode일 때 CdpDriver를 생성:
+`packages/mcp/bin/agrune-mcp.ts`의 시작 부분에서 mode를 파싱하고, CDP mode일 때 CdpDriver를 생성:
 
 기본 MCP frontend 모드(파일 끝부분)를 수정:
 
@@ -1181,16 +1181,16 @@ if (mode === 'cdp') {
 }
 ```
 
-- [ ] **Step 2: 빌드 확인**
+- [x] **Step 2: 빌드 확인**
 
 ```bash
-cd packages/server && pnpm build
+cd packages/mcp && pnpm build
 ```
 
-- [ ] **Step 3: 커밋**
+- [x] **Step 3: 커밋**
 
 ```bash
-git add packages/server
+git add packages/mcp
 git commit -m "feat(server): add --mode cdp option to agrune-mcp entry point"
 ```
 
@@ -1198,32 +1198,32 @@ git commit -m "feat(server): add --mode cdp option to agrune-mcp entry point"
 
 ### Task 9: 통합 검증
 
-- [ ] **Step 1: 전체 빌드**
+- [x] **Step 1: 전체 빌드**
 
 ```bash
 pnpm build
 ```
 Expected: 모든 패키지 빌드 성공
 
-- [ ] **Step 2: 전체 테스트**
+- [x] **Step 2: 전체 테스트**
 
 ```bash
 pnpm test
 ```
 Expected: 기존 테스트 전체 통과
 
-- [ ] **Step 3: CDP launch 수동 테스트**
+- [x] **Step 3: CDP launch 수동 테스트**
 
 Chrome이 설치된 환경에서:
 
 ```bash
-cd packages/server
+cd packages/mcp
 node dist/bin/agrune-mcp.js --mode cdp
 ```
 
 Expected: Chrome이 자동으로 뜨고, MCP server가 stdio로 대기. `agrune_sessions`를 호출하면 열린 탭 목록이 반환됨.
 
-- [ ] **Step 4: CDP headless 테스트**
+- [x] **Step 4: CDP headless 테스트**
 
 ```bash
 node dist/bin/agrune-mcp.js --mode cdp --headless
@@ -1231,7 +1231,7 @@ node dist/bin/agrune-mcp.js --mode cdp --headless
 
 Expected: headless Chrome이 뜨고 동일하게 동작.
 
-- [ ] **Step 5: 기존 extension mode 확인**
+- [x] **Step 5: 기존 extension mode 확인**
 
 ```bash
 node dist/bin/agrune-mcp.js
@@ -1239,7 +1239,7 @@ node dist/bin/agrune-mcp.js
 
 Expected: 기존과 동일하게 동작 (extension native messaging 경유).
 
-- [ ] **Step 6: 최종 커밋**
+- [x] **Step 6: 최종 커밋**
 
 ```bash
 git add -A

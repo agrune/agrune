@@ -117,7 +117,7 @@ extension mode가 계속 유리한 영역:
 
 - `packages/core`
 - `packages/build-core`
-- `packages/mcp-server/src/mcp-tools.ts`
+- `packages/mcp/src/mcp-tools.ts`
 
 ### 공용화가 필요한 계층
 

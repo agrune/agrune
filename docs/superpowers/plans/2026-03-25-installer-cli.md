@@ -51,8 +51,8 @@ packages/cli/
 ```
 
 Existing files to modify:
-- `packages/mcp-server/bin/agrune-mcp.ts` — remove `install` subcommand block (lines 12-18)
-- `packages/mcp-server/tsup.config.ts` — remove `src/install.ts` from entry
+- `packages/mcp/bin/agrune-mcp.ts` — remove `install` subcommand block (lines 12-18)
+- `packages/mcp/tsup.config.ts` — remove `src/install.ts` from entry
 - `pnpm-workspace.yaml` — already includes `packages/*`, no change needed
 - `package.json` (root) — add `build:cli` script
 
@@ -380,7 +380,7 @@ export function writeJsonFile(filePath: string, data: unknown): void {
 
 - [ ] **Step 8: Write native-host.ts**
 
-Port from `packages/mcp-server/src/install.ts` — the pure functions only.
+Port from `packages/mcp/src/install.ts` — the pure functions only.
 
 ```typescript
 import { createHash } from 'node:crypto'
@@ -1416,14 +1416,14 @@ git commit -m "feat(cli): add uninstall command"
 ### Task 9: Build pipeline and remove legacy install from mcp-server
 
 **Files:**
-- Modify: `packages/mcp-server/bin/agrune-mcp.ts:12-18` — remove install block
-- Modify: `packages/mcp-server/tsup.config.ts` — remove `src/install.ts` from entry
-- Delete: `packages/mcp-server/src/install.ts` — logic moved to cli package
+- Modify: `packages/mcp/bin/agrune-mcp.ts:12-18` — remove install block
+- Modify: `packages/mcp/tsup.config.ts` — remove `src/install.ts` from entry
+- Delete: `packages/mcp/src/install.ts` — logic moved to cli package
 - Modify: `package.json` (root) — add `build:cli` script
 
 - [ ] **Step 1: Remove install subcommand from agrune-mcp.ts**
 
-Remove lines 12-18 in `packages/mcp-server/bin/agrune-mcp.ts`:
+Remove lines 12-18 in `packages/mcp/bin/agrune-mcp.ts`:
 
 ```typescript
 // DELETE THIS BLOCK:
@@ -1438,7 +1438,7 @@ if (args[0] === 'install') {
 
 - [ ] **Step 2: Remove install.ts from tsup entry**
 
-In `packages/mcp-server/tsup.config.ts`, change entry to:
+In `packages/mcp/tsup.config.ts`, change entry to:
 
 ```typescript
 entry: ['src/index.ts', 'bin/agrune-mcp.ts'],
@@ -1446,16 +1446,16 @@ entry: ['src/index.ts', 'bin/agrune-mcp.ts'],
 
 (Remove `'src/install.ts'`)
 
-- [ ] **Step 3: Delete packages/mcp-server/src/install.ts**
+- [ ] **Step 3: Delete packages/mcp/src/install.ts**
 
-Run: `rm packages/mcp-server/src/install.ts`
+Run: `rm packages/mcp/src/install.ts`
 
 - [ ] **Step 4: Add build:cli script to root package.json**
 
 Add to root `package.json` scripts:
 
 ```json
-"build:cli": "pnpm -r build && mkdir -p packages/cli/assets && cp -r packages/mcp-server/dist packages/cli/assets/mcp-server && pnpm -C packages/cli build"
+"build:cli": "pnpm -r build && mkdir -p packages/cli/assets && cp -r packages/mcp/dist packages/cli/assets/mcp-server && pnpm -C packages/cli build"
 ```
 
 - [ ] **Step 5: Verify full build**
@@ -1465,7 +1465,7 @@ Expected: All packages build, assets copied, cli builds
 
 - [ ] **Step 6: Verify mcp-server still works without install**
 
-Run: `node packages/mcp-server/dist/bin/agrune-mcp.js --help 2>&1 || true`
+Run: `node packages/mcp/dist/bin/agrune-mcp.js --help 2>&1 || true`
 Expected: Does not crash, enters MCP mode or shows no install option
 
 - [ ] **Step 7: Run all tests**
@@ -1476,7 +1476,7 @@ Expected: All tests pass across all packages
 - [ ] **Step 8: Commit**
 
 ```bash
-git add packages/mcp-server/ package.json
+git add packages/mcp/ package.json
 git commit -m "refactor: move install to @agrune/cli, remove from mcp-server"
 ```
 

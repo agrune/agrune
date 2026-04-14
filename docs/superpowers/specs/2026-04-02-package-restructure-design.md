@@ -40,7 +40,7 @@
 @agrune/browser       BrowserDriver 구현. CDP로 브라우저 연결, 탭 관리, runtime 주입.
     ↑                 extension mode: chrome.debugger API + native messaging 경유.
     ↑
-@agrune/server        MCP 서버. BrowserDriver만 의존. 도구 등록, 세션 관리.
+@agrune/mcp           MCP 서버. BrowserDriver만 의존. 도구 등록, 세션 관리.
     ↑
 @agrune/devtools      스냅샷 뷰어, 타겟 인스펙터, 명령 로그.
     ↑                 @agrune/browser에 의존 (세션/스냅샷 구독).
@@ -51,7 +51,7 @@
                       자체 자동화 로직 없음.
 ```
 
-의존 방향: `core ← runtime ← browser ← server`, `browser ← devtools ← extension`
+의존 방향: `core ← runtime ← browser ← mcp`, `browser ← devtools ← extension`
 
 ## 코드 이동 맵
 
@@ -70,16 +70,16 @@
 | `mcp-server/src/command-queue.ts` | **browser**/src/ |
 | `mcp-server/src/activity-block-stack.ts` | **browser**/src/ |
 | `mcp-server/src/native-messaging.ts` | **browser**/src/ |
-| `mcp-server/src/mcp-tools.ts` | **server**/src/ |
-| `mcp-server/src/public-shapes.ts` | **server**/src/ |
-| `mcp-server/src/tools.ts` | **server**/src/ |
-| `mcp-server/src/index.ts` | **server**/src/ |
+| `mcp-server/src/mcp-tools.ts` | **mcp**/src/ |
+| `mcp-server/src/public-shapes.ts` | **mcp**/src/ |
+| `mcp-server/src/tools.ts` | **mcp**/src/ |
+| `mcp-server/src/index.ts` | **mcp**/src/ |
 | `extension/src/devtools/*` | **devtools**/src/ |
 | `extension/src/popup/*` | **extension**/src/ (유지) |
 | `extension/src/background/service-worker.ts` | **extension**/src/ (shell로 축소) |
 | `extension/src/content/index.ts` | **extension**/src/ (shell로 축소) |
 
-삭제: `packages/build-core/` (runtime으로 흡수), `packages/mcp-server/` (server로 리네임)
+삭제: `packages/build-core/` (runtime으로 흡수), `packages/mcp-server/` (mcp로 리네임)
 
 ## BrowserDriver 인터페이스
 
@@ -123,7 +123,7 @@ interface Session {
 이 스펙에서 구현: `ExtensionDriver implements BrowserDriver`
 스펙 2에서 추가: `CdpDriver implements BrowserDriver`
 
-## server 패키지
+## mcp 패키지
 
 현재 `AgagruneBackend`의 역할 분리:
 
@@ -132,10 +132,10 @@ interface Session {
 | native messaging 송수신 | **browser** (ExtensionDriver) |
 | 세션/스냅샷 관리 | **browser** (driver 내부) |
 | 명령 큐 + 실행 | **browser** (driver.execute) |
-| MCP 도구 등록 + 응답 포맷팅 | **server** |
+| MCP 도구 등록 + 응답 포맷팅 | **mcp** |
 | agent activity 추적 | **browser** (driver 관리) |
 
-server에 남는 것:
+mcp에 남는 것:
 - `mcp-tools.ts` — 도구 스키마 + 등록 (Zod, MCP SDK)
 - `public-shapes.ts` — 스냅샷/결과 포맷팅
 - `index.ts` — McpServer 클래스 (driver 주입)
@@ -271,7 +271,7 @@ Big Bang 방식:
 | `@agrune/core` | 변경 (타입 추가) | tsup → ESM |
 | `@agrune/runtime` | 신규 (build-core 대체) | tsup → ESM + page-runtime 번들 |
 | `@agrune/browser` | 신규 | tsup → ESM |
-| `@agrune/server` | 신규 (mcp-server 대체) | tsup → ESM + bin |
+| `@agrune/mcp` | 신규 (mcp-server 대체) | tsup → ESM + bin |
 | `@agrune/devtools` | 신규 | vite → ESM |
 | `@agrune/extension` | 변경 (축소) | vite → dist |
 

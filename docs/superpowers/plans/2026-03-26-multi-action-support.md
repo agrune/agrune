@@ -455,15 +455,15 @@ cd agrune && git add packages/build-core/src/runtime/page-agent-runtime.ts packa
 ### Task 5: MCP Server — Public Shapes + Backend 테스트 마이그레이션
 
 **Files:**
-- Modify: `packages/mcp-server/src/public-shapes.ts:22,31,80,130`
-- Modify: `packages/mcp-server/src/tools.ts:48-62` (description 힌트)
-- Test: `packages/mcp-server/tests/public-shapes.spec.ts`
-- Test: `packages/mcp-server/tests/backend.spec.ts`
-- Test: `packages/mcp-server/tests/tools.spec.ts`
+- Modify: `packages/mcp/src/public-shapes.ts:22,31,80,130`
+- Modify: `packages/mcp/src/tools.ts:48-62` (description 힌트)
+- Test: `packages/mcp/tests/public-shapes.spec.ts`
+- Test: `packages/mcp/tests/backend.spec.ts`
+- Test: `packages/mcp/tests/tools.spec.ts`
 
 - [ ] **Step 1: `PublicSnapshotTarget` 타입 변경**
 
-`packages/mcp-server/src/public-shapes.ts`:
+`packages/mcp/src/public-shapes.ts`:
 
 ```typescript
 // line 31: Before
@@ -511,7 +511,7 @@ actionKinds: [...new Set(group.targets.flatMap(target => target.actionKinds))],
 
 - [ ] **Step 5: `agrune_act` tool description에 복수 액션 힌트 추가**
 
-`packages/mcp-server/src/tools.ts` line 49:
+`packages/mcp/src/tools.ts` line 49:
 
 ```typescript
 // Before
@@ -523,7 +523,7 @@ description: 'Perform an interaction (click, dblclick, contextmenu, hover, longp
 
 - [ ] **Step 6: public-shapes 테스트 fixture 변경**
 
-`packages/mcp-server/tests/public-shapes.spec.ts`에서 모든 `actionKind: 'click'` → `actionKinds: ['click']`, `actionKind: 'fill'` → `actionKinds: ['fill']` 변경.
+`packages/mcp/tests/public-shapes.spec.ts`에서 모든 `actionKind: 'click'` → `actionKinds: ['click']`, `actionKind: 'fill'` → `actionKinds: ['fill']` 변경.
 
 테스트 assertion도 동일하게:
 - `actionKind: 'click'` → `actionKinds: ['click']`
@@ -533,17 +533,17 @@ Line 237의 command result에서 `result: { actionKind: 'click', targetId: 'tab-
 
 - [ ] **Step 7: backend 테스트 fixture 변경**
 
-`packages/mcp-server/tests/backend.spec.ts`에서 모든 `PageTarget` fixture의 `actionKind` → `actionKinds` 배열로 변경.
+`packages/mcp/tests/backend.spec.ts`에서 모든 `PageTarget` fixture의 `actionKind` → `actionKinds` 배열로 변경.
 
 - [ ] **Step 8: 테스트 실행**
 
-Run: `cd agrune && npx vitest run packages/mcp-server/tests/`
+Run: `cd agrune && npx vitest run packages/mcp/tests/`
 Expected: PASS
 
 - [ ] **Step 9: Commit**
 
 ```bash
-cd agrune && git add packages/mcp-server/ && git commit -m "refactor: migrate MCP server from actionKind to actionKinds array"
+cd agrune && git add packages/mcp/ && git commit -m "refactor: migrate MCP server from actionKind to actionKinds array"
 ```
 
 ---

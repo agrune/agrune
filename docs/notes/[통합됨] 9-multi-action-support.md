@@ -93,7 +93,7 @@ if (actions.length === 0) return
 - [ ] `dom-scanner.ts` — 단일 액션일 때 기존 targetId 유지 (하위 호환)
 - [ ] 단위 테스트 추가: 복수 액션 파싱, 빈 값 무시, 유효하지 않은 값 필터링
 
-### MCP 서버 (`packages/mcp-server`)
+### MCP 서버 (`packages/mcp`)
 
 - [ ] `tools.ts` — `agrune_act` description에 복수 액션 힌트 추가 (선택)
 - [ ] 동작 검증: 복수 타겟 중 하나에 act 요청 시 정상 동작 확인

@@ -10,7 +10,7 @@ export default defineConfig([
     dts: true,
   },
   {
-    entry: { 'page-runtime': 'src/runtime/index.ts' },
+    entry: { 'page-runtime': 'src/page-runtime.ts' },
     format: ['iife'],
     clean: false,
     sourcemap: true,

@@ -4,6 +4,7 @@ import {
   type PageSnapshot,
   type AgruneRuntimeConfig,
   type ViewportTransform,
+  DEFAULT_RUNTIME_CONFIG,
   mergeRuntimeConfig,
 } from '@agrune/core'
 import type { AgruneRuntimeOptions } from '../types'
@@ -71,13 +72,7 @@ export const DEFAULT_OPTIONS: AgruneRuntimeOptions = {
 }
 
 export const DEFAULT_EXECUTION_CONFIG: AgruneRuntimeConfig = {
-  autoScroll: true,
-  clickDelayMs: 0,
-  pointerDurationMs: 600,
-  pointerAnimation: false,
-  cursorName: DEFAULT_CURSOR_NAME,
-  auroraGlow: true,
-  auroraTheme: 'dark',
+  ...DEFAULT_RUNTIME_CONFIG,
 }
 
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'

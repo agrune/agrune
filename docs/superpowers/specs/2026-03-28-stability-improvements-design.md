@@ -121,7 +121,7 @@ z.object({
 
 | 파일 | 변경 |
 |------|------|
-| `packages/mcp-server/src/mcp-tools.ts` | wheel 액션에 `steps`, `durationMs` 필드 추가 |
+| `packages/mcp/src/mcp-tools.ts` | wheel 액션에 `steps`, `durationMs` 필드 추가 |
 | `packages/core/src/index.ts` | `PointerWheelAction` 타입에 필드 추가 |
 | `packages/build-core/src/runtime/command-handlers.ts` | `handlePointer()`에서 steps 분배 로직 |
 

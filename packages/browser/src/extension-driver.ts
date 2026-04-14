@@ -3,6 +3,7 @@ import type {
   Session,
   PageSnapshot,
   CommandResult,
+  AgruneRuntimeConfig,
   NativeMessage,
 } from '@agrune/core'
 import { SessionManager } from './session-manager.js'
@@ -48,6 +49,7 @@ export class ExtensionDriver implements BrowserDriver {
       url: s.url,
       title: s.title,
       hasSnapshot: s.snapshot != null,
+      snapshotVersion: s.snapshot?.version ?? null,
     }))
   }
 
@@ -76,11 +78,15 @@ export class ExtensionDriver implements BrowserDriver {
     )
   }
 
-  sendRaw(msg: NativeMessage): void {
-    this.commands.sendRaw(msg)
+  updateConfig(config: Partial<AgruneRuntimeConfig>): void {
+    this.commands.sendRaw({ type: 'config_update', config } as NativeMessage)
   }
 
   // --- Extension-specific methods ---
+
+  sendRaw(msg: NativeMessage): void {
+    this.commands.sendRaw(msg)
+  }
 
   setNativeSender(sender: ((msg: NativeMessage) => void) | null): void {
     this.commands.setSender(sender)

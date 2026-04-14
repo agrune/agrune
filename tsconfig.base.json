@@ -14,10 +14,12 @@
     "isolatedModules": true,
     "paths": {
       "@agrune/core": ["packages/core/src/index.ts"],
-      "@agrune/build-core": ["packages/build-core/src/index.ts"],
-      "@agrune/build-core/runtime": ["packages/build-core/src/runtime/index.ts"],
-      "@agrune/mcp-server": ["packages/mcp-server/src/index.ts"],
-      "@agrune/extension": ["packages/extension/src/content/index.ts"]
+      "@agrune/runtime": ["packages/runtime/src/index.ts"],
+      "@agrune/runtime/page-runtime": ["packages/runtime/src/page-runtime.ts"],
+      "@agrune/browser": ["packages/browser/src/index.ts"],
+      "@agrune/devtools": ["packages/devtools/src/index.ts"],
+      "@agrune/extension": ["packages/extension/src/content/index.ts"],
+      "@agrune/mcp": ["packages/mcp/src/index.ts"]
     }
   }
 }

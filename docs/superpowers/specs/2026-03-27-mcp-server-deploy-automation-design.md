@@ -2,7 +2,7 @@
 
 ## 배경
 
-`pnpm build`만으로는 MCP 서버 변경사항이 `~/.agrune/mcp-server/`에 반영되지 않는다. 현재는 수동으로 `cp -r packages/mcp-server/dist/* ~/.agrune/mcp-server/` + 백엔드 데몬 재시작이 필요하다.
+`pnpm build`만으로는 MCP 서버 변경사항이 `~/.agrune/mcp-server/`에 반영되지 않는다. 현재는 수동으로 `cp -r packages/mcp/dist/* ~/.agrune/mcp-server/` + 백엔드 데몬 재시작이 필요하다.
 
 ## 목표
 
@@ -12,7 +12,7 @@
 
 ## 설계
 
-### postbuild 스크립트 (`packages/mcp-server/package.json`)
+### postbuild 스크립트 (`packages/mcp/package.json`)
 
 `tsup` 빌드 완료 후 실행되는 `postbuild` 스크립트를 추가한다.
 
@@ -53,7 +53,7 @@ pnpm build
 
 | 파일 | 변경 내용 |
 |------|-----------|
-| `packages/mcp-server/package.json` | `postbuild` 스크립트 추가 |
+| `packages/mcp/package.json` | `postbuild` 스크립트 추가 |
 | `agrune/README.md` | "MCP 서버 개발 모드" 섹션 보강 |
 
 ## 검증

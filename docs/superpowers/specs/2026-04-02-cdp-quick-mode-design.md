@@ -258,5 +258,5 @@ page-runtime.js가 부팅 시 어떤 transport를 사용할지 자동 감지:
 | `packages/core/src/driver.ts` | 변경 (sendRaw 제거, updateConfig 추가) |
 | `packages/browser/src/extension-driver.ts` | 변경 (sendRaw → 내부 메서드, updateConfig 추가) |
 | `packages/runtime/src/runtime/page-agent-runtime.ts` | 변경 (transport 추상화) |
-| `packages/server/src/index.ts` | 변경 (updateConfig 사용) |
-| `packages/server/bin/agrune-mcp.ts` | 변경 (--mode cdp 옵션) |
+| `packages/mcp/src/index.ts` | 변경 (updateConfig 사용) |
+| `packages/mcp/bin/agrune-mcp.ts` | 변경 (--mode cdp 옵션) |

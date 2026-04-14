@@ -66,7 +66,7 @@ agrune/agrune          ← 모노레포
 ├── packages/core          → npm: @agrune/core
 ├── packages/build-core    → npm: @agrune/build-core
 ├── packages/extension     → CWS 배포
-├── packages/mcp-server
+├── packages/mcp
 └── packages/cli           → npm: @agrune/cli
 
 agrune/agrune-demo     ← 데모 페이지

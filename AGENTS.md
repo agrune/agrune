@@ -4,13 +4,13 @@
 
 - 브랜치 전환 후 반드시 `pnpm build` 실행할 것. 확장 프로그램은 빌드된 dist/ 기준으로 동작하므로, 코드를 바꿔도 빌드 안 하면 이전 버전이 그대로 돌아간다.
 - 확장 프로그램 빌드 후 Chrome `chrome://extensions`에서 리로드 버튼을 눌러야 반영된다.
-- MCP 서버는 `pnpm build` 시 `~/.agrune/mcp-server/`에 자동 동기화되고 데몬이 재시작된다. 별도 배포 불필요.
+- `@agrune/mcp` 패키지 빌드 결과물은 `pnpm build` 시 canonical runtime dir인 `~/.agrune/mcp-server/`에만 자동 동기화되고 데몬이 재시작된다.
 
 ## 프로젝트 구조
 
-- `agrune` — 메인 모노레포 (extension, mcp-server, build-core, core, cli)
-- `agrune-demo` — 데모 웹앱 (어노테이션 테스트용)
-- `agrune-plugin` — 스킬/문서 레포 (빌드 대상 아님)
+- `agrune` — 메인 모노레포 (`@agrune/mcp`, browser, runtime, extension, workflows)
+- `workflows/annotate` — 하네스 중립 어노테이션 워크플로 원본
+- 하네스별 플러그인/스킬 저장소 — core repo 밖에서 별도로 관리하는 어댑터 레이어
 
 ## 브랜치 현황 (2026-03-28 기준)
 

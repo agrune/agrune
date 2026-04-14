@@ -82,9 +82,9 @@ git commit -m "refactor: rename Agagrune → Agrune across all packages"
 - Create: `packages/browser/package.json`
 - Create: `packages/browser/tsconfig.json`
 - Create: `packages/browser/tsup.config.ts`
-- Create: `packages/server/package.json`
-- Create: `packages/server/tsconfig.json`
-- Create: `packages/server/tsup.config.ts`
+- Create: `packages/mcp/package.json`
+- Create: `packages/mcp/tsconfig.json`
+- Create: `packages/mcp/tsup.config.ts`
 - Create: `packages/devtools/package.json`
 - Create: `packages/devtools/tsconfig.json`
 
@@ -243,12 +243,12 @@ export default defineConfig({
 })
 ```
 
-- [ ] **Step 3: server 패키지 설정**
+- [ ] **Step 3: mcp 패키지 설정**
 
-`packages/server/package.json`:
+`packages/mcp/package.json`:
 ```json
 {
-  "name": "@agrune/server",
+  "name": "@agrune/mcp",
   "version": "0.4.1",
   "private": true,
   "type": "module",
@@ -275,9 +275,9 @@ export default defineConfig({
 }
 ```
 
-`packages/server/tsconfig.json`: (runtime과 동일 구조)
+`packages/mcp/tsconfig.json`: (runtime과 동일 구조)
 
-`packages/server/tsup.config.ts`:
+`packages/mcp/tsup.config.ts`:
 ```typescript
 import { defineConfig } from 'tsup'
 import { readFileSync } from 'node:fs'
@@ -335,10 +335,10 @@ export default defineConfig({
 각 패키지에 빈 엔트리 포인트 생성:
 
 ```bash
-mkdir -p packages/runtime/src packages/browser/src packages/server/src packages/devtools/src
+mkdir -p packages/runtime/src packages/browser/src packages/mcp/src packages/devtools/src
 echo "export {}" > packages/runtime/src/index.ts
 echo "export {}" > packages/browser/src/index.ts
-echo "export {}" > packages/server/src/index.ts
+echo "export {}" > packages/mcp/src/index.ts
 echo "export {}" > packages/devtools/src/index.ts
 ```
 
@@ -352,7 +352,7 @@ Expected: 새 패키지 workspace 링크 설정
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add packages/runtime packages/browser packages/server packages/devtools
+git add packages/runtime packages/browser packages/mcp packages/devtools
 git commit -m "chore: scaffold new packages (runtime, browser, server, devtools)"
 ```
 
@@ -636,10 +636,10 @@ git commit -m "feat(runtime): create @agrune/runtime from build-core + dom-scann
 ### Task 5: browser 패키지 — ExtensionDriver + mcp-server 인프라 이동
 
 **Files:**
-- Move: `packages/mcp-server/src/session-manager.ts` → `packages/browser/src/session-manager.ts`
-- Move: `packages/mcp-server/src/command-queue.ts` → `packages/browser/src/command-queue.ts`
-- Move: `packages/mcp-server/src/activity-block-stack.ts` → `packages/browser/src/activity-tracker.ts`
-- Move: `packages/mcp-server/src/native-messaging.ts` → `packages/browser/src/native-messaging.ts`
+- Move: `packages/mcp/src/session-manager.ts` → `packages/browser/src/session-manager.ts`
+- Move: `packages/mcp/src/command-queue.ts` → `packages/browser/src/command-queue.ts`
+- Move: `packages/mcp/src/activity-block-stack.ts` → `packages/browser/src/activity-tracker.ts`
+- Move: `packages/mcp/src/native-messaging.ts` → `packages/browser/src/native-messaging.ts`
 - Move: `packages/extension/src/content/bridge.ts` → `packages/browser/src/bridge.ts`
 - Move: `packages/extension/src/background/cdp-handler.ts` → `packages/browser/src/cdp-handler.ts`
 - Move: `packages/extension/src/background/message-router.ts` → `packages/browser/src/message-router.ts`
@@ -650,10 +650,10 @@ git commit -m "feat(runtime): create @agrune/runtime from build-core + dom-scann
 - [ ] **Step 1: mcp-server에서 인프라 코드 복사**
 
 ```bash
-cp packages/mcp-server/src/session-manager.ts packages/browser/src/session-manager.ts
-cp packages/mcp-server/src/command-queue.ts packages/browser/src/command-queue.ts
-cp packages/mcp-server/src/activity-block-stack.ts packages/browser/src/activity-tracker.ts
-cp packages/mcp-server/src/native-messaging.ts packages/browser/src/native-messaging.ts
+cp packages/mcp/src/session-manager.ts packages/browser/src/session-manager.ts
+cp packages/mcp/src/command-queue.ts packages/browser/src/command-queue.ts
+cp packages/mcp/src/activity-block-stack.ts packages/browser/src/activity-tracker.ts
+cp packages/mcp/src/native-messaging.ts packages/browser/src/native-messaging.ts
 ```
 
 - [ ] **Step 2: extension에서 브라우저 인프라 코드 복사**
@@ -894,33 +894,33 @@ git commit -m "feat(browser): create @agrune/browser with ExtensionDriver"
 
 ---
 
-### Task 6: server 패키지 — mcp-server를 BrowserDriver 기반으로 리팩토링
+### Task 6: mcp 패키지 — mcp-server를 BrowserDriver 기반으로 리팩토링
 
 **Files:**
-- Move: `packages/mcp-server/src/mcp-tools.ts` → `packages/server/src/mcp-tools.ts`
-- Move: `packages/mcp-server/src/tools.ts` → `packages/server/src/tools.ts`
-- Move: `packages/mcp-server/src/public-shapes.ts` → `packages/server/src/public-shapes.ts`
-- Move: `packages/mcp-server/bin/agrune-mcp.ts` → `packages/server/bin/agrune-mcp.ts`
-- Move: `packages/mcp-server/scripts/postbuild.sh` → `packages/server/scripts/postbuild.sh`
-- Create: `packages/server/src/index.ts`
+- Move: `packages/mcp/src/mcp-tools.ts` → `packages/mcp/src/mcp-tools.ts`
+- Move: `packages/mcp/src/tools.ts` → `packages/mcp/src/tools.ts`
+- Move: `packages/mcp/src/public-shapes.ts` → `packages/mcp/src/public-shapes.ts`
+- Move: `packages/mcp/bin/agrune-mcp.ts` → `packages/mcp/bin/agrune-mcp.ts`
+- Move: `packages/mcp/scripts/postbuild.sh` → `packages/mcp/scripts/postbuild.sh`
+- Create: `packages/mcp/src/index.ts`
 
 - [ ] **Step 1: 파일 복사**
 
 ```bash
-cp packages/mcp-server/src/mcp-tools.ts packages/server/src/mcp-tools.ts
-cp packages/mcp-server/src/tools.ts packages/server/src/tools.ts
-cp packages/mcp-server/src/public-shapes.ts packages/server/src/public-shapes.ts
-cp packages/mcp-server/src/backend-protocol.ts packages/server/src/backend-protocol.ts
-cp packages/mcp-server/src/backend-client.ts packages/server/src/backend-client.ts
-cp packages/mcp-server/src/version.ts packages/server/src/version.ts
-mkdir -p packages/server/bin packages/server/scripts
-cp packages/mcp-server/bin/agrune-mcp.ts packages/server/bin/agrune-mcp.ts
-cp packages/mcp-server/scripts/postbuild.sh packages/server/scripts/postbuild.sh
+cp packages/mcp/src/mcp-tools.ts packages/mcp/src/mcp-tools.ts
+cp packages/mcp/src/tools.ts packages/mcp/src/tools.ts
+cp packages/mcp/src/public-shapes.ts packages/mcp/src/public-shapes.ts
+cp packages/mcp/src/backend-protocol.ts packages/mcp/src/backend-protocol.ts
+cp packages/mcp/src/backend-client.ts packages/mcp/src/backend-client.ts
+cp packages/mcp/src/version.ts packages/mcp/src/version.ts
+mkdir -p packages/mcp/bin packages/mcp/scripts
+cp packages/mcp/bin/agrune-mcp.ts packages/mcp/bin/agrune-mcp.ts
+cp packages/mcp/scripts/postbuild.sh packages/mcp/scripts/postbuild.sh
 ```
 
 - [ ] **Step 2: server index.ts 작성 — McpServer를 driver 주입 구조로**
 
-`packages/server/src/index.ts`:
+`packages/mcp/src/index.ts`:
 
 ```typescript
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -1055,7 +1055,7 @@ declare const __MCP_SERVER_VERSION__: string | undefined
 
 - [ ] **Step 3: mcp-tools.ts import 수정**
 
-`packages/server/src/mcp-tools.ts`에서 import 경로 수정:
+`packages/mcp/src/mcp-tools.ts`에서 import 경로 수정:
 
 ```typescript
 // 변경 전
@@ -1068,7 +1068,7 @@ import type { ToolHandlerResult } from './mcp-tools.js'
 
 - [ ] **Step 4: agrune-mcp.ts import 수정**
 
-`packages/server/bin/agrune-mcp.ts`에서:
+`packages/mcp/bin/agrune-mcp.ts`에서:
 
 ```typescript
 // 변경 전
@@ -1082,8 +1082,8 @@ backend-client, backend-protocol 등의 import 경로도 확인.
 - [ ] **Step 5: 테스트 복사 + import 수정**
 
 ```bash
-mkdir -p packages/server/tests
-cp packages/mcp-server/tests/*.spec.ts packages/server/tests/
+mkdir -p packages/mcp/tests
+cp packages/mcp/tests/*.spec.ts packages/mcp/tests/
 ```
 
 테스트에서 `../src/backend.js` import를 새 구조로 수정. backend.ts는 삭제되고 역할이 분리되었으므로, 테스트도 driver 기반으로 수정:
@@ -1093,11 +1093,11 @@ cp packages/mcp-server/tests/*.spec.ts packages/server/tests/
 - `session-manager.spec.ts`, `command-queue.spec.ts` → browser 패키지로 이동
 
 ```bash
-cp packages/mcp-server/tests/session-manager.spec.ts packages/browser/tests/session-manager.spec.ts
-cp packages/mcp-server/tests/command-queue.spec.ts packages/browser/tests/command-queue.spec.ts
-cp packages/mcp-server/tests/activity-block-stack.spec.ts packages/browser/tests/activity-tracker.spec.ts
-cp packages/mcp-server/tests/backend.spec.ts packages/browser/tests/extension-driver.spec.ts
-cp packages/mcp-server/tests/native-messaging.spec.ts packages/browser/tests/native-messaging.spec.ts
+cp packages/mcp/tests/session-manager.spec.ts packages/browser/tests/session-manager.spec.ts
+cp packages/mcp/tests/command-queue.spec.ts packages/browser/tests/command-queue.spec.ts
+cp packages/mcp/tests/activity-block-stack.spec.ts packages/browser/tests/activity-tracker.spec.ts
+cp packages/mcp/tests/backend.spec.ts packages/browser/tests/extension-driver.spec.ts
+cp packages/mcp/tests/native-messaging.spec.ts packages/browser/tests/native-messaging.spec.ts
 ```
 
 각 테스트 파일에서 import 경로 수정 (`../src/backend.js` → `../src/extension-driver.js` 등).
@@ -1105,7 +1105,7 @@ cp packages/mcp-server/tests/native-messaging.spec.ts packages/browser/tests/nat
 - [ ] **Step 6: 빌드 확인**
 
 ```bash
-cd packages/server && pnpm build
+cd packages/mcp && pnpm build
 cd packages/browser && pnpm build
 ```
 Expected: 둘 다 성공
@@ -1113,8 +1113,8 @@ Expected: 둘 다 성공
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add packages/server packages/browser
-git commit -m "feat(server): create @agrune/server with BrowserDriver injection"
+git add packages/mcp packages/browser
+git commit -m "feat(server): create @agrune/mcp with BrowserDriver injection"
 ```
 
 ---
@@ -1299,7 +1299,7 @@ git commit -m "refactor(extension): slim down to UI shell, delegate to browser/r
 
 **Files:**
 - Delete: `packages/build-core/`
-- Delete: `packages/mcp-server/`
+- Delete: `packages/mcp/`
 - Modify: `packages/extension/package.json` — `@agrune/build-core` 참조 제거
 - Modify: root `package.json` — 스크립트 정리
 
@@ -1307,19 +1307,19 @@ git commit -m "refactor(extension): slim down to UI shell, delegate to browser/r
 
 ```bash
 rm -rf packages/build-core
-rm -rf packages/mcp-server
+rm -rf packages/mcp
 ```
 
 - [ ] **Step 2: 잔존 참조 확인**
 
 ```bash
 grep -r '@agrune/build-core' packages/ --include='*.ts' --include='*.json'
-grep -r '@agrune/mcp-server' packages/ --include='*.ts' --include='*.json'
+grep -r '@agrune/mcp' packages/ --include='*.ts' --include='*.json'
 ```
 
 남아있는 참조가 있으면 모두 수정:
 - `@agrune/build-core` → `@agrune/runtime`
-- `@agrune/mcp-server` → `@agrune/server`
+- `@agrune/mcp` → `@agrune/mcp`
 
 - [ ] **Step 3: pnpm install 갱신**
 

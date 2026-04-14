@@ -100,10 +100,10 @@ This makes the response self-documenting for agents that don't use the agrune pl
 
 | File | Change |
 |------|--------|
-| `packages/mcp-server/src/public-shapes.ts` | Update `PublicSnapshotTarget` type, `toPublicTarget()`, `toPublicSnapshot()` |
-| `packages/mcp-server/src/tools.ts` | Add `includeTextContent` parameter, update tool description |
-| `packages/mcp-server/src/backend.ts` | Pass `includeTextContent` through `resolveSnapshotOptions()` |
-| `packages/mcp-server/tests/*.spec.ts` | Update assertions for new response shape |
+| `packages/mcp/src/public-shapes.ts` | Update `PublicSnapshotTarget` type, `toPublicTarget()`, `toPublicSnapshot()` |
+| `packages/mcp/src/tools.ts` | Add `includeTextContent` parameter, update tool description |
+| `packages/mcp/src/backend.ts` | Pass `includeTextContent` through `resolveSnapshotOptions()` |
+| `packages/mcp/tests/*.spec.ts` | Update assertions for new response shape |
 
 ## Out of scope
 

@@ -15,12 +15,12 @@
 ### Task 1: viewportTransform AI 노출 제거
 
 **Files:**
-- Modify: `packages/mcp-server/src/public-shapes.ts:25` (viewportTransform 필드)
-- Modify: `packages/mcp-server/src/public-shapes.ts:117-158` (toPublicGroups 함수)
+- Modify: `packages/mcp/src/public-shapes.ts:25` (viewportTransform 필드)
+- Modify: `packages/mcp/src/public-shapes.ts:117-158` (toPublicGroups 함수)
 
 - [ ] **Step 1: PublicSnapshotGroup에서 viewportTransform 제거**
 
-`packages/mcp-server/src/public-shapes.ts`에서:
+`packages/mcp/src/public-shapes.ts`에서:
 
 ```typescript
 // 변경 전 (line 25)
@@ -49,7 +49,7 @@ export interface PublicSnapshotGroup {
 
 - [ ] **Step 2: toPublicGroups에서 viewportTransform 매핑 제거**
 
-`packages/mcp-server/src/public-shapes.ts`의 `toPublicGroups` 함수에서:
+`packages/mcp/src/public-shapes.ts`의 `toPublicGroups` 함수에서:
 
 ```typescript
 // 변경 전 (line 117-158)
@@ -103,7 +103,7 @@ Expected: 성공. `viewportTransform`은 `PageSnapshotGroup`(core)에는 여전�
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/mcp-server/src/public-shapes.ts
+git add packages/mcp/src/public-shapes.ts
 git commit -m "refactor: remove viewportTransform from AI-facing snapshot"
 ```
 
@@ -483,12 +483,12 @@ git commit -m "feat: auto-pan viewport for offscreen canvas drag targets"
 ### Task 5: 상대좌표 (relativeTo) 모드 추가
 
 **Files:**
-- Modify: `packages/mcp-server/src/mcp-tools.ts:68-82` (agrune_drag 스키마)
+- Modify: `packages/mcp/src/mcp-tools.ts:68-82` (agrune_drag 스키마)
 - Modify: `packages/build-core/src/runtime/command-handlers.ts` (drag handler에서 relativeTo 해석)
 
 - [ ] **Step 1: agrune_drag Zod 스키마에 relativeTo 추가**
 
-`packages/mcp-server/src/mcp-tools.ts`에서 agrune_drag의 `destinationCoords`를 유니온으로 변경:
+`packages/mcp/src/mcp-tools.ts`에서 agrune_drag의 `destinationCoords`를 유니온으로 변경:
 
 ```typescript
 // 변경 전 (line 68-82)
@@ -583,7 +583,7 @@ Expected: 성공.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/mcp-server/src/mcp-tools.ts packages/build-core/src/runtime/command-handlers.ts
+git add packages/mcp/src/mcp-tools.ts packages/build-core/src/runtime/command-handlers.ts
 git commit -m "feat: add relativeTo mode for canvas drag destination"
 ```
 

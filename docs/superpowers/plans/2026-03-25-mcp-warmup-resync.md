@@ -6,7 +6,7 @@
 
 **Architecture:** `AgagruneBackend.handleToolCall()` 최상단에 `ensureReady(3s)` 게이트를 추가한다. Session+snapshot이 없으면 `resync_request` 메시지를 extension에 보내고, content script가 `session_open` + 즉시 snapshot을 다시 전송한다. Idle shutdown은 `agrune-mcp.ts` daemon 레이어에서 `onActivity` 콜백으로 관리한다.
 
-**Tech Stack:** TypeScript, Vitest, pnpm monorepo (`@agrune/core`, `@agrune/mcp-server`, `packages/extension`)
+**Tech Stack:** TypeScript, Vitest, pnpm monorepo (`@agrune/core`, `@agrune/mcp`, `packages/extension`)
 
 ---
 
@@ -88,12 +88,12 @@ git commit -m "feat(core): add ResyncRequestMessage to NativeMessage union"
 ### Task 2: `SessionManager` — `hasReadySession()` 및 `waitForSnapshot()` 추가
 
 **Files:**
-- Modify: `packages/mcp-server/src/session-manager.ts`
-- Test: `packages/mcp-server/tests/session-manager.spec.ts`
+- Modify: `packages/mcp/src/session-manager.ts`
+- Test: `packages/mcp/tests/session-manager.spec.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
-`packages/mcp-server/tests/session-manager.spec.ts`에 추가:
+`packages/mcp/tests/session-manager.spec.ts`에 추가:
 
 ```typescript
 describe('hasReadySession', () => {
@@ -161,12 +161,12 @@ Note: 기존 테스트 파일의 import를 `import { describe, it, expect, vi } 
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd packages/mcp-server && pnpm test -- --run session-manager`
+Run: `cd packages/mcp && pnpm test -- --run session-manager`
 Expected: FAIL — `hasReadySession` and `waitForSnapshot` not defined
 
 - [ ] **Step 3: Implement `hasReadySession()` and `waitForSnapshot()`**
 
-`packages/mcp-server/src/session-manager.ts`에 4가지 incremental 변경을 적용한다:
+`packages/mcp/src/session-manager.ts`에 4가지 incremental 변경을 적용한다:
 
 **변경 A** — 클래스에 `snapshotWaiters` 필드 추가 (`private sessions = ...` 뒤):
 
@@ -226,13 +226,13 @@ Expected: FAIL — `hasReadySession` and `waitForSnapshot` not defined
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd packages/mcp-server && pnpm test -- --run session-manager`
+Run: `cd packages/mcp && pnpm test -- --run session-manager`
 Expected: ALL PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/mcp-server/src/session-manager.ts packages/mcp-server/tests/session-manager.spec.ts
+git add packages/mcp/src/session-manager.ts packages/mcp/tests/session-manager.spec.ts
 git commit -m "feat(mcp-server): add hasReadySession and waitForSnapshot to SessionManager"
 ```
 
@@ -241,12 +241,12 @@ git commit -m "feat(mcp-server): add hasReadySession and waitForSnapshot to Sess
 ### Task 3: `CommandQueue.hasSender()` 접근자 추가
 
 **Files:**
-- Modify: `packages/mcp-server/src/command-queue.ts`
-- Test: `packages/mcp-server/tests/command-queue.spec.ts`
+- Modify: `packages/mcp/src/command-queue.ts`
+- Test: `packages/mcp/tests/command-queue.spec.ts`
 
 - [ ] **Step 1: Write the failing test**
 
-`packages/mcp-server/tests/command-queue.spec.ts`에 추가:
+`packages/mcp/tests/command-queue.spec.ts`에 추가:
 
 ```typescript
 describe('hasSender', () => {
@@ -272,12 +272,12 @@ describe('hasSender', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd packages/mcp-server && pnpm test -- --run command-queue`
+Run: `cd packages/mcp && pnpm test -- --run command-queue`
 Expected: FAIL — `hasSender` not defined
 
 - [ ] **Step 3: Implement `hasSender()`**
 
-`packages/mcp-server/src/command-queue.ts`의 `CommandQueue` 클래스에 추가:
+`packages/mcp/src/command-queue.ts`의 `CommandQueue` 클래스에 추가:
 
 ```typescript
   hasSender(): boolean {
@@ -287,13 +287,13 @@ Expected: FAIL — `hasSender` not defined
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd packages/mcp-server && pnpm test -- --run command-queue`
+Run: `cd packages/mcp && pnpm test -- --run command-queue`
 Expected: ALL PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add packages/mcp-server/src/command-queue.ts packages/mcp-server/tests/command-queue.spec.ts
+git add packages/mcp/src/command-queue.ts packages/mcp/tests/command-queue.spec.ts
 git commit -m "feat(mcp-server): add hasSender accessor to CommandQueue"
 ```
 
@@ -302,12 +302,12 @@ git commit -m "feat(mcp-server): add hasSender accessor to CommandQueue"
 ### Task 4: `AgagruneBackend.ensureReady()` + `onActivity` 콜백 구현
 
 **Files:**
-- Modify: `packages/mcp-server/src/backend.ts`
-- Test: `packages/mcp-server/tests/backend.spec.ts`
+- Modify: `packages/mcp/src/backend.ts`
+- Test: `packages/mcp/tests/backend.spec.ts`
 
 - [ ] **Step 1: Write the failing tests**
 
-`packages/mcp-server/tests/backend.spec.ts`에 추가:
+`packages/mcp/tests/backend.spec.ts`에 추가:
 
 ```typescript
 describe('ensureReady', () => {
@@ -434,12 +434,12 @@ describe('onActivity callback', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd packages/mcp-server && pnpm test -- --run backend`
+Run: `cd packages/mcp && pnpm test -- --run backend`
 Expected: FAIL — `ensureReady` not implemented, `onActivity` not defined
 
 - [ ] **Step 3: Implement `ensureReady()` and `onActivity`**
 
-`packages/mcp-server/src/backend.ts`에 5가지 incremental 변경을 적용한다:
+`packages/mcp/src/backend.ts`에 5가지 incremental 변경을 적용한다:
 
 **변경 A** — 상수 추가. 기존 `const ACTIVITY_TAIL_BLOCK_MS = 5_000` 뒤에:
 
@@ -511,18 +511,18 @@ Note: 기존 switch문 내부의 `agrune_sessions`, `agrune_snapshot` 등의 too
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd packages/mcp-server && pnpm test -- --run backend`
+Run: `cd packages/mcp && pnpm test -- --run backend`
 Expected: ALL PASS
 
 - [ ] **Step 5: Run all mcp-server tests**
 
-Run: `cd packages/mcp-server && pnpm test`
+Run: `cd packages/mcp && pnpm test`
 Expected: ALL PASS — 기존 테스트에서는 이미 session+snapshot을 세팅한 후 tool을 호출하므로 `ensureReady`가 즉시 통과함
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/mcp-server/src/backend.ts packages/mcp-server/tests/backend.spec.ts
+git add packages/mcp/src/backend.ts packages/mcp/tests/backend.spec.ts
 git commit -m "feat(mcp-server): add ensureReady gate and onActivity callback to AgagruneBackend"
 ```
 
@@ -701,13 +701,13 @@ git commit -m "feat(extension): add immediate snapshot on runtime_ready and resy
 ### Task 7: Idle shutdown in `agrune-mcp.ts`
 
 **Files:**
-- Modify: `packages/mcp-server/bin/agrune-mcp.ts:76-193` (`--backend-daemon` 섹션)
+- Modify: `packages/mcp/bin/agrune-mcp.ts:76-193` (`--backend-daemon` 섹션)
 
 이 파일은 daemon entry point이므로 단위 테스트 대상이 아니다. Idle 타이머의 핵심 로직은 `onActivity` 콜백(Task 4에서 테스트 완료)에 의존하므로, 여기서는 배선만 추가한다.
 
 - [ ] **Step 1: Add idle timer wiring**
 
-`packages/mcp-server/bin/agrune-mcp.ts`의 `--backend-daemon` 섹션에 추가.
+`packages/mcp/bin/agrune-mcp.ts`의 `--backend-daemon` 섹션에 추가.
 
 TCP 서버 listen 성공 후 (line 191, `resolve()` 뒤):
 
@@ -731,7 +731,7 @@ TCP 서버 listen 성공 후 (line 191, `resolve()` 뒤):
 
 - [ ] **Step 2: Run typecheck**
 
-Run: `cd packages/mcp-server && pnpm typecheck`
+Run: `cd packages/mcp && pnpm typecheck`
 Expected: No errors
 
 - [ ] **Step 3: Run all tests to ensure nothing broke**
@@ -742,7 +742,7 @@ Expected: ALL PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add packages/mcp-server/bin/agrune-mcp.ts
+git add packages/mcp/bin/agrune-mcp.ts
 git commit -m "feat(mcp-server): add 10-minute idle shutdown to backend daemon"
 ```
 

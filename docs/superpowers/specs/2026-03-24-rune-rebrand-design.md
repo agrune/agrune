@@ -60,7 +60,7 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 | `@webcli-dom/core` | `@agrune/core` |
 | `@webcli-dom/build-core` | `@agrune/build-core` |
 | `@webcli-dom/extension` | `@agrune/extension` |
-| `@webcli-dom/mcp-server` | `@agrune/mcp-server` |
+| `@webcli-dom/mcp-server` | `@agrune/mcp` |
 | `@webcli-apps/cli-test-page` | `@agrune/test-page` |
 
 ---
@@ -118,8 +118,8 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 | `WebCliToolEntry` | `AgagruneToolEntry` | `packages/build-core/src/types.ts` |
 | `WebCliGroupEntry` | `AgagruneGroupEntry` | `packages/build-core/src/types.ts` |
 | `WebCliManifest` | `AgagruneManifest` | `packages/build-core/src/types.ts` |
-| `WebCliBackend` | `AgagruneBackend` | `packages/mcp-server/src/backend.ts` |
-| `registerWebCliTools` | `registerAgagruneTools` | `packages/mcp-server/src/mcp-tools.ts` |
+| `WebCliBackend` | `AgagruneBackend` | `packages/mcp/src/backend.ts` |
+| `registerWebCliTools` | `registerAgagruneTools` | `packages/mcp/src/mcp-tools.ts` |
 
 ---
 
@@ -130,19 +130,19 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 - `/packages/core/package.json`
 - `/packages/build-core/package.json`
 - `/packages/extension/package.json`
-- `/packages/mcp-server/package.json`
+- `/packages/mcp/package.json`
 - `/apps/cli-test-page/package.json`
 
 ### Configuration (5 files)
 - `/tsconfig.base.json` — path aliases `@webcli-dom/*` → `@agrune/*`
 - `/packages/extension/manifest.json` — extension name & description
 - `/packages/extension/vite.config.ts` — build chunk names (`webcliContentScript`, etc.)
-- `/packages/mcp-server/tsup.config.ts` — entry point `bin/webcli-mcp.ts` → `bin/agrune-mcp.ts`
+- `/packages/mcp/tsup.config.ts` — entry point `bin/webcli-mcp.ts` → `bin/agrune-mcp.ts`
 - `/plugins/webcli/.claude-plugin/plugin.json` — plugin metadata
 
 ### Installation & system (2 files)
-- `/packages/mcp-server/src/install.ts` — native host name, directory paths, descriptions
-- `/packages/mcp-server/bin/webcli-mcp.ts` — binary name, directory constants
+- `/packages/mcp/src/install.ts` — native host name, directory paths, descriptions
+- `/packages/mcp/bin/webcli-mcp.ts` — binary name, directory constants
 
 ### User-facing strings (2 files)
 - `/packages/extension/src/popup/popup.html` — window title
@@ -168,9 +168,9 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 ### High-density test files
 - `/packages/build-core/tests/runtime.spec.ts` — ~80 occurrences
 - `/packages/extension/tests/dom-scanner.spec.ts` — ~30 occurrences
-- `/packages/mcp-server/tests/tools.spec.ts` — ~20 occurrences
-- `/packages/mcp-server/tests/install.spec.ts` — ~15 occurrences (native host name, system paths, test fixtures)
-- `/packages/mcp-server/tests/backend.spec.ts` — ~10 occurrences
+- `/packages/mcp/tests/tools.spec.ts` — ~20 occurrences
+- `/packages/mcp/tests/install.spec.ts` — ~15 occurrences (native host name, system paths, test fixtures)
+- `/packages/mcp/tests/backend.spec.ts` — ~10 occurrences
 - `/packages/extension/tests/popup.spec.ts` — ~10 occurrences
 - `/packages/extension/tests/background/message-router.spec.ts` — ~10 occurrences
 
@@ -184,7 +184,7 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 
 ### Directory & file renames
 - `/plugins/webcli/` → `/plugins/agrune/`
-- `/packages/mcp-server/bin/webcli-mcp.ts` → `/packages/mcp-server/bin/agrune-mcp.ts`
+- `/packages/mcp/bin/webcli-mcp.ts` → `/packages/mcp/bin/agrune-mcp.ts`
 
 ---
 
@@ -212,7 +212,7 @@ Rename the project from **webcli-dom** to **agrune** across all surfaces: packag
 
 2. **Directory & file renames**:
    - `plugins/webcli/` → `plugins/agrune/`
-   - `packages/mcp-server/bin/webcli-mcp.ts` → `packages/mcp-server/bin/agrune-mcp.ts`
+   - `packages/mcp/bin/webcli-mcp.ts` → `packages/mcp/bin/agrune-mcp.ts`
 
 3. **Lockfile regeneration**:
    - Do NOT find-and-replace in `pnpm-lock.yaml`

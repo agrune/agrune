@@ -15,7 +15,7 @@
 
 1. 저장소 클론
 2. `pnpm install`
-3. `pnpm dlx tsx packages/mcp-server/bin/agrune-mcp.ts install`
+3. `pnpm dlx tsx packages/mcp/bin/agrune-mcp.ts install`
 
 즉 현재는 "유저용 설치기"가 아니라 "레포 내부 개발용 설치 스크립트"에 가깝다.
 

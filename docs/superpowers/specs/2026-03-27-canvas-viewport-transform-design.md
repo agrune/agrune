@@ -77,7 +77,7 @@ canvasY = (viewportY - translateY) / scale
 |------|------|
 | `packages/core/src/index.ts` | `ViewportTransform` 인터페이스, `PageSnapshotGroup.viewportTransform` 추가 |
 | `packages/build-core/src/runtime/snapshot.ts` | `data-agrune-canvas` 감지 + CSS transform 파싱 |
-| `packages/mcp-server/src/public-shapes.ts` | public group에 `viewportTransform` 노출 |
+| `packages/mcp/src/public-shapes.ts` | public group에 `viewportTransform` 노출 |
 
 ## 검증
 

@@ -1,108 +1,87 @@
 # agrune
 
-AI 에이전트가 브라우저를 직접 제어할 수 있도록 하는 브라우저 자동화 도구입니다.
+AI 에이전트가 어노테이션된 웹 앱을 브라우저에서 직접 조작할 수 있게 해주는 브라우저 자동화 도구입니다.
 
-웹 페이지의 DOM 요소에 `data-agrune-*` 어노테이션을 추가하면, Chrome 확장 프로그램이 해당 요소를 자동으로 감지하고, MCP(Model Context Protocol) 서버를 통해 AI 에이전트(Claude, Codex 등)가 클릭, 입력, 드래그 등의 브라우저 액션을 수행할 수 있습니다.
+핵심 배포물은 `@agrune/mcp`이고, Claude Code나 Codex 같은 하네스는 이 MCP 서버를 실행해 사용합니다. 어노테이션은 특정 하네스에 묶인 구현이 아니라 `workflows/annotate`에 정의된 공통 워크플로를 외부 하네스 어댑터가 감싸는 구조를 목표로 합니다.
 
-## 주요 기능
+## 현재 구조
 
-- **어노테이션 기반 DOM 제어** -- 웹 페이지에 `data-agrune-action`, `data-agrune-name` 등의 속성을 추가하여 AI가 조작할 수 있는 대상을 선언적으로 정의
-- **MCP 도구 9종 제공** -- 세션 조회, 페이지 스냅샷, 클릭, 입력, 드래그, 대기, 시각적 가이드, 페이지 읽기, 런타임 설정
-- **포인터 애니메이션 및 Aurora 글로우** -- AI가 브라우저를 조작하는 과정을 시각적으로 확인 가능
-- **모달/오버레이 인식** -- 오버레이가 활성화되면 배경 타깃을 자동으로 차단하여 안정적 동작 보장
-- **스냅샷 버전 관리** -- stale 스냅샷 사용을 방지하는 `expectedVersion` 메커니즘
+```text
+packages/
+  core/        shared types and contracts
+  runtime/     page runtime, scanner, manifest builder
+  browser/     ExtensionDriver, CdpDriver, transports
+  mcp/         publish target: @agrune/mcp
+  extension/   Chrome extension glue for extension mode
+  devtools/    extension devtools panel
 
-## 아키텍처
-
-```
-┌─────────────────┐     Native Messaging     ┌──────────────────┐     stdio      ┌────────────────┐
-│  Chrome 확장     │ ◀──────────────────────▶ │  MCP Server      │ ◀────────────▶ │  AI 에이전트    │
-│  (@agrune/       │                          │  (@agrune/       │                │  (Claude, Codex │
-│   extension)     │                          │   mcp-server)    │                │   등)           │
-└─────────────────┘                           └──────────────────┘                └────────────────┘
-        │
-        │ Content Script + Page Runtime
-        ▼
-┌─────────────────┐
-│  웹 페이지       │
-│  (data-agrune-* │
-│   어노테이션)    │
-└─────────────────┘
+workflows/
+  annotate/    harness-neutral annotation workflow source of truth
 ```
 
-이 프로젝트는 pnpm 워크스페이스 기반 모노레포로 구성되어 있습니다.
+## 배포 모델
 
-## 패키지 구조
+- `@agrune/mcp`: 제품 본체. Claude, Codex, 기타 MCP 하네스가 공통으로 실행하는 canonical entry
+- `workflows/annotate`: Agrune 사용에 필요한 어노테이션 워크플로 원본
+
+이 구조의 의도는 `plugin이 본체`가 아니라 `@agrune/mcp + workflow`가 본체가 되도록 만드는 것입니다.
+
+## 패키지
 
 | 패키지 | 경로 | 설명 |
 |--------|------|------|
-| **@agrune/core** | `packages/core` | 공유 타입, 에러 코드, 런타임 설정 헬퍼. 모든 패키지의 공통 기반. |
-| **@agrune/build-core** | `packages/build-core` | 확장 프로그램의 페이지 내 런타임 엔진. DOM 스냅샷 생성, 액션 큐 관리, 포인터 애니메이션/커서 렌더링 등 핵심 로직 포함. |
-| **@agrune/extension** | `packages/extension` | Chrome 확장 프로그램 (Manifest V3). Content Script가 `data-agrune-*` 어노테이션을 감지하고, Service Worker가 Native Messaging으로 MCP 서버와 통신. DevTools 패널과 팝업 UI 포함. |
-| **@agrune/mcp-server** | `packages/mcp-server` | MCP 프로토콜 서버. AI 에이전트의 도구 호출을 받아 브라우저 명령으로 변환. 세션/스냅샷 관리, 명령 큐 처리. |
+| **@agrune/core** | `packages/core` | 공유 타입, 에러 코드, 런타임 설정 헬퍼 |
+| **@agrune/runtime** | `packages/runtime` | 페이지 런타임, DOM 스캐너, manifest builder |
+| **@agrune/browser** | `packages/browser` | `ExtensionDriver`, `CdpDriver`, native messaging/CDP 전송 계층 |
+| **@agrune/mcp** | `packages/mcp` | MCP 서버 본체와 `agrune-mcp` CLI |
+| **@agrune/extension** | `packages/extension` | Chrome extension mode용 background/content glue |
+| **@agrune/devtools** | `packages/devtools` | extension devtools 패널 |
 
-## 설치
+## 실행 방식
 
-Chrome Web Store에서 확장 프로그램을 설치한 뒤, AI 에이전트의 MCP 설정에 agrune MCP 서버를 등록합니다.
+### 1. Quick mode
 
-## 사용법
+확장 프로그램 없이 Chrome DevTools Protocol로 직접 연결합니다.
 
-### 1. 웹 페이지에 어노테이션 추가
-
-AI가 조작할 수 있는 요소에 `data-agrune-*` 속성을 추가합니다.
-
-```html
-<!-- 클릭 가능한 버튼 -->
-<button data-agrune-action="click" data-agrune-name="Login">로그인</button>
-
-<!-- 입력 필드 -->
-<input data-agrune-action="fill" data-agrune-name="Email" type="email" />
-
-<!-- 그룹으로 묶기 -->
-<div data-agrune-group="auth-form" data-agrune-group-name="인증 폼">
-  <input data-agrune-action="fill" data-agrune-name="Username" />
-  <input data-agrune-action="fill" data-agrune-name="Password" type="password" data-agrune-sensitive />
-  <button data-agrune-action="click" data-agrune-name="Submit">제출</button>
-</div>
+```bash
+pnpm dlx @agrune/mcp@latest --mode cdp
 ```
 
-#### 어노테이션 속성
+### 2. Extension mode
 
-| 속성 | 설명 |
+기존 native host + extension 경로를 유지하는 호환 모드입니다.
+
+```bash
+pnpm dlx @agrune/mcp@latest
+```
+
+### 3. 어노테이션
+
+어노테이션은 Claude 전용 기능이 아니라 Agrune 사용의 필수 워크플로입니다. source of truth는 [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md)에 두고, 하네스별 어댑터는 이 워크플로를 각 환경 형식에 맞게 감쌉니다.
+
+## MCP 도구
+
+| 도구 | 설명 |
 |------|------|
-| `data-agrune-action` | 액션 종류: `click`, `fill`, `dblclick`, `contextmenu`, `hover`, `longpress` |
-| `data-agrune-name` | 요소의 이름 (AI가 식별하는 데 사용) |
-| `data-agrune-desc` | 요소에 대한 추가 설명 |
-| `data-agrune-key` | 고유 타깃 ID (지정하지 않으면 자동 생성) |
-| `data-agrune-sensitive` | 민감 데이터 표시 (비밀번호 등) |
-| `data-agrune-group` | 그룹 ID (부모 요소에 지정) |
-| `data-agrune-group-name` | 그룹 이름 |
-| `data-agrune-group-desc` | 그룹 설명 |
+| `agrune_sessions` | 활성 브라우저 세션 목록 조회 |
+| `agrune_snapshot` | 페이지 스냅샷과 target/group 정보 조회 |
+| `agrune_act` | 클릭, 더블클릭, 호버 등 인터랙션 수행 |
+| `agrune_fill` | 입력 필드 값 채우기 |
+| `agrune_drag` | 드래그 앤 드롭 |
+| `agrune_pointer` | 저수준 포인터/휠 시퀀스 |
+| `agrune_wait` | 상태 변화 대기 |
+| `agrune_guide` | 대상 하이라이트 |
+| `agrune_read` | 페이지를 마크다운으로 읽기 |
+| `agrune_config` | 런타임 시각 설정 변경 |
 
-### 2. AI 에이전트에서 MCP 도구 사용
-
-설치가 완료되면 AI 에이전트가 아래 MCP 도구를 사용하여 브라우저를 제어합니다.
-
-| 도구 | 설명 | 필수 파라미터 |
-|------|------|---------------|
-| `agrune_sessions` | 활성 브라우저 탭 목록 조회 | -- |
-| `agrune_snapshot` | 페이지 스냅샷 (액션 가능한 타깃 목록) 조회 | tabId (선택) |
-| `agrune_act` | 요소에 인터랙션 수행 (클릭, 더블클릭, 호버 등) | `targetId` |
-| `agrune_fill` | 입력 필드에 값 입력 | `targetId`, `value` |
-| `agrune_drag` | 요소를 드래그하여 다른 요소 위로 이동 | `sourceTargetId`, `destinationTargetId` |
-| `agrune_wait` | 요소가 특정 상태에 도달할 때까지 대기 | `targetId`, `state` |
-| `agrune_guide` | 요소를 시각적으로 하이라이트 | `targetId` |
-| `agrune_read` | 페이지 콘텐츠를 마크다운으로 추출 | selector (선택) |
-| `agrune_config` | 포인터 애니메이션, Aurora 글로우 등 런타임 설정 변경 | -- |
-
-## 개발 가이드
+## 개발
 
 ### 요구 사항
 
-- **Node.js** 22 이상
-- **pnpm** 10.23.0 이상
+- Node.js 22 이상
+- pnpm 10.23.0 이상
 
-### 저장소 클론 및 의존성 설치
+### 설치
 
 ```bash
 git clone https://github.com/agrune/agrune.git
@@ -110,73 +89,38 @@ cd agrune
 pnpm install
 ```
 
-### 빌드
+### 빌드와 테스트
 
 ```bash
 pnpm build
-```
-
-### 타입 체크
-
-```bash
-pnpm typecheck
-```
-
-### 테스트
-
-```bash
 pnpm test
 ```
 
-### 확장 프로그램 개발 모드
+### 로컬 quick mode 확인
+
+```bash
+node /Users/chenjing/dev/agrune/agrune/packages/mcp/dist/bin/agrune-mcp.js --mode cdp
+```
+
+### 확장 프로그램 개발
 
 ```bash
 cd packages/extension
 pnpm dev
 ```
 
-빌드 결과물은 `packages/extension/dist/`에 생성됩니다. Chrome의 `chrome://extensions`에서 "압축해제된 확장 프로그램을 로드합니다"를 선택하여 `packages/extension/` 디렉터리를 지정하면 개발 모드로 사용할 수 있습니다.
+확장 프로그램은 `packages/extension/dist/`를 Chrome에서 로드하면 됩니다.
 
-### MCP 서버 개발 모드
+## 관련 디렉터리
 
-```bash
-cd packages/mcp-server
-pnpm dev
-```
-
-#### 빌드 후 자동 배포
-
-`pnpm build` 실행 시 MCP 서버의 빌드 결과물이 자동으로 `~/.agrune/mcp-server/`에 동기화되고, 실행 중인 백엔드 데몬이 재시작됩니다. 다음 MCP 도구 호출 시 새 버전의 데몬이 자동으로 시작됩니다.
-
-### 기술 스택
-
-- **TypeScript** (ES2022, ESNext 모듈)
-- **tsup** -- 패키지 번들링
-- **Vite** -- 확장 프로그램 빌드
-- **Vitest** -- 테스트
-- **Zod** -- MCP 도구 스키마 검증
-- **@modelcontextprotocol/sdk** -- MCP 서버 구현
-- **ai-motion** -- 포인터 애니메이션
-
-## 릴리스
-
-`v*` 태그를 push하면 GitHub Actions 워크플로우가 자동으로 실행됩니다:
-
-1. 모든 패키지의 버전이 태그와 일치하는지 검증
-2. `@agrune/core`, `@agrune/build-core`를 npm에 퍼블리시
-3. Chrome 확장 프로그램을 빌드하여 Chrome Web Store에 업로드
+- [packages/mcp/README.md](./packages/mcp/README.md): `@agrune/mcp` 패키지 설명
+- [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md): 공통 어노테이션 워크플로
 
 ## 개인정보 처리방침
 
-agrune은 사용자의 개인정보를 보호합니다:
-
-- 모든 데이터는 **로컬 기기**에서만 처리됩니다
-- 확장 프로그램과 로컬 MCP 서버 사이에서만 데이터가 전송됩니다
-- 외부 서버, 제3자, 클라우드 서비스로 데이터를 **전송하지 않습니다**
-- 개인 식별 정보를 수집하지 않습니다
+- 모든 데이터는 로컬 기기에서만 처리됩니다
+- quick mode는 브라우저와 직접 CDP로 통신합니다
+- extension mode는 extension과 로컬 MCP/runtime 사이에서만 통신합니다
+- 외부 서버로 사용자 페이지 데이터를 전송하지 않습니다
 
 자세한 내용은 [PRIVACY.md](./PRIVACY.md)를 참고하세요.
-
-## 라이선스
-
-MIT

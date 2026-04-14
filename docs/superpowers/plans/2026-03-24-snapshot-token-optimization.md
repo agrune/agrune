@@ -15,12 +15,12 @@
 ### Task 1: Remove redundant fields from PublicSnapshotTarget
 
 **Files:**
-- Modify: `packages/mcp-server/src/public-shapes.ts:26-38` (type), `packages/mcp-server/src/public-shapes.ts:79-94` (toPublicTarget)
-- Test: `packages/mcp-server/tests/public-shapes.spec.ts`
+- Modify: `packages/mcp/src/public-shapes.ts:26-38` (type), `packages/mcp/src/public-shapes.ts:79-94` (toPublicTarget)
+- Test: `packages/mcp/tests/public-shapes.spec.ts`
 
 - [x] **Step 1: Update the failing test — expand mode should not include removed fields**
 
-In `packages/mcp-server/tests/public-shapes.spec.ts`, update the expand test assertion (line 239-253) to expect the new shape:
+In `packages/mcp/tests/public-shapes.spec.ts`, update the expand test assertion (line 239-253) to expect the new shape:
 
 ```typescript
       targets: [
@@ -41,14 +41,14 @@ Removed: `groupName`, `groupDesc`, `visible`, `enabled`.
 - [x] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: FAIL — `toPublicSnapshot` still returns old fields.
 
 - [x] **Step 3: Update PublicSnapshotTarget type**
 
-In `packages/mcp-server/src/public-shapes.ts`, replace the interface (lines 26-39):
+In `packages/mcp/src/public-shapes.ts`, replace the interface (lines 26-39):
 
 ```typescript
 export interface PublicSnapshotTarget {
@@ -65,7 +65,7 @@ export interface PublicSnapshotTarget {
 
 - [x] **Step 4: Update toPublicTarget function**
 
-In `packages/mcp-server/src/public-shapes.ts`, replace the function (lines 79-94):
+In `packages/mcp/src/public-shapes.ts`, replace the function (lines 79-94):
 
 ```typescript
 function toPublicTarget(target: PageTarget, includeTextContent: boolean): PublicSnapshotTarget {
@@ -84,7 +84,7 @@ function toPublicTarget(target: PageTarget, includeTextContent: boolean): Public
 
 - [x] **Step 5: Update toPublicSnapshot to pass includeTextContent**
 
-In `packages/mcp-server/src/public-shapes.ts`, add `includeTextContent` to `PublicSnapshotOptions` and update `toPublicSnapshot`:
+In `packages/mcp/src/public-shapes.ts`, add `includeTextContent` to `PublicSnapshotOptions` and update `toPublicSnapshot`:
 
 ```typescript
 export interface PublicSnapshotOptions {
@@ -103,7 +103,7 @@ Update the targets mapping line (line 165):
 - [x] **Step 6: Run test to verify it passes**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: PASS
@@ -111,7 +111,7 @@ Expected: PASS
 - [x] **Step 7: Commit**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/public-shapes.ts packages/mcp-server/tests/public-shapes.spec.ts && git commit -m "refactor: remove redundant fields from PublicSnapshotTarget"
+cd /Users/chenjing/dev/agrune && git add packages/mcp/src/public-shapes.ts packages/mcp/tests/public-shapes.spec.ts && git commit -m "refactor: remove redundant fields from PublicSnapshotTarget"
 ```
 
 ---
@@ -119,12 +119,12 @@ cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/public-shapes.t
 ### Task 2: Omit group summary in expand/full mode
 
 **Files:**
-- Modify: `packages/mcp-server/src/public-shapes.ts:147-167` (toPublicSnapshot)
-- Test: `packages/mcp-server/tests/public-shapes.spec.ts`
+- Modify: `packages/mcp/src/public-shapes.ts:147-167` (toPublicSnapshot)
+- Test: `packages/mcp/tests/public-shapes.spec.ts`
 
 - [x] **Step 1: Update the failing test — expand mode should not include groups**
 
-In `packages/mcp-server/tests/public-shapes.spec.ts`, update the expand test assertion (line 216-254). Remove the entire `groups` array from the expected output:
+In `packages/mcp/tests/public-shapes.spec.ts`, update the expand test assertion (line 216-254). Remove the entire `groups` array from the expected output:
 
 ```typescript
     expect(toPublicSnapshot(snapshot, { groupIds: ['filters'] })).toEqual({
@@ -149,14 +149,14 @@ In `packages/mcp-server/tests/public-shapes.spec.ts`, update the expand test ass
 - [x] **Step 2: Run test to verify it fails**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: FAIL — `toPublicSnapshot` still returns `groups` in expand mode.
 
 - [x] **Step 3: Make `groups` optional in PublicSnapshot type and update toPublicSnapshot**
 
-In `packages/mcp-server/src/public-shapes.ts`, update the `PublicSnapshot` interface to make `groups` optional:
+In `packages/mcp/src/public-shapes.ts`, update the `PublicSnapshot` interface to make `groups` optional:
 
 ```typescript
 export interface PublicSnapshot {
@@ -187,7 +187,7 @@ Then update the return statement in `toPublicSnapshot`:
 - [x] **Step 4: Run test to verify it passes**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: PASS
@@ -195,7 +195,7 @@ Expected: PASS
 - [x] **Step 5: Commit**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/public-shapes.ts packages/mcp-server/tests/public-shapes.spec.ts && git commit -m "refactor: omit group summary in expand and full mode"
+cd /Users/chenjing/dev/agrune && git add packages/mcp/src/public-shapes.ts packages/mcp/tests/public-shapes.spec.ts && git commit -m "refactor: omit group summary in expand and full mode"
 ```
 
 ---
@@ -203,13 +203,13 @@ cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/public-shapes.t
 ### Task 3: Add includeTextContent option to MCP tool
 
 **Files:**
-- Modify: `packages/mcp-server/src/tools.ts:21-42`
-- Modify: `packages/mcp-server/src/mcp-tools.ts:33-43`
-- Modify: `packages/mcp-server/src/backend.ts:132-149`
+- Modify: `packages/mcp/src/tools.ts:21-42`
+- Modify: `packages/mcp/src/mcp-tools.ts:33-43`
+- Modify: `packages/mcp/src/backend.ts:132-149`
 
 - [x] **Step 1: Add includeTextContent to tool definitions**
 
-In `packages/mcp-server/src/tools.ts`, add to `agrune_snapshot` properties (after `mode`):
+In `packages/mcp/src/tools.ts`, add to `agrune_snapshot` properties (after `mode`):
 
 ```typescript
           includeTextContent: {
@@ -218,7 +218,7 @@ In `packages/mcp-server/src/tools.ts`, add to `agrune_snapshot` properties (afte
           },
 ```
 
-In `packages/mcp-server/src/mcp-tools.ts`, add to the `agrune_snapshot` Zod schema (after `mode`):
+In `packages/mcp/src/mcp-tools.ts`, add to the `agrune_snapshot` Zod schema (after `mode`):
 
 ```typescript
       includeTextContent: z.boolean().optional().describe('Include visible text content of each target element'),
@@ -226,14 +226,14 @@ In `packages/mcp-server/src/mcp-tools.ts`, add to the `agrune_snapshot` Zod sche
 
 - [x] **Step 2: Update tool description**
 
-In `packages/mcp-server/src/tools.ts`, update `agrune_snapshot` description:
+In `packages/mcp/src/tools.ts`, update `agrune_snapshot` description:
 
 ```typescript
       description:
         'Get the current active-context snapshot for a browser tab. By default returns a group outline only; use groupId/groupIds or mode="full" to expand actionable targets. Targets only include actionable elements. Omitted fields use defaults: visible=true, enabled=true.',
 ```
 
-In `packages/mcp-server/src/mcp-tools.ts`, update the description similarly:
+In `packages/mcp/src/mcp-tools.ts`, update the description similarly:
 
 ```typescript
     'Get the current active-context snapshot. By default returns a group outline; expand groups or request full mode to inspect actionable targets. Targets only include actionable elements. Omitted fields use defaults: visible=true, enabled=true.',
@@ -241,7 +241,7 @@ In `packages/mcp-server/src/mcp-tools.ts`, update the description similarly:
 
 - [x] **Step 3: Plumb includeTextContent through resolveSnapshotOptions**
 
-In `packages/mcp-server/src/backend.ts`, update `resolveSnapshotOptions` to include:
+In `packages/mcp/src/backend.ts`, update `resolveSnapshotOptions` to include:
 
 ```typescript
     return {
@@ -254,7 +254,7 @@ In `packages/mcp-server/src/backend.ts`, update `resolveSnapshotOptions` to incl
 - [x] **Step 4: Run all tests to verify nothing breaks**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: PASS
@@ -262,7 +262,7 @@ Expected: PASS
 - [x] **Step 5: Commit**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/tools.ts packages/mcp-server/src/mcp-tools.ts packages/mcp-server/src/backend.ts && git commit -m "feat: add includeTextContent option to agrune_snapshot"
+cd /Users/chenjing/dev/agrune && git add packages/mcp/src/tools.ts packages/mcp/src/mcp-tools.ts packages/mcp/src/backend.ts && git commit -m "feat: add includeTextContent option to agrune_snapshot"
 ```
 
 ---
@@ -270,11 +270,11 @@ cd /Users/chenjing/dev/agrune && git add packages/mcp-server/src/tools.ts packag
 ### Task 4: Update backend integration tests
 
 **Files:**
-- Modify: `packages/mcp-server/tests/backend.spec.ts:51-147`
+- Modify: `packages/mcp/tests/backend.spec.ts:51-147`
 
 - [x] **Step 1: Update expand assertion — remove groups and redundant target fields**
 
-In `packages/mcp-server/tests/backend.spec.ts`, update the expanded snapshot assertion (lines 114-146). Remove `groups`, `groupName`, `groupDesc`, `visible`, `enabled`, `textContent`:
+In `packages/mcp/tests/backend.spec.ts`, update the expanded snapshot assertion (lines 114-146). Remove `groups`, `groupName`, `groupDesc`, `visible`, `enabled`, `textContent`:
 
 ```typescript
     const expanded = await backend.handleToolCall('agrune_snapshot', { tabId: 42, groupId: 'tabs' })
@@ -299,7 +299,7 @@ In `packages/mcp-server/tests/backend.spec.ts`, update the expanded snapshot ass
 
 - [x] **Step 2: Add test for includeTextContent option**
 
-Add a new test in `packages/mcp-server/tests/backend.spec.ts`:
+Add a new test in `packages/mcp/tests/backend.spec.ts`:
 
 ```typescript
   it('includes textContent when includeTextContent is true', async () => {
@@ -365,7 +365,7 @@ Add a new test in `packages/mcp-server/tests/backend.spec.ts`:
 - [x] **Step 3: Run all tests**
 
 ```bash
-cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp-server test
+cd /Users/chenjing/dev/agrune && pnpm --filter @agrune/mcp test
 ```
 
 Expected: PASS
@@ -373,7 +373,7 @@ Expected: PASS
 - [x] **Step 4: Commit**
 
 ```bash
-cd /Users/chenjing/dev/agrune && git add packages/mcp-server/tests/backend.spec.ts && git commit -m "test: update backend tests for token-optimized snapshot responses"
+cd /Users/chenjing/dev/agrune && git add packages/mcp/tests/backend.spec.ts && git commit -m "test: update backend tests for token-optimized snapshot responses"
 ```
 
 ---

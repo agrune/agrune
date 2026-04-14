@@ -44,7 +44,7 @@ export type AgagruneSupportedAction = 'click' | 'fill' | 'dblclick' | 'contextme
 기존 `agrune_act`에 `action` 파라미터를 추가한다. 기본값은 `click`으로 하위호환을 유지한다.
 
 ```typescript
-// packages/mcp-server/src/tools.ts - agrune_act inputSchema
+// packages/mcp/src/tools.ts - agrune_act inputSchema
 {
   type: 'object',
   properties: {
@@ -427,8 +427,8 @@ read: async (input) => {
 | `packages/build-core/src/runtime/page-agent-runtime.ts` | `PageAgentRuntime` 인터페이스에 `act.action` 필드 + `read` 메서드 추가, `collectDescriptors()` 필터 확장, act/guide 핸들러 가드 로직 변경, `dispatchMouseLikeEvent`/`dispatchPointerLikeEvent` 옵셔널 파라미터 추가, `performPointerClickSequence`에서 `element.click()` → 수동 디스패치, 4개 이벤트 시퀀스 함수 추가, act 핸들러 분기, `read()` 핸들러 + `domToMarkdown()` 변환 로직 |
 | `packages/extension/src/content/dom-scanner.ts` | `ScannedTarget.actionKind` 타입을 `ActionKind`로 변경, 런타임 유효성 검증 추가 |
 | `packages/extension/src/runtime/page-runtime.ts` | `read` 커맨드를 `window.agruneDom.read()`로 위임 (브릿지 역할) |
-| `packages/mcp-server/src/tools.ts` | `agrune_act` 스키마에 `action` 파라미터 추가 + 설명 변경, `agrune_read` 툴 정의 추가 |
-| `packages/mcp-server/src/backend.ts` | switch 케이스에 `agrune_read` 추가 (기존 커맨드 파이프라인 재사용) |
+| `packages/mcp/src/tools.ts` | `agrune_act` 스키마에 `action` 파라미터 추가 + 설명 변경, `agrune_read` 툴 정의 추가 |
+| `packages/mcp/src/backend.ts` | switch 케이스에 `agrune_read` 추가 (기존 커맨드 파이프라인 재사용) |
 
 ## 제외된 후보와 이유
 

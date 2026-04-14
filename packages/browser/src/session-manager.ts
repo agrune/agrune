@@ -13,17 +13,22 @@ export class SessionManager {
   private snapshotWaiters: Array<() => void> = []
 
   openSession(tabId: number, url: string, title: string): void {
+    const existing = this.sessions.get(tabId)
     this.sessions.set(tabId, {
       tabId,
       url,
       title,
-      snapshot: null,
-      openedAt: Date.now(),
+      snapshot: existing?.url === url ? existing.snapshot : null,
+      openedAt: existing?.openedAt ?? Date.now(),
     })
   }
 
   closeSession(tabId: number): void {
     this.sessions.delete(tabId)
+  }
+
+  clear(): void {
+    this.sessions.clear()
   }
 
   getSession(tabId: number): Session | null {

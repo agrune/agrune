@@ -418,11 +418,11 @@ git commit -m "feat(build-core): add expandWheelSteps for smooth multi-step zoom
 ## Task 5: wheel steps — MCP 도구 스키마 업데이트
 
 **Files:**
-- Modify: `packages/mcp-server/src/mcp-tools.ts:113-120`
+- Modify: `packages/mcp/src/mcp-tools.ts:113-120`
 
 - [ ] **Step 1: wheel 스키마에 steps, durationMs 추가**
 
-`packages/mcp-server/src/mcp-tools.ts:113-120`의 wheel 객체를 변경:
+`packages/mcp/src/mcp-tools.ts:113-120`의 wheel 객체를 변경:
 
 ```typescript
 z.object({
@@ -445,7 +445,7 @@ Expected: 성공
 - [ ] **Step 3: 커밋**
 
 ```bash
-git add packages/mcp-server/src/mcp-tools.ts
+git add packages/mcp/src/mcp-tools.ts
 git commit -m "feat(mcp-server): add steps and durationMs to wheel action schema"
 ```
 

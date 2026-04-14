@@ -47,9 +47,9 @@ on:
 4. Version validation: extract version from tag, verify ALL publishable `package.json` files match (root, core, build-core, cli, extension, mcp-server)
 5. Build mcp-server + copy to cli/assets + build cli:
    ```bash
-   pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp-server run build
+   pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp run build
    mkdir -p packages/cli/assets
-   cp -r packages/mcp-server/dist packages/cli/assets/mcp-server
+   cp -r packages/mcp/dist packages/cli/assets/mcp-server
    pnpm --filter @agrune/cli run build
    ```
 6. `pnpm publish --access public --no-git-checks` for each package in order:
@@ -119,7 +119,7 @@ Extracts version from git tag and verifies ALL package.json files match:
 
 ```bash
 TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp; do
   PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
   if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
     echo "ERROR: $pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"

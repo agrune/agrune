@@ -31,7 +31,7 @@ Note: This package was already published as 0.2.0 on npm. The next release will 
 
 Run:
 ```bash
-for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp; do
   echo "$pkg: $(node -p "require('./$pkg/package.json').version")"
 done
 ```
@@ -90,7 +90,7 @@ jobs:
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+          for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -101,9 +101,9 @@ jobs:
 
       - name: Build packages
         run: |
-          pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp-server run build
+          pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp run build
           mkdir -p packages/cli/assets
-          cp -r packages/mcp-server/dist packages/cli/assets/mcp-server
+          cp -r packages/mcp/dist packages/cli/assets/mcp-server
           pnpm --filter @agrune/cli run build
 
       - name: Setup npm auth
@@ -214,7 +214,7 @@ git push origin main
 
 ```bash
 TAG_VERSION="0.1.0"
-for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp-server; do
+for pkg in . packages/core packages/build-core packages/cli packages/extension packages/mcp; do
   PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
   if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
     echo "FAIL: $pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -229,9 +229,9 @@ Expected: All show `OK`
 - [ ] **Step 3: Test build pipeline locally**
 
 ```bash
-pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp-server run build && \
+pnpm --filter @agrune/core --filter @agrune/build-core --filter @agrune/mcp run build && \
 mkdir -p packages/cli/assets && \
-cp -r packages/mcp-server/dist packages/cli/assets/mcp-server && \
+cp -r packages/mcp/dist packages/cli/assets/mcp-server && \
 pnpm --filter @agrune/cli run build
 ```
 

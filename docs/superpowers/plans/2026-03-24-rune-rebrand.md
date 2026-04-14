@@ -16,7 +16,7 @@
 
 **Files:**
 - Rename: `plugins/webcli/` → `plugins/agrune/`
-- Rename: `packages/mcp-server/bin/webcli-mcp.ts` → `packages/mcp-server/bin/agrune-mcp.ts`
+- Rename: `packages/mcp/bin/webcli-mcp.ts` → `packages/mcp/bin/agrune-mcp.ts`
 
 - [x] **Step 1: Rename plugin directory**
 
@@ -28,13 +28,13 @@ mv plugins/webcli plugins/agrune
 - [x] **Step 2: Rename binary file**
 
 ```bash
-mv packages/mcp-server/bin/webcli-mcp.ts packages/mcp-server/bin/agrune-mcp.ts
+mv packages/mcp/bin/webcli-mcp.ts packages/mcp/bin/agrune-mcp.ts
 ```
 
 - [x] **Step 3: Verify renames**
 
 ```bash
-ls plugins/agrune/.claude-plugin/plugin.json && ls packages/mcp-server/bin/agrune-mcp.ts
+ls plugins/agrune/.claude-plugin/plugin.json && ls packages/mcp/bin/agrune-mcp.ts
 ```
 
 Expected: Both files exist, no errors.
@@ -241,19 +241,19 @@ Verify specific files have the right result:
 
 ```bash
 # Type names should be Agagrune*, not agrune*
-grep 'AgagruneRuntimeConfig\|AgagruneBackend\|AgagruneManifest' packages/core/src/index.ts packages/mcp-server/src/backend.ts packages/build-core/src/types.ts
+grep 'AgagruneRuntimeConfig\|AgagruneBackend\|AgagruneManifest' packages/core/src/index.ts packages/mcp/src/backend.ts packages/build-core/src/types.ts
 
 # Window global should be agruneDom
 grep 'agruneDom' packages/build-core/src/runtime/page-agent-runtime.ts packages/extension/src/runtime/page-runtime.ts
 
 # MCP tools should be agrune_*
-grep 'agrune_sessions\|agrune_snapshot\|agrune_act\|agrune_config' packages/mcp-server/src/tools.ts packages/mcp-server/src/mcp-tools.ts
+grep 'agrune_sessions\|agrune_snapshot\|agrune_act\|agrune_config' packages/mcp/src/tools.ts packages/mcp/src/mcp-tools.ts
 
 # Vite chunk names should be agrune*
 grep 'agruneContentScript\|agruneBackgroundServiceWorker\|agrunePopup\|agrunePageRuntime' packages/extension/vite.config.ts
 
 # Home directory should be .agrune, not .agrune
-grep 'agrune' packages/mcp-server/src/install.ts packages/mcp-server/bin/agrune-mcp.ts
+grep 'agrune' packages/mcp/src/install.ts packages/mcp/bin/agrune-mcp.ts
 ```
 
 Expected: All grep commands return matches.

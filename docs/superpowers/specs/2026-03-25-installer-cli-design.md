@@ -152,7 +152,7 @@ interface Check {
 
 ### 기존 코드 이전
 
-`packages/mcp-server/src/install.ts`의 핵심 로직(네이티브 호스트 등록, 경로 탐지 등)을 `packages/cli/src/`로 이전.
+`packages/mcp/src/install.ts`의 핵심 로직(네이티브 호스트 등록, 경로 탐지 등)을 `packages/cli/src/`로 이전.
 mcp-server에서 `install` 서브커맨드 제거.
 
 ## Chrome Extension ID

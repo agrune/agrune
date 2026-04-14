@@ -6,8 +6,15 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
-    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
-    "./page-runtime": { "import": "./dist/page-runtime.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./page-runtime": {
+      "import": "./dist/page-runtime.global.js",
+      "default": "./dist/page-runtime.global.js"
+    }
   },
   "scripts": {
     "build": "tsup",

@@ -4,8 +4,8 @@ import type {
   PageSnapshot,
   PageSnapshotGroup,
   PageTarget,
+  Session,
 } from '@agrune/core'
-import type { Session } from '@agrune/browser'
 
 export interface PublicSession {
   tabId: number
@@ -67,13 +67,20 @@ export type PublicCommandResult =
       error: CommandErrorShape
     }
 
-export function toPublicSession(session: Session): PublicSession {
+export function toPublicSession(
+  session: Session & { snapshot?: PageSnapshot | null },
+): PublicSession {
+  const snapshot =
+    'snapshot' in session && session.snapshot
+      ? session.snapshot
+      : null
+
   return {
     tabId: session.tabId,
     url: session.url,
-    title: session.title || session.snapshot?.title || '',
-    hasSnapshot: session.snapshot !== null,
-    snapshotVersion: session.snapshot?.version ?? null,
+    title: session.title || snapshot?.title || '',
+    hasSnapshot: session.hasSnapshot ?? snapshot !== null,
+    snapshotVersion: session.snapshotVersion ?? snapshot?.version ?? null,
   }
 }
 

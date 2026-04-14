@@ -169,9 +169,9 @@ MCP tool 호출
 | 파일 | 변경 내용 |
 |------|----------|
 | `packages/core/src/native-messages.ts` | `ResyncRequestMessage` 타입 추가, `NativeMessage` union 확장 |
-| `packages/mcp-server/src/backend.ts` | `ensureReady()`, `onActivity` 콜백, `handleToolCall` 진입점 수정, `handleNativeMessage`에 `resync_request` no-op case |
-| `packages/mcp-server/src/session-manager.ts` | `hasReadySession()`, `waitForSnapshot()` 추가 |
-| `packages/mcp-server/bin/agrune-mcp.ts` | `--backend-daemon` 섹션에 idle 타이머 연결 |
+| `packages/mcp/src/backend.ts` | `ensureReady()`, `onActivity` 콜백, `handleToolCall` 진입점 수정, `handleNativeMessage`에 `resync_request` no-op case |
+| `packages/mcp/src/session-manager.ts` | `hasReadySession()`, `waitForSnapshot()` 추가 |
+| `packages/mcp/bin/agrune-mcp.ts` | `--backend-daemon` 섹션에 idle 타이머 연결 |
 | `packages/extension/src/background/message-router.ts` | `resync_request` → `broadcastToAllTabs` 라우팅 |
 | `packages/extension/src/content/index.ts` | 즉시 snapshot 요청, `resync` 핸들러 |
 

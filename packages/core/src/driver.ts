@@ -1,10 +1,11 @@
-import type { PageSnapshot, CommandResult, NativeMessage } from './index.js'
+import type { PageSnapshot, CommandResult, AgruneRuntimeConfig } from './index.js'
 
 export interface Session {
   tabId: number
   url: string
   title: string
   hasSnapshot: boolean
+  snapshotVersion?: number | null
 }
 
 export interface BrowserDriver {
@@ -19,6 +20,7 @@ export interface BrowserDriver {
   onSnapshotUpdate(cb: (tabId: number, snapshot: PageSnapshot) => void): void
 
   execute(tabId: number, command: Record<string, unknown> & { kind: string }): Promise<CommandResult>
-
-  sendRaw(msg: NativeMessage): void
+  updateConfig(config: Partial<AgruneRuntimeConfig>): void
+  ensureReady(): Promise<string | null>
+  resolveTabId(tabId?: number): number | null
 }

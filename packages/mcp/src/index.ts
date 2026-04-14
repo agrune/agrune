@@ -1,6 +1,6 @@
 import type { Readable, Writable } from 'node:stream'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { AgruneRuntimeConfig, NativeMessage } from '@agrune/core'
+import type { AgruneRuntimeConfig, BrowserDriver } from '@agrune/core'
 import { ExtensionDriver, createNativeMessagingTransport } from '@agrune/browser'
 import type { NativeMessagingTransport } from '@agrune/browser'
 import { registerAgruneTools } from './mcp-tools.js'
@@ -15,8 +15,14 @@ export { getToolDefinitions } from './tools.js'
 export { createNativeMessagingTransport, ExtensionDriver } from '@agrune/browser'
 export type { NativeMessagingTransport } from '@agrune/browser'
 
-export function createMcpServer() {
-  const driver = new ExtensionDriver()
+type ActivityAwareDriver = BrowserDriver & {
+  onActivity?: (() => void) | null
+}
+
+export function createMcpServer<TDriver extends ActivityAwareDriver = ExtensionDriver>(
+  providedDriver?: TDriver,
+) {
+  const driver = (providedDriver ?? new ExtensionDriver()) as TDriver
 
   const mcp = new McpServer(
     { name: 'agrune', version: typeof __MCP_SERVER_VERSION__ !== 'undefined' ? __MCP_SERVER_VERSION__ : '0.0.0' },
@@ -28,6 +34,9 @@ export function createMcpServer() {
     args: Record<string, unknown>,
   ): Promise<ToolHandlerResult> => {
     driver.onActivity?.()
+    if (!driver.isConnected()) {
+      await driver.connect()
+    }
 
     if (name !== 'agrune_config') {
       const readyError = await driver.ensureReady()
@@ -38,8 +47,7 @@ export function createMcpServer() {
 
     switch (name) {
       case 'agrune_sessions': {
-        const sessions = driver.sessions.getSessions()
-        return { text: JSON.stringify(sessions.map(toPublicSession), null, 2) }
+        return { text: JSON.stringify(driver.listSessions().map(toPublicSession), null, 2) }
       }
       case 'agrune_snapshot': {
         if (tabId == null) return { text: 'No active sessions.', isError: true }
@@ -70,7 +78,7 @@ export function createMcpServer() {
         if (typeof args.clickDelayMs === 'number') config.clickDelayMs = args.clickDelayMs
         if (typeof args.pointerDurationMs === 'number') config.pointerDurationMs = args.pointerDurationMs
         if (typeof args.autoScroll === 'boolean') config.autoScroll = args.autoScroll
-        if (Object.keys(config).length > 0) driver.sendRaw({ type: 'config_update', config } as NativeMessage)
+        if (Object.keys(config).length > 0) driver.updateConfig(config)
         return { text: 'Configuration updated.' }
       }
       default:
@@ -81,6 +89,9 @@ export function createMcpServer() {
   registerAgruneTools(mcp, handleToolCall)
 
   function connectNativeMessaging(input: Readable, output: Writable): NativeMessagingTransport {
+    if (!(driver instanceof ExtensionDriver)) {
+      throw new Error('connectNativeMessaging is only available in extension mode.')
+    }
     const transport = createNativeMessagingTransport(input, output)
     driver.setNativeSender(transport.send)
     transport.onMessage((msg) => driver.handleNativeMessage(msg))

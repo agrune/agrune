@@ -7,6 +7,9 @@ import { homedir } from 'node:os'
 import { MCP_SERVER_VERSION } from '../src/version.js'
 
 const args = process.argv.slice(2)
+const mode = getArgValue('--mode') ?? 'extension'
+const attachEndpoint = getArgValue('--attach')
+const headless = args.includes('--headless')
 const AGRUNE_HOME = join(homedir(), '.agrune')
 const PORT_FILE = join(AGRUNE_HOME, 'port')
 
@@ -231,6 +234,37 @@ if (args[0] === '--native-host') {
     idleTimer = setTimeout(shutdown, IDLE_TIMEOUT_MS)
   }
 
+} else if (mode === 'cdp') {
+  // ============================================================
+  // Mode: CDP quick mode
+  // Launches or attaches to Chrome directly, without extension/native host.
+  // ============================================================
+  const { StdioServerTransport } = await import('@modelcontextprotocol/sdk/server/stdio.js')
+  const { CdpDriver } = await import('@agrune/browser')
+  const { createMcpServer } = await import('../src/index.js')
+
+  const driver = new CdpDriver({
+    mode: attachEndpoint ? 'attach' : 'launch',
+    ...(attachEndpoint ? { wsEndpoint: attachEndpoint } : {}),
+    headless,
+  })
+
+  const { server } = createMcpServer(driver)
+  await driver.connect()
+
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
+
+  const cleanup = async () => {
+    await driver.disconnect().catch(() => {})
+  }
+
+  process.once('SIGINT', () => {
+    void cleanup().finally(() => process.exit(0))
+  })
+  process.once('SIGTERM', () => {
+    void cleanup().finally(() => process.exit(0))
+  })
 } else {
   // ============================================================
   // Mode: MCP frontend (launched by Claude Code / AI Agent)
@@ -322,4 +356,10 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object'
     ? value as Record<string, unknown>
     : {}
+}
+
+function getArgValue(flag: string): string | undefined {
+  const index = args.indexOf(flag)
+  if (index === -1) return undefined
+  return args[index + 1]
 }

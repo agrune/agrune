@@ -586,7 +586,7 @@ git commit -m "feat(build-core): pointer returns updatedTransform after wheel ac
 ### Task 7: 공개 스냅샷 형식 업데이트
 
 **Files:**
-- Modify: `packages/mcp-server/src/public-shapes.ts`
+- Modify: `packages/mcp/src/public-shapes.ts`
 
 - [ ] **Step 1: PublicSnapshotTarget에서 rect → center+size**
 
@@ -671,7 +671,7 @@ meta 맵 구축: `snapshotGroups`에서 `meta` 필드를 추출.
 - [ ] **Step 7: 커밋**
 
 ```bash
-git add packages/mcp-server/src/public-shapes.ts
+git add packages/mcp/src/public-shapes.ts
 git commit -m "feat(mcp-server): public shapes use center+size, add meta to groups"
 ```
 
@@ -680,7 +680,7 @@ git commit -m "feat(mcp-server): public shapes use center+size, add meta to grou
 ### Task 8: MCP 도구 스키마 업데이트
 
 **Files:**
-- Modify: `packages/mcp-server/src/mcp-tools.ts:68-82`
+- Modify: `packages/mcp/src/mcp-tools.ts:68-82`
 
 - [ ] **Step 1: agrune_drag 스키마 업데이트**
 
@@ -707,7 +707,7 @@ mcp.tool(
 - [ ] **Step 2: 커밋**
 
 ```bash
-git add packages/mcp-server/src/mcp-tools.ts
+git add packages/mcp/src/mcp-tools.ts
 git commit -m "feat(mcp-server): update drag tool schema for canvas coordinates"
 ```
 

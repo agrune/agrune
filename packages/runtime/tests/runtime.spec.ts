@@ -209,8 +209,26 @@ const mockCdpPostMessage = vi.fn((_type: string, data: unknown) => {
   )
 })
 
+// jsdom은 CSS transitionend를 실제로 발화하지 않고 rAF도 vi.useFakeTimers 잔재에
+//영향을 받으므로, act/fill/drag 테스트에서는 pointerAnimation을 꺼서 애니메이션
+// 경로를 우회한다.
+function makeTestRuntime(
+  manifest: AgruneManifest,
+  extraOptions: Record<string, unknown> = {},
+): ReturnType<typeof createPageAgentRuntime> {
+  const runtime = createPageAgentRuntime(manifest, {
+    cdpPostMessage: mockCdpPostMessage,
+    ...extraOptions,
+  })
+  runtime.applyConfig({ pointerAnimation: false })
+  return runtime
+}
+
 describe('page agent runtime', () => {
   beforeEach(() => {
+    // Guard against fake-timer state leaking from a previous test's `finally`
+    // that may have run after a rejection — vi.useRealTimers() is idempotent.
+    vi.useRealTimers()
     document.body.innerHTML = ''
     motionModes.length = 0
     mockCdpPostMessage.mockReset()
@@ -633,6 +651,34 @@ describe('page agent runtime', () => {
     }
   })
 
+  it('기본 설정은 beginAgentActivity에서 포인터와 오로라를 함께 표시한다', async () => {
+    vi.useFakeTimers()
+
+    try {
+      const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+
+      expect(document.querySelector('[data-agrune-pointer="true"]')).toBeNull()
+      expect(document.querySelector('[data-agrune-aurora="true"]')).toBeNull()
+
+      runtime.beginAgentActivity()
+
+      const pointer = document.querySelector('[data-agrune-pointer="true"]') as HTMLElement | null
+      const aurora = document.querySelector('[data-agrune-aurora="true"]') as HTMLElement | null
+
+      expect(pointer).not.toBeNull()
+      expect(pointer?.style.display).toBe('block')
+      expect(aurora).not.toBeNull()
+
+      runtime.endAgentActivity()
+      await vi.advanceTimersByTimeAsync(5_600)
+
+      expect(pointer?.style.display).toBe('none')
+      expect(document.querySelector('[data-agrune-aurora="true"]')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('beginAgentActivity는 pointerAnimation이 꺼져 있으면 idle 포인터를 표시하지 않는다', async () => {
     vi.useFakeTimers()
 
@@ -793,7 +839,6 @@ describe('page agent runtime', () => {
   })
 
   it('act는 step 전환 뒤 다음 frame에서 주입된 overlay target도 settled snapshot에 반영한다', async () => {
-    vi.useFakeTimers()
     const button = document.createElement('button')
     button.setAttribute('data-agrune-key', 'login')
     button.getBoundingClientRect = () => mockRect()
@@ -801,12 +846,7 @@ describe('page agent runtime', () => {
     let dialog: HTMLDivElement | null = null
     let createButton: HTMLButtonElement | null = null
 
-    const originalRequestAnimationFrame = window.requestAnimationFrame
-    window.requestAnimationFrame = ((callback: FrameRequestCallback) => {
-      return window.setTimeout(() => callback(performance.now() + 16), 16)
-    }) as typeof window.requestAnimationFrame
-
-    try {
+    {
       // CDP path does not fire DOM click events in jsdom; simulate dialog creation
       // via cdpPostMessage mock callback (triggered on first CDP call during act)
       let dialogCreated = false
@@ -871,11 +911,9 @@ describe('page agent runtime', () => {
         },
       )
 
-      const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+      const runtime = makeTestRuntime(makeManifest())
       const snapshot = runtime.getSnapshot()
-      const resultPromise = runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
-      await vi.advanceTimersByTimeAsync(128)
-      const result = await resultPromise
+      const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
       expect(result.ok).toBe(true)
       expect(result.snapshot?.targets).toEqual(
@@ -887,9 +925,6 @@ describe('page agent runtime', () => {
           }),
         ]),
       )
-    } finally {
-      window.requestAnimationFrame = originalRequestAnimationFrame
-      vi.useRealTimers()
     }
   })
 
@@ -903,7 +938,7 @@ describe('page agent runtime', () => {
     document.body.appendChild(button)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -928,7 +963,7 @@ describe('page agent runtime', () => {
       () => (revealed ? button : cover),
     )
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -1023,7 +1058,7 @@ describe('page agent runtime', () => {
       },
     )
 
-    const runtime = createPageAgentRuntime(makeRepeatedTargetManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeRepeatedTargetManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'assignee-option' })
 
@@ -1050,7 +1085,7 @@ describe('page agent runtime', () => {
     document.body.appendChild(button)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -1091,7 +1126,7 @@ describe('page agent runtime', () => {
       },
     )
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -1197,7 +1232,7 @@ describe('page agent runtime', () => {
     document.body.appendChild(input)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => input)
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeManifest())
     const snapshot = runtime.getSnapshot()
     const result = await runtime.fill({
       expectedVersion: snapshot.version,
@@ -1238,7 +1273,7 @@ describe('page agent runtime', () => {
       (_x: number, y: number) => buttons.find((button, index) => y >= index * 50 && y < index * 50 + 40) ?? null,
     )
 
-    const runtime = createPageAgentRuntime(makeRepeatedTargetManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(makeRepeatedTargetManifest())
     const snapshot = runtime.getSnapshot()
 
     expect(snapshot.targets.map(target => target.targetId)).toEqual([
@@ -1421,7 +1456,7 @@ describe('page agent runtime', () => {
       },
     )
 
-    const runtime = createPageAgentRuntime(manifest, { cdpPostMessage: mockCdpPostMessage })
+    const runtime = makeTestRuntime(manifest)
     const snapshot = runtime.getSnapshot()
     const transitionResult = await runtime.act({ expectedVersion: snapshot.version, targetId: 'agrune_1' })
 
@@ -1560,7 +1595,7 @@ describe('page agent runtime', () => {
       (x: number) => (x >= 180 ? destination : source),
     )
 
-    const runtime = createPageAgentRuntime({
+    const runtime = makeTestRuntime({
       version: 2,
       generatedAt: new Date().toISOString(),
       exposureMode: 'grouped',
@@ -1753,7 +1788,7 @@ describe('page agent runtime', () => {
       (x: number) => (x >= 180 ? destination : source),
     )
 
-    const runtime = createPageAgentRuntime({
+    const runtime = makeTestRuntime({
       version: 2,
       generatedAt: new Date().toISOString(),
       exposureMode: 'grouped',
