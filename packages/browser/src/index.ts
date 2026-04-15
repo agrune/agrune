@@ -1,4 +1,3 @@
-export { ExtensionDriver } from './extension-driver.js'
 export { CdpDriver } from './cdp-driver.js'
 export type { CdpDriverOptions } from './cdp-driver.js'
 export { ChromeLauncher } from './chrome-launcher.js'
@@ -11,9 +10,3 @@ export type { Session } from '@agrune/core'
 export { CommandQueue } from './command-queue.js'
 export { ActivityBlockStack } from './activity-tracker.js'
 export type { ActivityBlock } from './activity-tracker.js'
-export {
-  encodeMessage,
-  decodeMessages,
-  createNativeMessagingTransport,
-} from './native-messaging.js'
-export type { NativeMessagingTransport } from './native-messaging.js'
