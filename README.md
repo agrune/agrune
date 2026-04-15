@@ -39,23 +39,17 @@ workflows/
 
 ## 실행 방식
 
-### 1. Quick mode
-
-확장 프로그램 없이 Chrome DevTools Protocol로 직접 연결합니다.
+agrune은 CDP(Chrome DevTools Protocol) 모드만 지원합니다. Chrome을 실행하고 DevTools 웹 앱을 제공합니다.
 
 ```bash
-pnpm dlx @agrune/mcp@latest --mode cdp
+agrune                     # Chrome 실행 + DevTools 웹 앱
+agrune --headless          # UI 없이 실행
+agrune --attach ws://...   # 기존 Chrome 인스턴스에 연결
 ```
 
-### 2. Extension mode
+DevTools 웹 앱은 MCP 서버 실행 시 `http://localhost:PORT/devtools`에서 제공됩니다.
 
-기존 native host + extension 경로를 유지하는 호환 모드입니다.
-
-```bash
-pnpm dlx @agrune/mcp@latest
-```
-
-### 3. 어노테이션
+### 어노테이션
 
 어노테이션은 Claude 전용 기능이 아니라 Agrune 사용의 필수 워크플로입니다. source of truth는 [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md)에 두고, 하네스별 어댑터는 이 워크플로를 각 환경 형식에 맞게 감쌉니다.
 
