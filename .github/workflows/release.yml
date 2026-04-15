@@ -20,24 +20,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Sync extension manifest version
-        run: pnpm --filter @agrune/extension run sync:manifest-version
-
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in . packages/core packages/runtime packages/browser packages/server packages/extension; do
+          for pkg in . packages/core packages/runtime packages/browser packages/mcp; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
               exit 1
             fi
           done
-          MANIFEST_VERSION=$(node -p "require('./packages/extension/manifest.json').version")
-          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "::error::packages/extension/manifest.json version ($MANIFEST_VERSION) does not match tag ($TAG_VERSION)"
-            exit 1
-          fi
           echo "All versions match: $TAG_VERSION"
 
       - name: Build packages
@@ -53,40 +45,3 @@ jobs:
       - name: Publish @agrune/runtime
         run: pnpm --filter @agrune/runtime publish --access public --no-git-checks
         continue-on-error: true
-
-  publish-cws:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Build extension
-        run: pnpm --filter @agrune/core --filter @agrune/runtime --filter @agrune/extension run build
-
-      - name: Package extension zip
-        working-directory: packages/extension
-        run: |
-          mkdir -p /tmp/ext-pkg/dist /tmp/ext-pkg/src/popup /tmp/ext-pkg/src/devtools
-          jq 'del(.key)' manifest.json > /tmp/ext-pkg/manifest.json
-          cp icon-128.png /tmp/ext-pkg/
-          cp dist/content.js dist/service-worker.js dist/popup.js dist/page-runtime.js dist/devtools.js dist/panel.js dist/panel.css /tmp/ext-pkg/dist/
-          cp src/popup/popup.html /tmp/ext-pkg/src/popup/
-          cp src/devtools/devtools.html src/devtools/panel.html /tmp/ext-pkg/src/devtools/
-          cd /tmp/ext-pkg && zip -r /tmp/extension.zip .
-
-      - name: Upload to Chrome Web Store
-        run: |
-          npx chrome-webstore-upload-cli upload \
-            --source /tmp/extension.zip \
-            --extension-id ${{ secrets.CWS_EXTENSION_ID }} \
-            --client-id ${{ secrets.CWS_CLIENT_ID }} \
-            --client-secret ${{ secrets.CWS_CLIENT_SECRET }} \
-            --refresh-token ${{ secrets.CWS_REFRESH_TOKEN }}
