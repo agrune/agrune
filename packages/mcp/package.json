@@ -12,7 +12,7 @@
     }
   },
   "bin": {
-    "agrune-mcp": "./dist/bin/agrune-mcp.js"
+    "agrune": "./dist/bin/agrune-mcp.js"
   },
   "files": [
     "dist",

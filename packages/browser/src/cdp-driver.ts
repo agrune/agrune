@@ -26,6 +26,7 @@ export interface CdpDriverOptions {
   userDataDir?: string
   chromePath?: string
   chromeArgs?: string[]
+  startUrl?: string
 }
 
 interface RuntimeBridgeMessage {
@@ -241,6 +242,7 @@ export class CdpDriver implements BrowserDriver {
       headless: this.options.headless,
       userDataDir: this.options.userDataDir,
       args: this.options.chromeArgs,
+      startUrl: this.options.startUrl,
     })
     return launched.wsEndpoint
   }

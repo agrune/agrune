@@ -59,7 +59,7 @@ export async function resolveDevtoolsDistAsync(): Promise<string> {
   return monorepoPath // fall back to monorepo path even if missing
 }
 
-export async function startDevtoolsServer(driver: DevtoolsDriver): Promise<number> {
+export async function startDevtoolsServer(driver: DevtoolsDriver, port = 0): Promise<number> {
   if (httpServer) {
     const addr = httpServer.address()
     if (addr && typeof addr === 'object') return addr.port
@@ -73,14 +73,21 @@ export async function startDevtoolsServer(driver: DevtoolsDriver): Promise<numbe
   httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? '/'
 
-    if (!url.startsWith('/devtools')) {
+    // Redirect /devtools to /devtools/ so relative asset paths resolve correctly
+    if (url === '/devtools') {
+      res.writeHead(301, { Location: '/devtools/' })
+      res.end()
+      return
+    }
+
+    if (!url.startsWith('/devtools/')) {
       res.writeHead(404, { 'Content-Type': 'text/plain' })
       res.end('Not Found')
       return
     }
 
-    // Strip /devtools prefix to get the file path
-    let filePath = url.replace(/^\/devtools/, '') || '/index.html'
+    // Strip /devtools/ prefix to get the file path
+    let filePath = url.replace(/^\/devtools\//, '/') || '/index.html'
 
     // Default to index.html for the root path
     if (filePath === '' || filePath === '/') {
@@ -117,6 +124,12 @@ export async function startDevtoolsServer(driver: DevtoolsDriver): Promise<numbe
   wss.on('connection', (ws: WebSocket) => {
     const client: ConnectedClient = { ws, subscribedTabId: null }
     clients.push(client)
+
+    // Send current sessions list on connect so the UI populates immediately
+    sendToClient(ws, {
+      type: 'sessions_update',
+      data: driver.listSessions(),
+    })
 
     ws.on('message', (raw: Buffer | string) => {
       try {
@@ -155,7 +168,7 @@ export async function startDevtoolsServer(driver: DevtoolsDriver): Promise<numbe
 
   // --- Listen ---
   return new Promise<number>((resolve, reject) => {
-    httpServer!.listen(0, '127.0.0.1', () => {
+    httpServer!.listen(port, '127.0.0.1', () => {
       const addr = httpServer!.address()
       if (addr && typeof addr === 'object') {
         resolve(addr.port)

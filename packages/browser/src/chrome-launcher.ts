@@ -9,6 +9,7 @@ export interface LaunchOptions {
   headless?: boolean
   userDataDir?: string
   args?: string[]
+  startUrl?: string
 }
 
 export interface LaunchResult {
@@ -71,7 +72,7 @@ export class ChromeLauncher {
       '--no-default-browser-check',
       ...(options.headless ? ['--headless=new'] : []),
       ...(options.args ?? []),
-      'about:blank',
+      options.startUrl ?? 'about:blank',
     ]
 
     const child = spawn(chromePath, args, {

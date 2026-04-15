@@ -5,6 +5,15 @@
 RUNTIME_BUNDLE="../runtime/dist/page-runtime.global.js"
 if [ -f "$RUNTIME_BUNDLE" ]; then
   cp "$RUNTIME_BUNDLE" dist/page-runtime.global.js
+  cp "$RUNTIME_BUNDLE" dist/bin/page-runtime.global.js
+fi
+
+# devtools 웹 앱을 번들에 포함 (글로벌 링크에서도 동작하도록)
+DEVTOOLS_DIST="../devtools/dist"
+if [ -d "$DEVTOOLS_DIST" ]; then
+  rm -rf dist/devtools-dist
+  mkdir -p dist/devtools-dist
+  cp -r "$DEVTOOLS_DIST"/* dist/devtools-dist/
 fi
 
 # Canonical runtime location.
