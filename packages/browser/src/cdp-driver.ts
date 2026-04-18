@@ -204,11 +204,13 @@ export class CdpDriver implements BrowserDriver {
           target.sessionId,
           `window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].handleCommand(${JSON.stringify(command.kind)}, ${JSON.stringify(payload)})`,
         )
-        if (this.takeRecoveredFlag()) {
+        if (this.recoveredFlag) {
           if (result.ok) {
+            this.recoveredFlag = false
             const merged = { ...(result.result ?? {}), recovered: true }
             return { ...result, result: merged }
           }
+          // leave recoveredFlag set so the next successful call can surface it
         }
         return result
       } catch (error) {
@@ -621,12 +623,6 @@ export class CdpDriver implements BrowserDriver {
       this.preparedSessions.delete(target.sessionId)
       await this.prepareTarget(target).catch(() => {})
     }
-  }
-
-  private takeRecoveredFlag(): boolean {
-    if (!this.recoveredFlag) return false
-    this.recoveredFlag = false
-    return true
   }
 
   private asSnapshot(value: unknown): PageSnapshot | null {
