@@ -15,6 +15,8 @@ export class CdpConnection {
   private nextId = 0
   private pending = new Map<number, PendingRequest>()
   private listeners = new Map<string, Set<CdpEventCallback>>()
+  private disconnectListeners = new Set<(reason: Error) => void>()
+  private disconnectSuppressed = false
 
   async connect(wsEndpoint: string): Promise<void> {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) return
@@ -36,8 +38,10 @@ export class CdpConnection {
         socket.on('message', (data: WebSocket.RawData) =>
           this.handleMessage(data.toString()),
         )
-        socket.on('close', () => this.handleDisconnect())
-        socket.on('error', () => this.handleDisconnect())
+        socket.on('close', () => this.handleDisconnect(new Error('CDP socket closed.')))
+        socket.on('error', (error) =>
+          this.handleDisconnect(error instanceof Error ? error : new Error(String(error))),
+        )
         resolve()
       }
 
@@ -63,6 +67,7 @@ export class CdpConnection {
 
   async disconnect(): Promise<void> {
     if (!this.socket) return
+    this.disconnectSuppressed = true
 
     const socket = this.socket
     this.socket = null
@@ -78,6 +83,7 @@ export class CdpConnection {
       socket.close()
     })
     this.handleDisconnect()
+    this.disconnectSuppressed = false
   }
 
   isConnected(): boolean {
@@ -126,6 +132,13 @@ export class CdpConnection {
     }
   }
 
+  onDisconnect(callback: (reason: Error) => void): () => void {
+    this.disconnectListeners.add(callback)
+    return () => {
+      this.disconnectListeners.delete(callback)
+    }
+  }
+
   private handleMessage(raw: string): void {
     const message = JSON.parse(raw) as {
       id?: number
@@ -159,11 +172,24 @@ export class CdpConnection {
     }
   }
 
-  private handleDisconnect(): void {
+  private handleDisconnect(reason?: Error): void {
     const pending = [...this.pending.values()]
     this.pending.clear()
+    const err = reason ?? new Error('CDP connection disconnected.')
     for (const entry of pending) {
-      entry.reject(new Error('CDP connection disconnected.'))
+      entry.reject(err)
+    }
+    if (this.socket) {
+      this.socket = null
+    }
+    if (this.disconnectSuppressed) return
+    const listeners = [...this.disconnectListeners]
+    for (const listener of listeners) {
+      try {
+        listener(err)
+      } catch {
+        // listeners must not propagate
+      }
     }
   }
 }

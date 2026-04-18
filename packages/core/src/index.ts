@@ -10,6 +10,9 @@ export const COMMAND_ERROR_CODES = [
   'INVALID_TARGET',
   'INVALID_COMMAND',
   'CANVAS_PAN_FAILED',
+  'CONNECTION_LOST',
+  'CHROME_CRASHED',
+  'RECOVERY_FAILED',
 ] as const
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]

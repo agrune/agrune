@@ -4,12 +4,15 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+export type SpawnLike = typeof spawn
+
 export interface LaunchOptions {
   chromePath?: string
   headless?: boolean
   userDataDir?: string
   args?: string[]
   startUrl?: string
+  spawnImpl?: SpawnLike
 }
 
 export interface LaunchResult {
@@ -22,6 +25,8 @@ export class ChromeLauncher {
   private child: ChildProcess | null = null
   private userDataDir: string | null = null
   private createdUserDataDir = false
+  private exitListeners = new Set<(info: { code: number | null; signal: NodeJS.Signals | null }) => void>()
+  private expectedExit = false
 
   static findChromePath(): string | null {
     const envPath = process.env.AGRUNE_CHROME_PATH
@@ -75,10 +80,28 @@ export class ChromeLauncher {
       options.startUrl ?? 'about:blank',
     ]
 
-    const child = spawn(chromePath, args, {
+    const spawner = options.spawnImpl ?? spawn
+    const child = spawner(chromePath, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     this.child = child
+
+    child.once('exit', (code, signal) => {
+      if (this.child !== child) return
+      this.child = null
+      if (this.expectedExit) {
+        this.expectedExit = false
+        return
+      }
+      const listeners = [...this.exitListeners]
+      for (const listener of listeners) {
+        try {
+          listener({ code, signal })
+        } catch {
+          // swallow
+        }
+      }
+    })
 
     try {
       const wsEndpoint = await this.waitForWsEndpoint(child)
@@ -91,6 +114,7 @@ export class ChromeLauncher {
 
   async kill(): Promise<void> {
     const child = this.child
+    this.expectedExit = child !== null
     this.child = null
 
     if (child) {
@@ -118,6 +142,19 @@ export class ChromeLauncher {
     if (userDataDir && shouldRemove) {
       await rm(userDataDir, { recursive: true, force: true })
     }
+  }
+
+  onUnexpectedExit(
+    callback: (info: { code: number | null; signal: NodeJS.Signals | null }) => void,
+  ): () => void {
+    this.exitListeners.add(callback)
+    return () => {
+      this.exitListeners.delete(callback)
+    }
+  }
+
+  hasChild(): boolean {
+    return this.child !== null
   }
 
   private async waitForWsEndpoint(child: ChildProcess): Promise<string> {
