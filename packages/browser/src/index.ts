@@ -10,3 +10,11 @@ export type { Session } from '@agrune/core'
 export { CommandQueue } from './command-queue.js'
 export { ActivityBlockStack } from './activity-tracker.js'
 export type { ActivityBlock } from './activity-tracker.js'
+export {
+  RecoverySupervisor,
+} from './recovery-supervisor.js'
+export type {
+  RecoveryEvent,
+  RecoveryStrategy,
+  RecoverySupervisorOptions,
+} from './recovery-supervisor.js'

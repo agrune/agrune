@@ -15,6 +15,11 @@ import {
   CdpRuntimeInjector,
   QUICK_MODE_RUNTIME_KEY,
 } from './cdp-runtime-injector.js'
+import {
+  RecoverySupervisor,
+  type RecoveryEvent,
+  type RecoveryStrategy,
+} from './recovery-supervisor.js'
 
 const ENSURE_READY_TIMEOUT_MS = 10_000
 const ACTIVITY_TAIL_BLOCK_MS = 5_000
@@ -53,6 +58,12 @@ export class CdpDriver implements BrowserDriver {
   private bindingsRegistered = false
   private readonly handleBindingCalled: CdpEventCallback
   private readonly handleDragIntercepted: CdpEventCallback
+  private recovery: RecoverySupervisor | null = null
+  private resolvedWsEndpoint: string | null = null
+  private unsubscribeDisconnect: (() => void) | null = null
+  private unsubscribeExit: (() => void) | null = null
+  private readonly recoveryListeners: Array<(event: RecoveryEvent) => void> = []
+  private recoveredFlag = false
 
   constructor(options: CdpDriverOptions) {
     this.options = options
@@ -101,6 +112,10 @@ export class CdpDriver implements BrowserDriver {
   }
 
   async disconnect(): Promise<void> {
+    this.unsubscribeDisconnect?.()
+    this.unsubscribeDisconnect = null
+    this.unsubscribeExit?.()
+    this.unsubscribeExit = null
     this.targetManager.stop()
     this.preparedSessions.clear()
     this.unregisterBindings()
@@ -141,6 +156,18 @@ export class CdpDriver implements BrowserDriver {
     this.snapshotUpdateCbs.push(cb)
   }
 
+  onRecoveryEvent(cb: (event: RecoveryEvent) => void): void {
+    this.recoveryListeners.push(cb)
+  }
+
+  isRecovering(): boolean {
+    return this.recovery?.isRecovering() ?? false
+  }
+
+  getLastRecoveryFailure(): ReturnType<RecoverySupervisor['getLastFailure']> {
+    return this.recovery?.getLastFailure() ?? null
+  }
+
   async execute(
     tabId: number,
     command: Record<string, unknown> & { kind: string },
@@ -169,13 +196,53 @@ export class CdpDriver implements BrowserDriver {
       }
 
       try {
+        if (this.recovery?.isRecovering()) {
+          await this.recovery.waitForRecovery()
+        }
         await this.setAgentActivity(target.sessionId, true)
         const result = await this.evaluateInSession<CommandResult>(
           target.sessionId,
           `window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].handleCommand(${JSON.stringify(command.kind)}, ${JSON.stringify(payload)})`,
         )
+        if (this.takeRecoveredFlag()) {
+          if (result.ok) {
+            const merged = { ...(result.result ?? {}), recovered: true }
+            return { ...result, result: merged }
+          }
+        }
         return result
       } catch (error) {
+        const failure = this.recovery?.getLastFailure() ?? null
+        if (failure) {
+          const code = failure.cause === 'chrome_crashed' ? 'CHROME_CRASHED' : 'RECOVERY_FAILED'
+          return {
+            commandId,
+            ok: false,
+            error: createCommandError(
+              code,
+              `Automatic recovery failed after ${failure.attempts} attempts: ${failure.error.message}`,
+              {
+                cause: failure.cause,
+                attempts: failure.attempts,
+                guidance:
+                  this.options.mode === 'launch'
+                    ? 'Close the quick-mode browser window and rerun the command to start a fresh session.'
+                    : 'Restart the attached Chrome instance or verify the wsEndpoint, then retry.',
+              },
+            ),
+          }
+        }
+        if (this.recovery?.isRecovering()) {
+          return {
+            commandId,
+            ok: false,
+            error: createCommandError(
+              'CONNECTION_LOST',
+              error instanceof Error ? error.message : String(error),
+              { guidance: 'Automatic recovery is in progress. Retry shortly.' },
+            ),
+          }
+        }
         return {
           commandId,
           ok: false,
@@ -225,6 +292,9 @@ export class CdpDriver implements BrowserDriver {
   private async doConnect(): Promise<void> {
     const wsEndpoint = await this.resolveWsEndpoint()
     await this.connection.connect(wsEndpoint)
+    this.resolvedWsEndpoint = wsEndpoint
+    this.ensureRecoverySupervisor()
+    this.subscribeLifecycle()
     this.registerBindings()
     await this.targetManager.start(this.connection)
   }
@@ -462,6 +532,101 @@ export class CdpDriver implements BrowserDriver {
       hasSnapshot: session?.snapshot != null,
       snapshotVersion: session?.snapshot?.version ?? null,
     }
+  }
+
+  private ensureRecoverySupervisor(): void {
+    if (this.recovery) return
+    const strategy: RecoveryStrategy = {
+      canRelaunch: this.options.mode === 'launch',
+      reconnect: () => this.performReconnect(),
+      relaunchAndReconnect: () => this.performRelaunch(),
+    }
+    const supervisor = new RecoverySupervisor(strategy)
+    supervisor.onEvent((event) => {
+      if (event.kind === 'succeeded') this.recoveredFlag = true
+      for (const listener of this.recoveryListeners) {
+        try { listener(event) } catch { /* ignore */ }
+      }
+    })
+    this.recovery = supervisor
+  }
+
+  private subscribeLifecycle(): void {
+    this.unsubscribeDisconnect?.()
+    this.unsubscribeExit?.()
+    this.unsubscribeDisconnect = this.connection.onDisconnect((reason) => {
+      void this.triggerRecovery('connection_lost', reason)
+    })
+    if (this.options.mode === 'launch') {
+      this.unsubscribeExit = this.launcher.onUnexpectedExit(({ code, signal }) => {
+        const reason = new Error(
+          `Chrome exited unexpectedly (code=${code ?? 'null'}, signal=${signal ?? 'null'}).`,
+        )
+        void this.triggerRecovery('chrome_crashed', reason)
+      })
+    }
+  }
+
+  private async triggerRecovery(
+    cause: 'connection_lost' | 'chrome_crashed',
+    reason: Error,
+  ): Promise<void> {
+    if (!this.recovery) this.ensureRecoverySupervisor()
+    try {
+      await this.recovery!.trigger(cause, reason)
+    } catch {
+      // failure already reported via event listeners
+    }
+  }
+
+  private async performReconnect(): Promise<void> {
+    this.preparedSessions.clear()
+    this.unregisterBindings()
+    this.targetManager.stop()
+    if (!this.resolvedWsEndpoint) {
+      throw new Error('Cannot reconnect: no cached ws endpoint.')
+    }
+    await this.connection.connect(this.resolvedWsEndpoint)
+    this.registerBindings()
+    await this.targetManager.start(this.connection)
+    await this.reprepareAllTargets()
+  }
+
+  private async performRelaunch(): Promise<void> {
+    this.preparedSessions.clear()
+    this.unregisterBindings()
+    this.targetManager.stop()
+    await this.connection.disconnect().catch(() => {})
+    if (this.launcher.hasChild()) {
+      await this.launcher.kill().catch(() => {})
+    }
+    const launched = await this.launcher.launch({
+      chromePath: this.options.chromePath,
+      headless: this.options.headless,
+      userDataDir: this.options.userDataDir,
+      args: this.options.chromeArgs,
+      startUrl: this.options.startUrl,
+    })
+    this.resolvedWsEndpoint = launched.wsEndpoint
+    await this.connection.connect(launched.wsEndpoint)
+    this.registerBindings()
+    await this.targetManager.start(this.connection)
+    await this.reprepareAllTargets()
+  }
+
+  private async reprepareAllTargets(): Promise<void> {
+    const targets = this.targetManager.getTargets()
+    for (const target of targets) {
+      if (!target.sessionId) continue
+      this.preparedSessions.delete(target.sessionId)
+      await this.prepareTarget(target).catch(() => {})
+    }
+  }
+
+  private takeRecoveredFlag(): boolean {
+    if (!this.recoveredFlag) return false
+    this.recoveredFlag = false
+    return true
   }
 
   private asSnapshot(value: unknown): PageSnapshot | null {
