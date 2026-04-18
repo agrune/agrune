@@ -2,30 +2,26 @@
 
 ## Current State
 
-✅ **Shipped: v1.0 Research** (2026-04-18) — [MILESTONES.md](MILESTONES.md)
+✅ **Shipped: v1.1 Browser Completion** (2026-04-18) — [MILESTONES.md](MILESTONES.md)
 
-v1.0은 desktop 확장 가능성 연구 사이클로 완료. 결론: `browser precision 유지 + AX-first hybrid expansion GO`.
+v1.0 Research (2026-04-18)에 이어 v1.1 Browser Completion도 2026-04-18 같은 날 autonomous 실행으로 완료. Phase 5-10 (INPUT→HEAL→SESS→DEVT→QUAL→DOCS)에서 23/23 requirements가 전부 phase VERIFICATION으로 잠김. `fill`의 CDP Input 도메인 통일, self-healing 자동 복구, active session + `agrune_focus`, devtools webapp 완성(로그·HITL·진단·세션 UI), Playwright E2E + annotation build-linter CI 배선, 문서·CLI·automation profile UX 재정리가 전부 출하됨.
 
-v1.0 종료 직후 브라우저 본체에서 **CDP-only 단일 아키텍처 피봇**이 단행됨 (2026-04-15 주변, commits `213aca9`/`37d9257`/`98fde6f`/`f9d3801`): extension mode·native messaging·backend daemon 제거, devtools는 standalone 웹 앱으로 전환. 현 코드베이스는 이 피봇 결과 상태이며 아래 "Validated" 섹션의 아키텍처 진술은 그 현실 기준으로 갱신됨.
+**Next milestone:** 미정. v1.2+ 후보는 macOS AX-first hybrid 데스크톱 확장 (v1.0 연구에서 GO 권고된 방향).
 
-## Current Milestone: v1.1 Browser Completion
+## Next Milestone Goals (v1.2 candidate — TBD)
 
-**Goal:** CDP-only 피봇 이후 브라우저 본체의 입력 신뢰성·복구력·다중 탭 UX·devtools 웹앱을 닫아 프로덕션 품질로 끌어올린다.
-
-**Target features:**
-- **입력 신뢰성** — `fill` CDP 통일 (controlled input·contenteditable·masking 처리)
-- **안정성·복구력** — Self-healing (CDP 연결 손실 감지·재연결, Chrome crash 자동 복구, resync 자동화)
-- **다중 탭·세션 UX** — Active session 개념 도입, 최근 상호작용 추적, 포커스 전환 (`agrune_focus` 스펙 연결)
-- **DevTools 웹앱 완성** — 명령 로그, HITL step 제어, 실패 진단 UI, 세션 선택 UX
-- **품질 인프라** — Overlay/modal E2E 프레임 (Playwright 도입), Annotation build-linter (`docs/superpowers/specs/2026-03-29-build-linter-design.md` 스펙 실행)
-- **문서·배포 정리** — `agrune/README.md`·`agrune/AGENTS.md`·`docs/notes/`·`docs/improvement-notes.md`에서 extension mode 잔재 제거, `.github/profile/README.md` (조직 프로필) CDP-only 메시지로 재작성, CLI UX 다듬기(`agrune`/`--headless`/`--attach`/`--port`), automation profile import/복제 UX
+사용자 확정 필요. 현 시점 carrying forward:
+- macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1에서 연기됨)
+- `docs/superpowers/specs/` 중 미실행 스펙 (capture/draw/system-interaction/qa-test-sheet)
+- Live-browser relaunch-and-reconnect E2E 실제 브라우저 시나리오
+- Masked-input heuristic 확대 (library-custom mask 자동 감지)
+- GitHub branch-protection required-check 토글 (레포 외부 작업)
+- 외부 `.github` repo push (사용자 수동 후속 조치)
 
 **Key context:**
-- v1.0의 macOS AX-first hybrid 권고는 v1.2+ 로 연기 (2026-04-18 사용자 결정)
-- Extension mode·native messaging·backend daemon 재도입 금지
-- QA 자동 시트, `agrune_capture/draw/system-interaction`, 범용 캔버스는 v1.1 스코프 밖 (v1.2+)
-- Phase 번호는 5번부터 시작 (v1.0이 1-4번 소진)
-- Phase/plan/requirement 단위는 `/gsd-new-milestone` 현재 실행 중에 확정
+- v1.1 코드 베이스라인: 6 패키지 (`@agrune/core`, `@agrune/runtime`, `@agrune/browser`, `@agrune/mcp`, `@agrune/devtools`, `@agrune/e2e`)
+- Extension mode·native messaging·backend daemon 재도입 금지 (2026-04-15 피봇 확정)
+- 브라우저 본체는 프로덕션 품질. 다음 milestone은 데스크톱 확장 or 별도 feature set 선택.
 
 ## What This Is
 
@@ -39,28 +35,32 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 
 ### Validated
 
-- ✓ AI 에이전트가 annotated web app을 MCP를 통해 제어할 수 있다 — `@agrune/mcp` 10 도구 (`agrune_sessions/snapshot/act/fill/drag/pointer/wait/guide/read/config`)
+- ✓ AI 에이전트가 annotated web app을 MCP를 통해 제어할 수 있다 — `@agrune/mcp` 11 도구 (`agrune_sessions/snapshot/act/fill/drag/pointer/wait/guide/read/config/focus`) — v1.1
 - ✓ 브라우저 연결은 **CDP-only** — `CdpDriver`가 `BrowserDriver` 단일 구현체로 launch/attach/headless 모드 지원 (2026-04-15 피봇 이후)
 - ✓ DevTools UI는 standalone 웹앱 — `@agrune/devtools`가 Vite 빌드 산출물이고 `@agrune/mcp` 서버가 HTTP/WebSocket으로 서빙
 - ✓ 페이지 런타임 공용화 — `@agrune/runtime`이 dom-scanner, manifest-builder, page-runtime을 제공하고 CDP `addScriptToEvaluateOnNewDocument` + `Runtime.evaluate`로 주입
-- ✓ Bootstrap 조건 — `data-agrune-action/group/canvas/meta` 중 하나라도 있으면 런타임 부팅 (`cdp-runtime-injector.ts:43-48`)
+- ✓ Bootstrap 조건 — `data-agrune-action/group/canvas/meta` 중 하나라도 있으면 런타임 부팅
 - ✓ annotation authoring workflow — `workflows/annotate/WORKFLOW.md`가 하네스 중립 워크플로 원본
 - ✓ macOS-first OS-level agrune의 어노테이션 방법 보고서(3가지 직접 방식) — v1.0
 - ✓ macOS-first OS-level agrune의 어노테이션 대체 방법 보고서(3가지 비-어노테이션 방식) — v1.0
 - ✓ 6개 케이스를 기술/제품/리스크/권한/성능/UX 관점으로 비교한 synthesis — v1.0
 - ✓ 브라우저+로컬 unified control surface 확장 가능성 판단 기준 — v1.0 (AX-first hybrid GO, 실행은 v1.2+ 로 연기)
 - ✓ 개발자 모드 셋업 + 쉬운 사용 경험이라는 목표의 현실성 평가 — v1.0 (조건부 가능)
+- ✓ 입력 신뢰성: `agrune_fill`이 CDP Input 도메인으로 controlled input·contenteditable·masked input 처리 — v1.1 (INPUT-01..04)
+- ✓ 안정성·복구력: CDP 연결 손실·Chrome crash 자동 복구 + resync + 에러 코드·가이드 — v1.1 (HEAL-01..04)
+- ✓ 다중 탭·세션 UX: active session 추적 + `agrune_focus` + session meta in responses — v1.1 (SESS-01..04)
+- ✓ DevTools 웹앱: 명령 로그·HITL pause/resume/step/skip·실패 진단·세션 선택 UX — v1.1 (DEVT-01..04, SESS-04)
+- ✓ 품질 인프라: Playwright E2E + annotation build-linter가 CI에서 블록 조건 — v1.1 (QUAL-01..03)
+- ✓ 문서·배포 정리: README·AGENTS·CLI `--help`·automation profile UX·조직 프로필 재작성 — v1.1 (DOCS-01..04, DOCS-02는 외부 repo push 대기)
 
 ### Active
 
-(v1.1 requirements는 현재 `/gsd-new-milestone` 실행 중에 정의 예정. 아래는 코드 실측 + 사용자 방향으로 잡힌 후보 카테고리)
+(v1.2 milestone 미정. 아래는 carrying forward 후보)
 
-- 입력 신뢰성 — `fill` CDP 통일, controlled input·contenteditable·masking 처리
-- 안정성·복구력 — self-healing(sender loss, CDP 연결 손실, Chrome crash, native reconnect resync)
-- 다중 탭·세션 UX — active session 개념, 최근 상호작용 추적, 포커스 전환
-- DevTools 웹앱 — 명령 로그, 실패 진단, HITL step 제어
-- 품질 인프라 — Overlay E2E, build-linter
-- 문서·배포 정리 — 구형 표현 제거, CLI·profile UX
+- macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1에서 연기)
+- `docs/superpowers/specs/` 미실행 스펙 (capture/draw/system-interaction/qa-test-sheet)
+- Live-browser relaunch-and-reconnect E2E 실제 시나리오
+- Masked-input heuristic 확대
 
 ### Out of Scope
 
@@ -118,6 +118,12 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 | **DevTools는 standalone 웹앱으로 이전** | extension panel 의존이 사라짐에 따라 devtools UI를 확장 밖으로 빼내야 했고, 동시에 headless·서버 자동화 환경에서도 사람용 검사 UI를 띄울 수 있게 됨 | 2026-04-15 — ✓ 완료 (commits `f9d3801`, `2700c70`, `c89d4c6`) |
 | **v1.1은 브라우저 본체 완성에 집중, macOS 확장은 v1.2+** | CDP-only 피봇 직후 입력 신뢰성·복구력·다중 탭 UX·devtools 웹앱이 미완이며, 프로토타입 이전에 브라우저 고정 축을 먼저 닫기로 함 | 2026-04-18 — ✓ 확정 (사용자 방향) |
 | **`.planning/`을 agrune 모노레포 안으로 이동** | 상위 폴더는 개념 묶음이라 git 안전망이 없었음. agrune 리포 안으로 옮기면 milestone 커밋 안전망 작동 | 2026-04-18 — ✓ 완료 |
+| **Fill 경로를 DOM setter에서 CDP Input 도메인으로 통일** | React/Vue/Angular controlled input·contenteditable·masked input에서 DOM setter 경로가 실패. CDP `Input.insertText`/`dispatchKeyEvent`는 브라우저 네이티브 입력으로 프레임워크 관점에서는 실제 키보드와 동일 | 2026-04-18 — ✓ v1.1 INPUT-01..04 출하 |
+| **Self-healing을 `RecoverySupervisor`로 분리** | connection loss·crash 두 이벤트 소스를 driver에 산재시키지 않고 supervisor가 state machine(backoff, dedupe, timeout)로 관리. `execute()`가 `waitForRecovery()` 후 dispatch | 2026-04-18 — ✓ v1.1 HEAL-01..04 출하 |
+| **Active session precedence: explicit > active > first-ready > first** | "첫 세션" 기준의 엉뚱한 탭 조작 문제를 해결. 모든 성공한 실행이 `touchSession`을 호출해 last-interaction tab이 active가 됨 | 2026-04-18 — ✓ v1.1 SESS-01..03 출하 |
+| **DevTools 웹앱을 CommandBroker + HitlController 기반으로 확장** | 기존 snapshot viewer만으로는 세션 관찰 불가. `CommandBroker`가 모든 도구 호출을 event-stream으로 broadcast하고 `HitlController`가 `handleToolCall`을 gate | 2026-04-18 — ✓ v1.1 DEVT-01..04 출하 |
+| **E2E를 Playwright `packages/e2e/`에 분리, CI `e2e` 잡으로 배선** | 단위 테스트만으로는 overlay/modal 실제 동작 검증 불가. `@playwright/test` + 별도 workspace package가 유지보수 비용 최소화 | 2026-04-18 — ✓ v1.1 QUAL-01 출하 |
+| **annotation build-linter를 `@agrune/core`에 내장, CLI + Vite plugin 양쪽 제공** | 어노테이션 실수는 런타임까지 가야 드러남. AST-level scan으로 HTML/JSX/TSX에서 missing/duplicate/typo를 빌드 타임에 잡음 | 2026-04-18 — ✓ v1.1 QUAL-02/03 출하 |
 
 ## Evolution
 
@@ -137,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 — 이전 폴더 이동, CDP-only 피봇 반영, v1.1 브라우저 본체 완성 방향 확정*
+*Last updated: 2026-04-18 after v1.1 milestone — Phases 5-10 shipped (INPUT·HEAL·SESS·DEVT·QUAL·DOCS), 23/23 requirements validated*
