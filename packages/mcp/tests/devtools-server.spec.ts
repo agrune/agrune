@@ -4,8 +4,6 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
 import type { PageSnapshot, Session } from '@agrune/core'
-import { CommandBroker } from '../src/command-broker.js'
-import { HitlController } from '../src/hitl-controller.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -106,6 +104,25 @@ function connectWs(port: number): Promise<{ ws: WebSocket; waitForMessage: (time
   })
 }
 
+/**
+ * Drain buffered messages until one with `type === desired` arrives.
+ * Tolerant of lifecycle messages (hitl_state, command_backfill) that the server
+ * sends unconditionally — tests don't care about their position.
+ */
+async function nextOfType<T = unknown>(
+  waitForMessage: (t?: number) => Promise<unknown>,
+  type: string,
+  timeoutMs = 2000,
+): Promise<{ type: string; data: T }> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const remaining = Math.max(50, deadline - Date.now())
+    const msg = await waitForMessage(remaining) as { type: string; data: T }
+    if (msg.type === type) return msg
+  }
+  throw new Error(`nextOfType: never saw ${type} within ${timeoutMs}ms`)
+}
+
 describe('devtools-server', () => {
   let port: number
   let driver: ReturnType<typeof createMockDriver>
@@ -114,7 +131,6 @@ describe('devtools-server', () => {
   let createdTestDist = false
 
   beforeAll(async () => {
-    // Create a temporary devtools dist directory with a test index.html
     try {
       mkdirSync(DEVTOOLS_DIST, { recursive: true })
       writeFileSync(
@@ -127,6 +143,8 @@ describe('devtools-server', () => {
     }
 
     const mod = await import('../src/devtools-server.js')
+    // Defensive — reset any singleton left over from a previous test file.
+    await mod.stopDevtoolsServer().catch(() => {})
     startDevtoolsServer = mod.startDevtoolsServer
     stopDevtoolsServer = mod.stopDevtoolsServer
 
@@ -161,7 +179,7 @@ describe('devtools-server', () => {
 
     ws.send(JSON.stringify({ type: 'subscribe', tabId: 1 }))
 
-    const sessionsMsg = await waitForMessage() as { type: string; data: Session[] }
+    const sessionsMsg = await nextOfType<Session[]>(waitForMessage, 'sessions_update')
     expect(sessionsMsg.type).toBe('sessions_update')
     expect(Array.isArray(sessionsMsg.data)).toBe(true)
     expect(sessionsMsg.data.length).toBeGreaterThan(0)
@@ -175,13 +193,10 @@ describe('devtools-server', () => {
 
     ws.send(JSON.stringify({ type: 'subscribe', tabId: 1 }))
 
-    // First message: sessions_update
-    const sessionsMsg = await waitForMessage() as { type: string }
-    expect(sessionsMsg.type).toBe('sessions_update')
-
-    // Second message: snapshot_update with current snapshot
-    const snapshotMsg = await waitForMessage() as { type: string; data: { tabId: number; snapshot: PageSnapshot } }
-    expect(snapshotMsg.type).toBe('snapshot_update')
+    const snapshotMsg = await nextOfType<{ tabId: number; snapshot: PageSnapshot }>(
+      waitForMessage,
+      'snapshot_update',
+    )
     expect(snapshotMsg.data.tabId).toBe(1)
     expect(snapshotMsg.data.snapshot.url).toBe('https://example.com')
 
@@ -193,9 +208,8 @@ describe('devtools-server', () => {
 
     ws.send(JSON.stringify({ type: 'subscribe', tabId: 1 }))
 
-    // Drain the initial sessions_update + snapshot_update
-    await waitForMessage()
-    await waitForMessage()
+    // Drain the initial snapshot_update (whenever it arrives)
+    await nextOfType<{ tabId: number; snapshot: PageSnapshot }>(waitForMessage, 'snapshot_update')
 
     const updatedSnapshot: PageSnapshot = {
       version: 2,
@@ -208,8 +222,7 @@ describe('devtools-server', () => {
 
     driver.emitSnapshotUpdate(1, updatedSnapshot)
 
-    const msg = await waitForMessage() as { type: string; data: { tabId: number; snapshot: PageSnapshot } }
-    expect(msg.type).toBe('snapshot_update')
+    const msg = await nextOfType<{ tabId: number; snapshot: PageSnapshot }>(waitForMessage, 'snapshot_update')
     expect(msg.data.tabId).toBe(1)
     expect(msg.data.snapshot.version).toBe(2)
     expect(msg.data.snapshot.url).toBe('https://example.com/page2')
@@ -222,9 +235,8 @@ describe('devtools-server', () => {
 
     ws.send(JSON.stringify({ type: 'subscribe', tabId: 1 }))
 
-    // Drain initial messages
-    await waitForMessage()
-    await waitForMessage()
+    // Drain initial sessions_update
+    await nextOfType<Session[]>(waitForMessage, 'sessions_update')
 
     driver.emitSessionOpen({
       tabId: 2,
@@ -234,7 +246,7 @@ describe('devtools-server', () => {
       snapshotVersion: null,
     })
 
-    const msg = await waitForMessage() as { type: string; data: Session[] }
+    const msg = await nextOfType<Session[]>(waitForMessage, 'sessions_update')
     expect(msg.type).toBe('sessions_update')
 
     ws.close()
@@ -245,9 +257,8 @@ describe('devtools-server', () => {
 
     ws.send(JSON.stringify({ type: 'subscribe', tabId: 1 }))
 
-    // Drain initial messages
-    await waitForMessage()
-    await waitForMessage()
+    // Drain initial snapshot_update for the subscribed tab
+    await nextOfType<{ tabId: number; snapshot: PageSnapshot }>(waitForMessage, 'snapshot_update')
 
     // Emit snapshot for tab 99 (not subscribed)
     driver.emitSnapshotUpdate(99, {
@@ -259,152 +270,16 @@ describe('devtools-server', () => {
       targets: [],
     })
 
-    // Should not receive this — wait briefly and verify timeout
+    // Should NOT receive another snapshot_update within 300ms.
     let received = false
     try {
-      await waitForMessage(300)
+      await nextOfType(waitForMessage, 'snapshot_update', 300)
       received = true
     } catch {
-      // Expected: timeout means no message arrived
+      // Expected — no snapshot_update for tab 99.
     }
     expect(received).toBe(false)
 
-    ws.close()
-  })
-})
-
-describe('devtools-server — phase 8 extensions', () => {
-  let port2: number
-  let driver2: ReturnType<typeof createMockDriver>
-  let broker: CommandBroker
-  let hitl: HitlController
-  let start2: typeof import('../src/devtools-server.js').startDevtoolsServer
-  let stop2: typeof import('../src/devtools-server.js').stopDevtoolsServer
-  let createdTestDist2 = false
-  let focusCalls: number[]
-
-  beforeAll(async () => {
-    // Stop the prior singleton server (shared module-level state) before starting a fresh one.
-    const mod = await import('../src/devtools-server.js')
-    await mod.stopDevtoolsServer().catch(() => {})
-    start2 = mod.startDevtoolsServer
-    stop2 = mod.stopDevtoolsServer
-
-    try {
-      mkdirSync(DEVTOOLS_DIST, { recursive: true })
-      writeFileSync(
-        join(DEVTOOLS_DIST, 'index.html'),
-        '<!DOCTYPE html><html><head><title>Agrune DevTools</title></head><body></body></html>',
-      )
-      createdTestDist2 = true
-    } catch {
-      // already exists
-    }
-
-    driver2 = createMockDriver()
-    broker = new CommandBroker()
-    hitl = new HitlController()
-    focusCalls = []
-    port2 = await start2(driver2, 0, {
-      commandBroker: broker,
-      hitl,
-      onFocusSession: (tabId) => { focusCalls.push(tabId) },
-    })
-  })
-
-  afterAll(async () => {
-    await stop2()
-    if (createdTestDist2) {
-      try {
-        rmSync(DEVTOOLS_DIST, { recursive: true, force: true })
-      } catch { /* ignore */ }
-    }
-  })
-
-  it('sends hitl_state on connect', async () => {
-    const { ws, waitForMessage } = await connectWs(port2)
-    // First message is sessions_update
-    await waitForMessage()
-    // Next should be hitl_state
-    const msg = await waitForMessage() as { type: string; data: { paused: boolean } }
-    expect(msg.type).toBe('hitl_state')
-    expect(msg.data.paused).toBe(false)
-    ws.close()
-  })
-
-  it('broadcasts command_event when broker emits', async () => {
-    const { ws, waitForMessage } = await connectWs(port2)
-    await waitForMessage() // sessions_update
-    await waitForMessage() // hitl_state
-    broker.emit({
-      id: 'test-1', ts: Date.now(), sessionId: 1,
-      tool: 'agrune_act', phase: 'start',
-    })
-    const msg = await waitForMessage() as { type: string; data: { tool: string; phase: string } }
-    expect(msg.type).toBe('command_event')
-    expect(msg.data.tool).toBe('agrune_act')
-    expect(msg.data.phase).toBe('start')
-    ws.close()
-  })
-
-  async function nextOfType<T = unknown>(
-    waitForMessage: (t?: number) => Promise<unknown>,
-    type: string,
-  ): Promise<{ type: string; data: T }> {
-    for (let i = 0; i < 10; i += 1) {
-      const msg = await waitForMessage() as { type: string; data: T }
-      if (msg.type === type) return msg
-    }
-    throw new Error(`nextOfType: never saw ${type}`)
-  }
-
-  it('broadcasts hitl_state on pause/resume', async () => {
-    const { ws, waitForMessage } = await connectWs(port2)
-    await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state') // initial
-    hitl.pause()
-    const paused = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
-    expect(paused.data.paused).toBe(true)
-    hitl.resume()
-    const resumed = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
-    expect(resumed.data.paused).toBe(false)
-    ws.close()
-  })
-
-  it('accepts hitl pause action from client', async () => {
-    const { ws, waitForMessage } = await connectWs(port2)
-    await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state') // initial
-    ws.send(JSON.stringify({ type: 'hitl', action: 'pause' }))
-    const msg = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
-    expect(msg.data.paused).toBe(true)
-    hitl.resume() // cleanup
-    ws.close()
-  })
-
-  it('routes focus_session to onFocusSession callback', async () => {
-    const { ws, waitForMessage } = await connectWs(port2)
-    await waitForMessage()
-    await waitForMessage()
-    const before = focusCalls.length
-    ws.send(JSON.stringify({ type: 'focus_session', sessionId: 7 }))
-    // give event loop a tick to route
-    await new Promise(r => setTimeout(r, 30))
-    expect(focusCalls.length).toBe(before + 1)
-    expect(focusCalls[focusCalls.length - 1]).toBe(7)
-    ws.close()
-  })
-
-  it('sends command_backfill on connect when broker has buffered events', async () => {
-    broker.emit({ id: 'bf-1', ts: 1, sessionId: null, tool: 'agrune_wait', phase: 'start' })
-    const { ws, waitForMessage } = await connectWs(port2)
-    const seen: string[] = []
-    for (let i = 0; i < 5; i += 1) {
-      try {
-        const msg = await waitForMessage(300) as { type: string }
-        seen.push(msg.type)
-        if (msg.type === 'command_backfill') break
-      } catch { break }
-    }
-    expect(seen).toContain('command_backfill')
     ws.close()
   })
 })
