@@ -4,5 +4,6 @@
     "lib": ["ES2022", "DOM"],
     "noEmit": true
   },
-  "include": ["src", "tests", "tsup.config.ts", "vitest.config.ts"]
+  "include": ["src", "tests", "tsup.config.ts", "vitest.config.ts"],
+  "exclude": ["src/annotation-lint/__fixtures__"]
 }

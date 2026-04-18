@@ -10,10 +10,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./annotation-lint": {
+      "types": "./dist/annotation-lint.d.ts",
+      "import": "./dist/annotation-lint.js"
+    },
+    "./annotation-lint/vite-plugin": {
+      "types": "./dist/annotation-lint-vite-plugin.d.ts",
+      "import": "./dist/annotation-lint-vite-plugin.js"
     }
   },
+  "bin": {
+    "agrune-lint": "./bin/agrune-lint.js"
+  },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "build": "tsup",

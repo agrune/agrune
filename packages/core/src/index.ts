@@ -278,3 +278,6 @@ export function isCommandResultOk(result: CommandResult): result is CommandResul
 export * from './native-messages'
 export * from './driver.js'
 export * from './manifest.js'
+
+// Re-exports for annotation-lint consumers that want one-import access
+export type { Diagnostic, DiagnosticCode, DiagnosticSeverity } from './annotation-lint/rules.js'
