@@ -89,7 +89,8 @@ export class LogsView {
       }
     }
     if (this.buffer.length > MAX_BUFFER) {
-      this.buffer.splice(0, this.buffer.length - MAX_BUFFER)
+      const evicted = this.buffer.splice(0, this.buffer.length - MAX_BUFFER)
+      for (const ev of evicted) this.expanded.delete(ev.id)
     }
   }
 

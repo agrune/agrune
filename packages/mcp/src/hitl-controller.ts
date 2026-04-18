@@ -52,6 +52,8 @@ export class HitlController {
   }
 
   step(): void {
+    // "Step" only makes sense while paused — no-op otherwise.
+    if (!this.state.paused && this.waiters.length === 0) return
     // "Step" = let the next pending (or upcoming) call through once, then re-pause.
     this.stepPending = true
     if (this.waiters.length > 0) {
