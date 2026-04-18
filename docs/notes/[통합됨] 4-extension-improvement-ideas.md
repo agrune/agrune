@@ -1,3 +1,7 @@
+> **[아카이브 / v1.0 시점 문서]** 본 문서는 2026-04-15 CDP-only 피봇 이전에 작성된 설계 메모입니다. 여기에 등장하는 `extension`, `native messaging`, `backend daemon` 표현은 당시 아키텍처 기준이며, 현재 agrune (v1.1) 은 `CdpDriver + @agrune/mcp` 조합만 사용합니다. 최신 정보는 상위 `README.md` 와 `AGENTS.md` 를 참고하세요. (배너 추가: 2026-04-18)
+
+---
+
 # 확장프로그램 추가 개선 아이디어
 
 작성일: 2026-03-24
