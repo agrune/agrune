@@ -342,6 +342,16 @@ export function isFillableElement(
   )
 }
 
+export function isContentEditableElement(element: Element): element is HTMLElement {
+  return element instanceof HTMLElement && element.isContentEditable === true
+}
+
+export function canReceiveTextInput(
+  element: Element,
+): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement {
+  return isFillableElement(element) || isContentEditableElement(element)
+}
+
 // ---------------------------------------------------------------------------
 // Selector builders
 // ---------------------------------------------------------------------------

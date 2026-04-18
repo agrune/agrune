@@ -14,10 +14,40 @@ export interface EventSequences {
   pointerDrag(src: Coords, dst: Coords, steps: Coords[]): Promise<void>
   wheel(coords: Coords, deltaY: number, ctrlKey?: boolean): Promise<void>
   htmlDrag(src: Coords, dst: Coords): Promise<void>
+  insertText(text: string): Promise<void>
+  typeText(text: string, options?: { delayMs?: number }): Promise<void>
+  pressKey(
+    key: string,
+    options?: { modifiers?: number; code?: string; text?: string },
+  ): Promise<void>
+  selectAllAndDelete(): Promise<void>
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms))
+}
+
+function keyFromChar(ch: string): {
+  key: string
+  code: string
+  windowsVirtualKeyCode?: number
+} {
+  if (ch.length === 1 && /[a-zA-Z]/.test(ch)) {
+    return {
+      key: ch,
+      code: `Key${ch.toUpperCase()}`,
+      windowsVirtualKeyCode: ch.toUpperCase().charCodeAt(0),
+    }
+  }
+  if (ch.length === 1 && /[0-9]/.test(ch)) {
+    return {
+      key: ch,
+      code: `Digit${ch}`,
+      windowsVirtualKeyCode: ch.charCodeAt(0),
+    }
+  }
+  if (ch === ' ') return { key: ' ', code: 'Space', windowsVirtualKeyCode: 32 }
+  return { key: ch, code: '' }
 }
 
 export function createEventSequences(cdp: CdpClient): EventSequences {
@@ -90,6 +120,79 @@ export function createEventSequences(cdp: CdpClient): EventSequences {
       }
       await mouse('mouseReleased', dst.x, dst.y, { button: 'left', clickCount: 1 })
       await send('Input.setInterceptDrags', { enabled: false })
+    },
+    async insertText(text) {
+      await send('Input.insertText', { text })
+    },
+    async typeText(text, options) {
+      const delay = options?.delayMs ?? 0
+      for (const ch of Array.from(text)) {
+        const keyInfo = keyFromChar(ch)
+        await send('Input.dispatchKeyEvent', {
+          type: 'keyDown',
+          key: keyInfo.key,
+          code: keyInfo.code,
+          text: ch,
+          unmodifiedText: ch,
+          ...(keyInfo.windowsVirtualKeyCode
+            ? { windowsVirtualKeyCode: keyInfo.windowsVirtualKeyCode }
+            : {}),
+        })
+        await send('Input.dispatchKeyEvent', {
+          type: 'keyUp',
+          key: keyInfo.key,
+          code: keyInfo.code,
+          ...(keyInfo.windowsVirtualKeyCode
+            ? { windowsVirtualKeyCode: keyInfo.windowsVirtualKeyCode }
+            : {}),
+        })
+        if (delay > 0) await sleep(delay)
+      }
+    },
+    async pressKey(key, options) {
+      const modifiers = options?.modifiers ?? 0
+      const code = options?.code ?? key
+      const text = options?.text
+      await send('Input.dispatchKeyEvent', {
+        type: 'keyDown',
+        key,
+        code,
+        modifiers,
+        ...(text ? { text, unmodifiedText: text } : {}),
+      })
+      await send('Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        key,
+        code,
+        modifiers,
+      })
+    },
+    async selectAllAndDelete() {
+      // Select-all via CDP "selectAll" command hint — Chromium ignores modifiers
+      // when commands is present, so this works cross-platform.
+      await send('Input.dispatchKeyEvent', {
+        type: 'rawKeyDown',
+        key: 'a',
+        code: 'KeyA',
+        modifiers: 4, // Meta
+        commands: ['selectAll'],
+      })
+      await send('Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        key: 'a',
+        code: 'KeyA',
+        modifiers: 4,
+      })
+      await send('Input.dispatchKeyEvent', {
+        type: 'keyDown',
+        key: 'Delete',
+        code: 'Delete',
+      })
+      await send('Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        key: 'Delete',
+        code: 'Delete',
+      })
     },
   }
 }

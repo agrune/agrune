@@ -1219,15 +1219,10 @@ describe('page agent runtime', () => {
     )
   })
 
-  it('fill은 input/change 이벤트를 발생시키고 값이 반영된다', async () => {
+  it('fill은 CDP Input 도메인으로 insertText를 보낸다', async () => {
     const input = document.createElement('input')
     input.setAttribute('data-agrune-key', 'email')
     input.getBoundingClientRect = () => mockRect()
-
-    const onInput = vi.fn()
-    const onChange = vi.fn()
-    input.addEventListener('input', onInput)
-    input.addEventListener('change', onChange)
 
     document.body.appendChild(input)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => input)
@@ -1241,9 +1236,19 @@ describe('page agent runtime', () => {
     })
 
     expect(result.ok).toBe(true)
-    expect(input.value).toBe('hello@example.com')
-    expect(onInput).toHaveBeenCalled()
-    expect(onChange).toHaveBeenCalled()
+    const insertCall = mockCdpPostMessage.mock.calls.find(([, data]) =>
+      (data as { method?: string })?.method === 'Input.insertText',
+    )
+    expect(insertCall).toBeTruthy()
+    expect((insertCall?.[1] as { params?: { text?: string } })?.params?.text).toBe(
+      'hello@example.com',
+    )
+    const selectAllCall = mockCdpPostMessage.mock.calls.find(([, data]) =>
+      (data as { method?: string; params?: { commands?: string[] } })?.method ===
+        'Input.dispatchKeyEvent' &&
+      ((data as { params?: { commands?: string[] } }).params?.commands ?? []).includes('selectAll'),
+    )
+    expect(selectAllCall).toBeTruthy()
     expect(result.snapshot?.targets.find(target => target.targetId === 'email')).toEqual(
       expect.objectContaining({
         targetId: 'email',

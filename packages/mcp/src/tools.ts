@@ -70,6 +70,16 @@ export function getToolDefinitions(): ToolDefinition[] {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
           targetId: { type: 'string', description: 'The target input element ID from the page snapshot.' },
           value: { type: 'string', description: 'The value to fill into the input element.' },
+          clear: {
+            type: 'boolean',
+            description: 'If true (default), clears existing value before filling. Set to false to append.',
+          },
+          strategy: {
+            type: 'string',
+            enum: ['insert', 'keystroke', 'auto'],
+            description:
+              'Input method. "insert" uses CDP Input.insertText (fastest). "keystroke" uses per-character keydown/keyup (required for masked inputs). "auto" detects masked inputs and selects automatically. Defaults to "auto".',
+          },
         },
         required: ['targetId', 'value'],
       },

@@ -56,10 +56,17 @@ export function registerAgruneTools(
 
   mcp.tool(
     'agrune_fill',
-    'Fill an input/textarea with a value by targetId. When ok:true is returned, do not re-snapshot to verify.',
+    'Fill an input/textarea/contenteditable with a value by targetId. When ok:true is returned, do not re-snapshot to verify.',
     {
       targetId: z.string().describe('Target ID'),
       value: z.string().describe('Value to fill'),
+      clear: z.boolean().optional().describe('If true (default), clear existing value first.'),
+      strategy: z
+        .enum(['insert', 'keystroke', 'auto'])
+        .optional()
+        .describe(
+          'Input method. "insert" = CDP Input.insertText; "keystroke" = per-character dispatchKeyEvent (for masked inputs); "auto" detects. Defaults to "auto".',
+        ),
       ...optionalTabId,
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_fill', args)),

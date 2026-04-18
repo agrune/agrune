@@ -12,10 +12,12 @@ import {
   type PointerCoords,
   autoPanToCanvasPoint,
   canvasToViewport,
+  canReceiveTextInput,
   getElementCenter,
   getVisibleCenter,
   getDragPlacementCoords,
   getInteractablePoint,
+  isContentEditableElement,
   isElementInViewport,
   isEnabled,
   isFillableElement,
@@ -286,6 +288,8 @@ export function walkNode(node: Node, parts: string[], listDepth: number): void {
 // Fill utility
 // ---------------------------------------------------------------------------
 
+// legacy DOM setter path — retained for strategy='dom-setter' fallback and
+// <select> elements (which do not accept CDP Input domain text input).
 export function setElementValue(
   element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
   value: string,
@@ -303,6 +307,23 @@ export function setElementValue(
   }
   element.dispatchEvent(new Event('input', { bubbles: true }))
   element.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+// Heuristic detection of masked inputs (tel/card-number/etc) that need
+// per-character keystroke dispatch so the masking library's keydown/beforeinput
+// listeners can reformat between characters.
+function detectMaskedInput(element: HTMLElement): boolean {
+  if (element.getAttribute('data-agrune-masked') === 'true') return true
+  if (!(element instanceof HTMLInputElement)) return false
+  const type = element.type
+  if (type === 'tel') return true
+  const inputMode = element.getAttribute('inputmode')
+  const pattern = element.getAttribute('pattern')
+  if ((inputMode === 'tel' || inputMode === 'numeric') && pattern) return true
+  if (element.className && /\b(cleave|masked|imask)\b/i.test(element.className)) {
+    return true
+  }
+  return false
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +499,8 @@ export async function handleFill(
     commandId?: string
     targetId: string
     value: string
+    clear?: boolean
+    strategy?: 'insert' | 'keystroke' | 'auto' | 'dom-setter'
     expectedVersion?: number
     config?: Partial<AgruneRuntimeConfig>
   },
@@ -491,7 +514,7 @@ export async function handleFill(
     if (!descriptor.actionKinds.includes('fill')) {
       return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support fill: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isFillableElement(element)) {
+    if (!canReceiveTextInput(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target is not fillable: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isVisible(element)) {
@@ -515,14 +538,86 @@ export async function handleFill(
       await sleep(config.clickDelayMs)
     }
 
+    // <select> elements can only be set via the DOM value setter path.
+    if (element instanceof HTMLSelectElement) {
+      if (config.pointerAnimation) {
+        await deps.queue.push({
+          type: 'animation',
+          execute: () => flashPointerOverlay(element, config, () => setElementValue(element, input.value)),
+        })
+      } else {
+        setElementValue(element, input.value)
+      }
+      const nextSnapshot = await deps.captureSettledSnapshot(2)
+      return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
+        actionKind: 'fill',
+        targetId: input.targetId,
+        value: input.value,
+      })
+    }
+
+    // All other text-receiving elements go through the CDP Input domain.
+    const clear = input.clear ?? true
+    const requestedStrategy = input.strategy ?? 'auto'
+    const isContentEditable = isContentEditableElement(element)
+    const isMasked = element instanceof HTMLElement && detectMaskedInput(element)
+    const strategy: 'insert' | 'keystroke' | 'dom-setter' =
+      requestedStrategy === 'auto'
+        ? isMasked ? 'keystroke' : 'insert'
+        : requestedStrategy
+
+    const performFill = async (): Promise<void> => {
+      try {
+        ;(element as HTMLElement).focus({ preventScroll: true })
+      } catch {
+        ;(element as HTMLElement).focus()
+      }
+      // Headless Chrome can drop focus — retry once before bailing silently.
+      if (document.activeElement !== element && !isContentEditable) {
+        ;(element as HTMLElement).focus()
+      }
+
+      if (isContentEditable) {
+        const selection = window.getSelection()
+        const range = document.createRange()
+        range.selectNodeContents(element)
+        selection?.removeAllRanges()
+        selection?.addRange(range)
+        if (!clear) {
+          selection?.collapseToEnd()
+        }
+      } else if (clear) {
+        await deps.eventSequences.selectAllAndDelete()
+      }
+
+      if (strategy === 'dom-setter') {
+        if (
+          element instanceof HTMLInputElement ||
+          element instanceof HTMLTextAreaElement
+        ) {
+          setElementValue(element, input.value)
+        }
+        return
+      }
+
+      if (strategy === 'keystroke') {
+        await deps.eventSequences.typeText(input.value)
+        return
+      }
+
+      // strategy === 'insert'
+      await deps.eventSequences.insertText(input.value)
+    }
+
     if (config.pointerAnimation) {
       await deps.queue.push({
         type: 'animation',
-        execute: () => flashPointerOverlay(element, config, () => setElementValue(element, input.value)),
+        execute: () => flashPointerOverlay(element, config, performFill),
       })
     } else {
-      setElementValue(element, input.value)
+      await performFill()
     }
+
     const nextSnapshot = await deps.captureSettledSnapshot(2)
     return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
       actionKind: 'fill',

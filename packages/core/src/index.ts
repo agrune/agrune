@@ -18,6 +18,7 @@ export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover'
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide' | 'read' | 'pointer'
+export type FillStrategy = 'insert' | 'keystroke' | 'auto'
 export type AuroraTheme = 'dark' | 'light'
 export type PageTargetReason =
   | 'ready'
@@ -135,6 +136,8 @@ export interface FillCommandRequest extends BaseCommandRequest {
   kind: 'fill'
   targetId: string
   value: string
+  clear?: boolean
+  strategy?: FillStrategy
   expectedVersion?: number
 }
 
