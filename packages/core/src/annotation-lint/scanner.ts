@@ -35,6 +35,14 @@ export function extractElements(source: string): ParsedElement[] {
 
   while (i < source.length) {
     const ch = source[i]
+    // Skip HTML comments so `<!-- <button data-agrune-action=... --> ` does
+    // not register as an element.
+    if (ch === '<' && source.slice(i, i + 4) === '<!--') {
+      const end = source.indexOf('-->', i + 4)
+      if (end === -1) advance(source.length - i)
+      else advance(end - i + 3)
+      continue
+    }
     if (ch === '<' && /[A-Za-z]/.test(source[i + 1] ?? '')) {
       const tagStart = { line, column }
       advance(1) // skip '<'
