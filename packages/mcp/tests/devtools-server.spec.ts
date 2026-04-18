@@ -4,6 +4,8 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import WebSocket from 'ws'
 import type { PageSnapshot, Session } from '@agrune/core'
+import { CommandBroker } from '../src/command-broker.js'
+import { HitlController } from '../src/hitl-controller.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -267,6 +269,142 @@ describe('devtools-server', () => {
     }
     expect(received).toBe(false)
 
+    ws.close()
+  })
+})
+
+describe('devtools-server — phase 8 extensions', () => {
+  let port2: number
+  let driver2: ReturnType<typeof createMockDriver>
+  let broker: CommandBroker
+  let hitl: HitlController
+  let start2: typeof import('../src/devtools-server.js').startDevtoolsServer
+  let stop2: typeof import('../src/devtools-server.js').stopDevtoolsServer
+  let createdTestDist2 = false
+  let focusCalls: number[]
+
+  beforeAll(async () => {
+    // Stop the prior singleton server (shared module-level state) before starting a fresh one.
+    const mod = await import('../src/devtools-server.js')
+    await mod.stopDevtoolsServer().catch(() => {})
+    start2 = mod.startDevtoolsServer
+    stop2 = mod.stopDevtoolsServer
+
+    try {
+      mkdirSync(DEVTOOLS_DIST, { recursive: true })
+      writeFileSync(
+        join(DEVTOOLS_DIST, 'index.html'),
+        '<!DOCTYPE html><html><head><title>Agrune DevTools</title></head><body></body></html>',
+      )
+      createdTestDist2 = true
+    } catch {
+      // already exists
+    }
+
+    driver2 = createMockDriver()
+    broker = new CommandBroker()
+    hitl = new HitlController()
+    focusCalls = []
+    port2 = await start2(driver2, 0, {
+      commandBroker: broker,
+      hitl,
+      onFocusSession: (tabId) => { focusCalls.push(tabId) },
+    })
+  })
+
+  afterAll(async () => {
+    await stop2()
+    if (createdTestDist2) {
+      try {
+        rmSync(DEVTOOLS_DIST, { recursive: true, force: true })
+      } catch { /* ignore */ }
+    }
+  })
+
+  it('sends hitl_state on connect', async () => {
+    const { ws, waitForMessage } = await connectWs(port2)
+    // First message is sessions_update
+    await waitForMessage()
+    // Next should be hitl_state
+    const msg = await waitForMessage() as { type: string; data: { paused: boolean } }
+    expect(msg.type).toBe('hitl_state')
+    expect(msg.data.paused).toBe(false)
+    ws.close()
+  })
+
+  it('broadcasts command_event when broker emits', async () => {
+    const { ws, waitForMessage } = await connectWs(port2)
+    await waitForMessage() // sessions_update
+    await waitForMessage() // hitl_state
+    broker.emit({
+      id: 'test-1', ts: Date.now(), sessionId: 1,
+      tool: 'agrune_act', phase: 'start',
+    })
+    const msg = await waitForMessage() as { type: string; data: { tool: string; phase: string } }
+    expect(msg.type).toBe('command_event')
+    expect(msg.data.tool).toBe('agrune_act')
+    expect(msg.data.phase).toBe('start')
+    ws.close()
+  })
+
+  async function nextOfType<T = unknown>(
+    waitForMessage: (t?: number) => Promise<unknown>,
+    type: string,
+  ): Promise<{ type: string; data: T }> {
+    for (let i = 0; i < 10; i += 1) {
+      const msg = await waitForMessage() as { type: string; data: T }
+      if (msg.type === type) return msg
+    }
+    throw new Error(`nextOfType: never saw ${type}`)
+  }
+
+  it('broadcasts hitl_state on pause/resume', async () => {
+    const { ws, waitForMessage } = await connectWs(port2)
+    await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state') // initial
+    hitl.pause()
+    const paused = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
+    expect(paused.data.paused).toBe(true)
+    hitl.resume()
+    const resumed = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
+    expect(resumed.data.paused).toBe(false)
+    ws.close()
+  })
+
+  it('accepts hitl pause action from client', async () => {
+    const { ws, waitForMessage } = await connectWs(port2)
+    await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state') // initial
+    ws.send(JSON.stringify({ type: 'hitl', action: 'pause' }))
+    const msg = await nextOfType<{ paused: boolean }>(waitForMessage, 'hitl_state')
+    expect(msg.data.paused).toBe(true)
+    hitl.resume() // cleanup
+    ws.close()
+  })
+
+  it('routes focus_session to onFocusSession callback', async () => {
+    const { ws, waitForMessage } = await connectWs(port2)
+    await waitForMessage()
+    await waitForMessage()
+    const before = focusCalls.length
+    ws.send(JSON.stringify({ type: 'focus_session', sessionId: 7 }))
+    // give event loop a tick to route
+    await new Promise(r => setTimeout(r, 30))
+    expect(focusCalls.length).toBe(before + 1)
+    expect(focusCalls[focusCalls.length - 1]).toBe(7)
+    ws.close()
+  })
+
+  it('sends command_backfill on connect when broker has buffered events', async () => {
+    broker.emit({ id: 'bf-1', ts: 1, sessionId: null, tool: 'agrune_wait', phase: 'start' })
+    const { ws, waitForMessage } = await connectWs(port2)
+    const seen: string[] = []
+    for (let i = 0; i < 5; i += 1) {
+      try {
+        const msg = await waitForMessage(300) as { type: string }
+        seen.push(msg.type)
+        if (msg.type === 'command_backfill') break
+      } catch { break }
+    }
+    expect(seen).toContain('command_backfill')
     ws.close()
   })
 })

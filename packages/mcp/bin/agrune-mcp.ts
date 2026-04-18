@@ -17,7 +17,7 @@ const driver = new CdpDriver({
   startUrl,
 })
 
-const { server } = createMcpServer(driver)
+const { server, commandBroker, hitl } = createMcpServer(driver)
 
 // Connect MCP transport FIRST so MCP hosts don't time out during Chrome launch.
 // When stdin is a TTY (user running directly from terminal), skip transport.
@@ -33,7 +33,22 @@ if (isMcpHost) {
 if (!noDevtools) {
   try {
     const { startDevtoolsServer } = await import('../src/devtools-server.js')
-    const devtoolsPort = await startDevtoolsServer(driver, devtoolsPortArg ? Number(devtoolsPortArg) : 47654)
+    const devtoolsPort = await startDevtoolsServer(
+      driver,
+      devtoolsPortArg ? Number(devtoolsPortArg) : 47654,
+      {
+        commandBroker,
+        hitl,
+        onFocusSession: async (tabId: number) => {
+          try {
+            await driver.focusSession(tabId)
+          } catch {
+            // devtools-initiated focus is best-effort; ignore errors here
+            // since the UI will re-render session list on next sessions_update.
+          }
+        },
+      },
+    )
     const devtoolsUrl = `http://localhost:${devtoolsPort}/devtools`
     process.stderr.write(`[agrune] DevTools: ${devtoolsUrl}\n`)
 

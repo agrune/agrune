@@ -4,6 +4,8 @@ import { join, extname, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer, type WebSocket } from 'ws'
 import type { PageSnapshot, Session } from '@agrune/core'
+import type { CommandBroker, CommandEvent } from './command-broker.js'
+import type { HitlController, HitlState } from './hitl-controller.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -14,6 +16,12 @@ export interface DevtoolsDriver {
   onSessionOpen(cb: (session: Session) => void): void
   onSessionClose(cb: (tabId: number) => void): void
   execute(tabId: number, command: Record<string, unknown> & { kind: string }): Promise<unknown>
+}
+
+export interface DevtoolsServerOptions {
+  commandBroker?: CommandBroker
+  hitl?: HitlController
+  onFocusSession?: (tabId: number) => Promise<void> | void
 }
 
 interface ConnectedClient {
@@ -59,7 +67,11 @@ export async function resolveDevtoolsDistAsync(): Promise<string> {
   return monorepoPath // fall back to monorepo path even if missing
 }
 
-export async function startDevtoolsServer(driver: DevtoolsDriver, port = 0): Promise<number> {
+export async function startDevtoolsServer(
+  driver: DevtoolsDriver,
+  port = 0,
+  options: DevtoolsServerOptions = {},
+): Promise<number> {
   if (httpServer) {
     const addr = httpServer.address()
     if (addr && typeof addr === 'object') return addr.port
@@ -131,10 +143,21 @@ export async function startDevtoolsServer(driver: DevtoolsDriver, port = 0): Pro
       data: driver.listSessions(),
     })
 
+    // Phase 8: send initial HITL state and any buffered command events
+    if (options.hitl) {
+      sendToClient(ws, { type: 'hitl_state', data: options.hitl.getState() })
+    }
+    if (options.commandBroker) {
+      const buffered = options.commandBroker.getBuffered()
+      if (buffered.length > 0) {
+        sendToClient(ws, { type: 'command_backfill', data: buffered })
+      }
+    }
+
     ws.on('message', (raw: Buffer | string) => {
       try {
         const message = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf-8'))
-        handleClientMessage(client, message, driver, clients)
+        handleClientMessage(client, message, driver, clients, options)
       } catch {
         // Ignore malformed messages
       }
@@ -165,6 +188,28 @@ export async function startDevtoolsServer(driver: DevtoolsDriver, port = 0): Pro
   driver.onSessionClose(() => {
     broadcastSessions(clients, driver)
   })
+
+  // --- Phase 8: command events + HITL state broadcasts ---
+  if (options.commandBroker) {
+    options.commandBroker.subscribe((event: CommandEvent) => {
+      const payload = JSON.stringify({ type: 'command_event', data: event })
+      for (const client of clients) {
+        if (client.ws.readyState === client.ws.OPEN) {
+          client.ws.send(payload)
+        }
+      }
+    })
+  }
+  if (options.hitl) {
+    options.hitl.onChange((state: HitlState) => {
+      const payload = JSON.stringify({ type: 'hitl_state', data: state })
+      for (const client of clients) {
+        if (client.ws.readyState === client.ws.OPEN) {
+          client.ws.send(payload)
+        }
+      }
+    })
+  }
 
   // --- Listen ---
   return new Promise<number>((resolve, reject) => {
@@ -201,9 +246,10 @@ export async function stopDevtoolsServer(): Promise<void> {
 
 function handleClientMessage(
   client: ConnectedClient,
-  message: { type: string; tabId?: number; targetId?: string },
+  message: { type: string; tabId?: number; targetId?: string; action?: string; sessionId?: number },
   driver: DevtoolsDriver,
   clients: ConnectedClient[],
+  options: DevtoolsServerOptions,
 ): void {
   switch (message.type) {
     case 'subscribe': {
@@ -239,6 +285,22 @@ function handleClientMessage(
       if (client.subscribedTabId == null) return
       void driver.execute(client.subscribedTabId, {
         kind: 'clear_highlight',
+      })
+      return
+    }
+    case 'hitl': {
+      if (!options.hitl) return
+      if (message.action === 'pause') options.hitl.pause()
+      else if (message.action === 'resume') options.hitl.resume()
+      else if (message.action === 'step') options.hitl.step()
+      else if (message.action === 'skip') options.hitl.skip()
+      return
+    }
+    case 'focus_session': {
+      if (typeof message.sessionId !== 'number') return
+      if (!options.onFocusSession) return
+      void Promise.resolve(options.onFocusSession(message.sessionId)).catch(() => {
+        // Swallow — onFocusSession is best-effort.
       })
       return
     }

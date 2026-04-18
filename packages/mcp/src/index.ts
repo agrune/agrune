@@ -9,11 +9,17 @@ import {
   toPublicSnapshot,
 } from './public-shapes.js'
 import type { PublicSessionMeta, PublicSnapshotOptions } from './public-shapes.js'
+import { CommandBroker, type CommandEvent } from './command-broker.js'
+import { HitlController, HitlSkipError } from './hitl-controller.js'
 
 declare const __MCP_SERVER_VERSION__: string
 
 export { registerAgruneTools } from './mcp-tools.js'
 export { getToolDefinitions } from './tools.js'
+export type { CommandEvent, CommandEventPhase, CommandEventListener } from './command-broker.js'
+export type { HitlState, HitlStateListener } from './hitl-controller.js'
+export { CommandBroker } from './command-broker.js'
+export { HitlController, HitlSkipError } from './hitl-controller.js'
 
 type ActivityAwareDriver = BrowserDriver & {
   onActivity?: (() => void) | null
@@ -22,13 +28,15 @@ type ActivityAwareDriver = BrowserDriver & {
 export function createMcpServer<TDriver extends ActivityAwareDriver>(
   driver: TDriver,
 ) {
+  const commandBroker = new CommandBroker()
+  const hitl = new HitlController()
 
   const mcp = new McpServer(
     { name: 'agrune', version: typeof __MCP_SERVER_VERSION__ !== 'undefined' ? __MCP_SERVER_VERSION__ : '0.0.0' },
     { capabilities: { tools: {} } },
   )
 
-  const handleToolCall = async (
+  const innerHandleToolCall = async (
     name: string,
     args: Record<string, unknown>,
   ): Promise<ToolHandlerResult> => {
@@ -132,9 +140,76 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
     }
   }
 
+  const handleToolCall = async (
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<ToolHandlerResult> => {
+    const tool = name
+    const id = commandBroker.nextId()
+    const start = Date.now()
+    const sessionId = typeof args.tabId === 'number' ? (args.tabId as number) : null
+
+    try {
+      await hitl.awaitGate(tool)
+    } catch (err) {
+      if (err instanceof HitlSkipError) {
+        const event: CommandEvent = {
+          id,
+          ts: start,
+          sessionId,
+          tool,
+          phase: 'error',
+          durationMs: 0,
+          error: { code: err.code, message: err.message },
+        }
+        commandBroker.emit(event)
+        return {
+          text: JSON.stringify({ ok: false, error: { code: err.code, message: err.message } }, null, 2),
+          isError: true,
+        }
+      }
+      throw err
+    }
+
+    commandBroker.emit({ id, ts: start, sessionId, tool, phase: 'start' })
+
+    try {
+      const result = await innerHandleToolCall(name, args)
+      const durationMs = Date.now() - start
+      if (result.isError) {
+        const parsed = safeParseJson(result.text)
+        const err = extractError(parsed)
+        commandBroker.emit({
+          id,
+          ts: Date.now(),
+          sessionId,
+          tool,
+          phase: 'error',
+          durationMs,
+          error: err,
+        })
+      } else {
+        commandBroker.emit({ id, ts: Date.now(), sessionId, tool, phase: 'end', durationMs })
+      }
+      return result
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      commandBroker.emit({
+        id,
+        ts: Date.now(),
+        sessionId,
+        tool,
+        phase: 'error',
+        durationMs: Date.now() - start,
+        error: { code: 'INTERNAL_ERROR', message },
+      })
+      throw error
+    }
+  }
+
   registerAgruneTools(mcp, handleToolCall)
 
-  return { server: mcp, driver, handleToolCall }
+  return { server: mcp, driver, handleToolCall, commandBroker, hitl }
 }
 
 function resolveSnapshotOptions(args: Record<string, unknown>): PublicSnapshotOptions {
@@ -187,4 +262,20 @@ function errorText(
     ),
     isError: true,
   }
+}
+
+function safeParseJson(text: string): unknown {
+  try { return JSON.parse(text) } catch { return null }
+}
+
+function extractError(parsed: unknown): { code: string; message: string } {
+  if (parsed && typeof parsed === 'object' && 'error' in parsed) {
+    const err = (parsed as { error?: unknown }).error
+    if (err && typeof err === 'object') {
+      const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : 'UNKNOWN_ERROR'
+      const message = typeof (err as { message?: unknown }).message === 'string' ? (err as { message: string }).message : 'Unknown error'
+      return { code, message }
+    }
+  }
+  return { code: 'UNKNOWN_ERROR', message: 'Unknown error' }
 }
