@@ -85,3 +85,82 @@ describe('CdpDriver background callbacks', () => {
     }
   })
 })
+
+describe('CdpDriver recovery surface', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('execute()가 복구 실패 후 RECOVERY_FAILED 에러를 반환한다', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).recovery = {
+      isRecovering: () => false,
+      waitForRecovery: () => Promise.resolve(),
+      getLastFailure: () => ({
+        cause: 'connection_lost',
+        error: new Error('backoff exhausted'),
+        attempts: 5,
+      }),
+    }
+
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockImplementation(
+      async (..._args: unknown[]) => {
+        const expression = _args[1] as string
+        if (expression.includes('handleCommand')) {
+          throw new Error('not open')
+        }
+        return undefined as never
+      },
+    )
+
+    const result = await driver.execute(1, { kind: 'act', targetId: 't' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('RECOVERY_FAILED')
+      expect(result.error.details).toMatchObject({ attempts: 5, cause: 'connection_lost' })
+    }
+  })
+
+  it('execute()가 복구 진행 중일 때 CONNECTION_LOST 에러를 반환한다', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).recovery = {
+      isRecovering: () => true,
+      waitForRecovery: () => Promise.resolve(),
+      getLastFailure: () => null,
+    }
+
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockImplementation(
+      async (..._args: unknown[]) => {
+        const expression = _args[1] as string
+        if (expression.includes('handleCommand')) {
+          throw new Error('disconnected mid-command')
+        }
+        return undefined as never
+      },
+    )
+
+    const result = await driver.execute(1, { kind: 'act', targetId: 't' })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('CONNECTION_LOST')
+    }
+  })
+})
