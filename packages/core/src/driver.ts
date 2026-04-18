@@ -6,6 +6,15 @@ export interface Session {
   title: string
   hasSnapshot: boolean
   snapshotVersion?: number | null
+  active?: boolean
+  lastInteractionAt?: number | null
+}
+
+export interface FocusResult {
+  tabId: number
+  wasActive: boolean
+  becameActive: boolean
+  cdpFocusError?: string
 }
 
 export interface BrowserDriver {
@@ -23,4 +32,5 @@ export interface BrowserDriver {
   updateConfig(config: Partial<AgruneRuntimeConfig>): void
   ensureReady(): Promise<string | null>
   resolveTabId(tabId?: number): number | null
+  focusSession(tabId: number): Promise<FocusResult>
 }

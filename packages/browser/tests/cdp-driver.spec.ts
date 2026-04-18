@@ -164,3 +164,215 @@ describe('CdpDriver recovery surface', () => {
     }
   })
 })
+
+describe('CdpDriver.resolveTabId precedence', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('returns the argument tabId when provided', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.setActiveSession(2)
+    expect(driver.resolveTabId(1)).toBe(1)
+  })
+
+  it('falls back to the active session when no argument is given', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.setActiveSession(2)
+    expect(driver.resolveTabId()).toBe(2)
+  })
+
+  it('falls back to the first ready session if no active session', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.updateSnapshot(2, {
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://b.com',
+      title: 'B',
+      groups: [],
+      targets: [],
+    })
+    expect(driver.resolveTabId()).toBe(2)
+  })
+
+  it('falls back to the first session if no active and no ready session', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    expect(driver.resolveTabId()).toBe(1)
+  })
+
+  it('returns null when there are no sessions', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    expect(driver.resolveTabId()).toBeNull()
+  })
+})
+
+describe('CdpDriver.execute marks the tab active on success', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('touches the session after a successful command', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockImplementation(
+      async (..._args: unknown[]) => {
+        const expression = _args[1] as string
+        if (expression.includes('handleCommand')) {
+          return { commandId: 'cmd-x', ok: true } as never
+        }
+        return undefined as never
+      },
+    )
+
+    const touchSpy = vi.spyOn(driver.sessions, 'touchSession')
+    const result = await driver.execute(1, { kind: 'act', targetId: 't' })
+    expect(result.ok).toBe(true)
+    expect(touchSpy).toHaveBeenCalledWith(1)
+    expect(driver.sessions.getActiveSessionId()).toBe(1)
+  })
+
+  it('does not touch the session when the command fails', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+    ;(driver as any).recovery = {
+      isRecovering: () => false,
+      waitForRecovery: () => Promise.resolve(),
+      getLastFailure: () => null,
+    }
+
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockImplementation(
+      async (..._args: unknown[]) => {
+        const expression = _args[1] as string
+        if (expression.includes('handleCommand')) {
+          return {
+            commandId: 'cmd-x',
+            ok: false,
+            error: { code: 'INVALID_COMMAND', message: 'bad' },
+          } as never
+        }
+        return undefined as never
+      },
+    )
+
+    const touchSpy = vi.spyOn(driver.sessions, 'touchSession')
+    const result = await driver.execute(1, { kind: 'act', targetId: 't' })
+    expect(result.ok).toBe(false)
+    expect(touchSpy).not.toHaveBeenCalled()
+    expect(driver.sessions.getActiveSessionId()).toBeNull()
+  })
+})
+
+describe('CdpDriver.focusSession', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('throws TAB_NOT_FOUND for unknown tabs', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    await expect(driver.focusSession(999)).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('sets the active session and returns wasActive=false for a new tab', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue(null)
+
+    const result = await driver.focusSession(2)
+    expect(result).toMatchObject({ tabId: 2, wasActive: false, becameActive: true })
+    expect(driver.sessions.getActiveSessionId()).toBe(2)
+  })
+
+  it('returns wasActive=true when focusing the already-active tab', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue(null)
+
+    const result = await driver.focusSession(1)
+    expect(result.wasActive).toBe(true)
+  })
+
+  it('calls Target.activateTarget and Page.bringToFront when a target is attached', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+
+    const sendSpy = vi
+      .spyOn((driver as any).connection, 'send')
+      .mockResolvedValue({})
+
+    const result = await driver.focusSession(1)
+    expect(sendSpy).toHaveBeenCalledWith('Target.activateTarget', { targetId: 'cdp-target-1' })
+    expect(sendSpy).toHaveBeenCalledWith('Page.bringToFront', {}, 'session-1')
+    expect(result.cdpFocusError).toBeUndefined()
+  })
+
+  it('returns cdpFocusError when CDP focus calls fail but still flips active', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+
+    vi.spyOn((driver as any).connection, 'send').mockRejectedValue(new Error('cdp broken'))
+
+    const result = await driver.focusSession(1)
+    expect(result.becameActive).toBe(true)
+    expect(result.cdpFocusError).toBe('cdp broken')
+    expect(driver.sessions.getActiveSessionId()).toBe(1)
+  })
+})
+
+describe('CdpDriver.listSessions reflects active flag', () => {
+  it('marks the active session with active=true and others false', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.setActiveSession(2)
+
+    const sessions = driver.listSessions()
+    const active = sessions.find(s => s.tabId === 2)
+    const inactive = sessions.find(s => s.tabId === 1)
+    expect(active?.active).toBe(true)
+    expect(inactive?.active).toBe(false)
+  })
+})

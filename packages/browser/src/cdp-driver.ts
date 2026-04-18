@@ -2,6 +2,7 @@ import type {
   AgruneRuntimeConfig,
   BrowserDriver,
   CommandResult,
+  FocusResult,
   PageSnapshot,
   Session,
 } from '@agrune/core'
@@ -131,12 +132,15 @@ export class CdpDriver implements BrowserDriver {
   }
 
   listSessions(): Session[] {
+    const activeId = this.sessions.getActiveSessionId()
     return this.sessions.getSessions().map(session => ({
       tabId: session.tabId,
       url: session.url,
       title: session.title,
       hasSnapshot: session.snapshot !== null,
       snapshotVersion: session.snapshot?.version ?? null,
+      active: session.tabId === activeId,
+      lastInteractionAt: session.lastInteractionAt ?? null,
     }))
   }
 
@@ -204,6 +208,9 @@ export class CdpDriver implements BrowserDriver {
           target.sessionId,
           `window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].handleCommand(${JSON.stringify(command.kind)}, ${JSON.stringify(payload)})`,
         )
+        if (result.ok) {
+          this.sessions.touchSession(tabId)
+        }
         if (this.recoveredFlag) {
           if (result.ok) {
             this.recoveredFlag = false
@@ -286,9 +293,54 @@ export class CdpDriver implements BrowserDriver {
   resolveTabId(tabId?: number): number | null {
     if (typeof tabId === 'number') return tabId
 
+    const activeId = this.sessions.getActiveSessionId()
+    if (activeId !== null && this.sessions.getSession(activeId) !== null) {
+      return activeId
+    }
+
     const sessions = this.sessions.getSessions()
     const ready = sessions.find(session => session.snapshot !== null)
     return ready?.tabId ?? sessions[0]?.tabId ?? null
+  }
+
+  async focusSession(tabId: number): Promise<FocusResult> {
+    const session = this.sessions.getSession(tabId)
+    if (!session) {
+      throw createCommandError(
+        'TAB_NOT_FOUND',
+        `No session exists for tabId ${tabId}.`,
+        { tabId },
+      )
+    }
+
+    const wasActive = this.sessions.getActiveSessionId() === tabId
+    this.sessions.setActiveSession(tabId)
+
+    let cdpFocusError: string | undefined
+    const target = this.targetManager.getTarget(tabId)
+    if (target) {
+      try {
+        await this.connection.send('Target.activateTarget', { targetId: target.targetId })
+      } catch (error) {
+        cdpFocusError = error instanceof Error ? error.message : String(error)
+      }
+      if (target.sessionId) {
+        try {
+          await this.connection.send('Page.bringToFront', {}, target.sessionId)
+        } catch (error) {
+          if (!cdpFocusError) {
+            cdpFocusError = error instanceof Error ? error.message : String(error)
+          }
+        }
+      }
+    }
+
+    return {
+      tabId,
+      wasActive,
+      becameActive: true,
+      ...(cdpFocusError ? { cdpFocusError } : {}),
+    }
   }
 
   private async doConnect(): Promise<void> {

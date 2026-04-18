@@ -13,6 +13,7 @@ export const COMMAND_ERROR_CODES = [
   'CONNECTION_LOST',
   'CHROME_CRASHED',
   'RECOVERY_FAILED',
+  'TAB_NOT_FOUND',
 ] as const
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
