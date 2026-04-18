@@ -172,3 +172,203 @@ body {
   cursor: pointer;
 }
 .highlight-btn:hover { background: #45475a; }
+
+/* --- Phase 8: Tab bar --- */
+#tabBar {
+  display: flex;
+  background: #11111b;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+.tab-btn {
+  background: transparent;
+  border: 0;
+  color: #a6adc8;
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn:hover { color: #cdd6f4; }
+.tab-btn.tab-active {
+  color: #cdd6f4;
+  border-bottom-color: #cba6f7;
+}
+
+/* --- Phase 8: Views --- */
+#views {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.view {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.view.view-active {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.view[data-view="snapshot"].view-active { flex-direction: row; }
+.view[data-view="logs"].view-active,
+.view[data-view="sessions"].view-active { flex-direction: column; }
+
+/* --- Phase 8: HITL toolbar --- */
+.hitl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+.hitl-badge {
+  background: #f9e2af;
+  color: #1e1e2e;
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 700;
+  font-size: 9px;
+}
+.hitl-pause-btn,
+.hitl-btn {
+  background: #313244;
+  border: 1px solid #45475a;
+  color: #cdd6f4;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.hitl-btn:hover,
+.hitl-pause-btn:hover { background: #45475a; }
+.hitl-resume { color: #a6e3a1; }
+.hitl-skip { color: #f38ba8; }
+
+/* --- Phase 8: Logs view --- */
+#logsRoot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.logs-filters {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #181825;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+.logs-filters select,
+.logs-filters input {
+  background: #313244;
+  border: 1px solid #45475a;
+  color: #cdd6f4;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-family: inherit;
+}
+.logs-filters input { flex: 1; }
+.logs-empty,
+.sessions-empty {
+  padding: 24px 16px;
+  color: #585b70;
+  text-align: center;
+}
+.empty-heading { color: #a6adc8; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.empty-body { color: #585b70; font-size: 11px; }
+.logs-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.logs-row {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px;
+  border-bottom: 1px solid #181825;
+  cursor: default;
+  font-size: 11px;
+}
+.logs-row-fail { cursor: pointer; }
+.logs-row:hover { background: #262637; }
+.logs-ts { color: #585b70; }
+.logs-sess { color: #6c7086; min-width: 88px; }
+.logs-tool { color: #cdd6f4; min-width: 140px; }
+.logs-dur { color: #6c7086; min-width: 52px; }
+.logs-status { margin-left: auto; font-weight: 700; font-size: 9px; }
+.logs-status-ok { color: #a6e3a1; }
+.logs-status-fail { color: #f38ba8; }
+.logs-status-running { color: #cba6f7; }
+.logs-failure-detail {
+  background: #181825;
+  padding: 8px 16px;
+  border-bottom: 1px solid #313244;
+}
+.logs-failure-row { display: flex; gap: 8px; font-size: 10px; padding: 2px 0; }
+.logs-failure-label { color: #6c7086; min-width: 108px; }
+.logs-failure-value { color: #cdd6f4; word-break: break-word; }
+.logs-failure-code { color: #f38ba8; font-weight: 700; }
+.logs-failure-args {
+  color: #a6adc8;
+  font-size: 9px;
+  white-space: pre-wrap;
+}
+
+/* --- Phase 8: Sessions view --- */
+#sessionsRoot {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.sessions-list {
+  flex: 1;
+  overflow-y: auto;
+}
+.sessions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #181825;
+  font-size: 11px;
+}
+.sessions-row:hover { background: #262637; }
+.sessions-row-active {
+  background: #262637;
+  border-left: 2px solid #cba6f7;
+  padding-left: 14px;
+}
+.sessions-dot { color: #585b70; font-size: 12px; }
+.sessions-dot.active { color: #cba6f7; }
+.sessions-label { color: #cdd6f4; }
+.sessions-tabid { color: #6c7086; font-size: 9px; }
+.sessions-badge {
+  margin-left: auto;
+  background: #cba6f7;
+  color: #1e1e2e;
+  padding: 0 6px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.sessions-focus-btn {
+  margin-left: auto;
+  background: #313244;
+  border: 1px solid #45475a;
+  color: #cdd6f4;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sessions-focus-btn:hover {
+  background: #45475a;
+  border-color: #cba6f7;
+}

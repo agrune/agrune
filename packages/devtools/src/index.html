@@ -13,16 +13,36 @@
     <button id="pauseBtn" type="button" title="Pause/Resume">⏸ Pause</button>
     <span id="snapshotInfo">No snapshot</span>
     <div class="toolbar-spacer"></div>
+    <div id="hitlToolbar" class="hitl-toolbar"></div>
+    <div class="toolbar-spacer"></div>
     <select id="reasonFilter"><option value="">All reasons</option></select>
     <select id="actionFilter"><option value="">All actions</option></select>
     <input id="searchInput" type="text" placeholder="Search targets..." />
   </div>
-  <div id="main">
-    <div id="targetList"></div>
-    <div id="detailPane">
-      <p class="empty-detail">Select a target</p>
-    </div>
+
+  <div id="tabBar">
+    <button class="tab-btn tab-active" data-tab="snapshot" type="button">Snapshot</button>
+    <button class="tab-btn" data-tab="logs" type="button">Logs</button>
+    <button class="tab-btn" data-tab="sessions" type="button">Sessions</button>
   </div>
+
+  <div id="views">
+    <section class="view view-active" data-view="snapshot">
+      <div id="main">
+        <div id="targetList"></div>
+        <div id="detailPane">
+          <p class="empty-detail">Select a target</p>
+        </div>
+      </div>
+    </section>
+    <section class="view" data-view="logs" hidden>
+      <div id="logsRoot"></div>
+    </section>
+    <section class="view" data-view="sessions" hidden>
+      <div id="sessionsRoot"></div>
+    </section>
+  </div>
+
   <script type="module" src="./panel.ts"></script>
 </body>
 </html>

@@ -1,6 +1,11 @@
 import type { PageSnapshot, PageTarget, Session } from '@agrune/core'
+import type { TabId, InboundMessage } from './types.js'
+import { DevtoolsWsClient } from './ws-client.js'
+import { LogsView } from './logs-view.js'
+import { SessionsView } from './sessions-view.js'
+import { HitlToolbar } from './hitl-toolbar.js'
 
-// --- State ---
+// --- Snapshot state (unchanged semantics) ---
 let snapshot: PageSnapshot | null = null
 let selectedTargetId: string | null = null
 let paused = false
@@ -18,95 +23,72 @@ const actionFilter = document.getElementById('actionFilter') as HTMLSelectElemen
 const searchInput = document.getElementById('searchInput') as HTMLInputElement
 const targetList = document.getElementById('targetList') as HTMLDivElement
 const detailPane = document.getElementById('detailPane') as HTMLDivElement
+const tabBar = document.getElementById('tabBar') as HTMLDivElement
+const hitlRoot = document.getElementById('hitlToolbar') as HTMLDivElement
+const logsRoot = document.getElementById('logsRoot') as HTMLDivElement
+const sessionsRoot = document.getElementById('sessionsRoot') as HTMLDivElement
+const viewNodes = Array.from(document.querySelectorAll<HTMLElement>('.view'))
+const tabButtons = Array.from(tabBar.querySelectorAll<HTMLButtonElement>('.tab-btn'))
 
-// --- WebSocket connection ---
-let ws: WebSocket | null = null
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+// --- WebSocket ---
+const ws = new DevtoolsWsClient()
+ws.onStatusChange((connected) => setConnectionStatus(connected))
+ws.onMessage((msg) => handleMessage(msg))
 
-function getWsUrl(): string {
-  // Connect to the same host that served this page, at /devtools/ws
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${location.host}/devtools/ws`
+// --- Subviews ---
+const logsView = new LogsView(logsRoot)
+const sessionsView = new SessionsView(sessionsRoot, ws)
+const hitlToolbar = new HitlToolbar(hitlRoot, ws)
+
+// --- Tab switching ---
+function setTab(tab: TabId): void {
+  tabButtons.forEach(btn => {
+    btn.classList.toggle('tab-active', btn.dataset.tab === tab)
+  })
+  viewNodes.forEach(node => {
+    const isActive = node.dataset.view === tab
+    node.hidden = !isActive
+    node.classList.toggle('view-active', isActive)
+  })
 }
+tabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab as TabId | undefined
+    if (tab) setTab(tab)
+  })
+})
 
 function setConnectionStatus(connected: boolean): void {
-  connectionStatus.className = connected
-    ? 'status-dot connected'
-    : 'status-dot disconnected'
-  connectionStatus.title = connected ? 'Connected' : 'Disconnected'
+  connectionStatus.className = connected ? 'status-dot connected' : 'status-dot disconnected'
+  connectionStatus.title = connected ? 'Connected' : 'Disconnected. Retrying…'
 }
 
-function connect(): void {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    return
-  }
-
-  try {
-    ws = new WebSocket(getWsUrl())
-  } catch {
-    scheduleReconnect()
-    return
-  }
-
-  ws.addEventListener('open', () => {
-    setConnectionStatus(true)
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer)
-      reconnectTimer = null
-    }
-    // Re-subscribe to previously selected tab
-    if (subscribedTabId != null) {
-      wsSend({ type: 'subscribe', tabId: subscribedTabId })
-    }
-  })
-
-  ws.addEventListener('message', (event) => {
-    try {
-      const msg = JSON.parse(event.data as string) as { type: string; data: unknown }
-      handleMessage(msg)
-    } catch {
-      // Ignore malformed messages
-    }
-  })
-
-  ws.addEventListener('close', () => {
-    setConnectionStatus(false)
-    ws = null
-    scheduleReconnect()
-  })
-
-  ws.addEventListener('error', () => {
-    // The close event will fire after this — reconnect is handled there
-  })
-}
-
-function scheduleReconnect(): void {
-  if (reconnectTimer) return
-  reconnectTimer = setTimeout(() => {
-    reconnectTimer = null
-    connect()
-  }, 2000)
-}
-
-function wsSend(data: Record<string, unknown>): void {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(data))
-  }
-}
-
-function handleMessage(msg: { type: string; data: unknown }): void {
+function handleMessage(msg: InboundMessage): void {
   switch (msg.type) {
     case 'sessions_update': {
-      sessions = msg.data as Session[]
+      sessions = msg.data
       updateTabSelect()
+      sessionsView.update(sessions)
       return
     }
     case 'snapshot_update': {
-      const { snapshot: snap } = msg.data as { tabId: number; snapshot: PageSnapshot }
+      const payload = msg.data as { tabId: number; snapshot: PageSnapshot }
       if (!paused) {
-        snapshot = snap
+        snapshot = payload.snapshot
         render()
       }
+      return
+    }
+    case 'command_event': {
+      logsView.ingest(msg.data)
+      return
+    }
+    case 'command_backfill': {
+      logsView.ingestBackfill(msg.data)
+      return
+    }
+    case 'hitl_state': {
+      hitlToolbar.update(msg.data)
       return
     }
   }
@@ -117,10 +99,9 @@ function updateTabSelect(): void {
   tabSelect.innerHTML = sessions.length === 0
     ? '<option value="">No sessions</option>'
     : sessions.map(s =>
-        `<option value="${s.tabId}"${String(s.tabId) === currentValue ? ' selected' : ''}>${s.title || s.url} (tab ${s.tabId})</option>`
+        `<option value="${s.tabId}"${String(s.tabId) === currentValue ? ' selected' : ''}>${escapeText(s.title || s.url)} (tab ${s.tabId})</option>`
       ).join('')
 
-  // Auto-select first session if none selected
   if (sessions.length > 0 && (subscribedTabId == null || !sessions.some(s => s.tabId === subscribedTabId))) {
     tabSelect.value = String(sessions[0].tabId)
     subscribeToTab(sessions[0].tabId)
@@ -132,30 +113,24 @@ function subscribeToTab(tabId: number): void {
   snapshot = null
   selectedTargetId = null
   render()
-  wsSend({ type: 'subscribe', tabId })
+  ws.send({ type: 'subscribe', tabId })
 }
 
-// --- Tab select handler ---
 tabSelect.addEventListener('change', () => {
   const tabId = Number(tabSelect.value)
-  if (!isNaN(tabId) && tabId > 0) {
-    subscribeToTab(tabId)
-  }
+  if (!isNaN(tabId) && tabId > 0) subscribeToTab(tabId)
 })
 
-// --- Pause/Resume ---
 pauseBtn.addEventListener('click', () => {
   paused = !paused
   pauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause'
   pauseBtn.classList.toggle('paused', paused)
 })
 
-// --- Filters ---
 reasonFilter.addEventListener('change', render)
 actionFilter.addEventListener('change', render)
 searchInput.addEventListener('input', render)
 
-// --- Render ---
 function reasonClass(reason: string): string {
   if (reason === 'hidden') return 'hidden-reason'
   return reason
@@ -172,13 +147,11 @@ function render() {
   const elapsed = ((Date.now() - snapshot.capturedAt) / 1000).toFixed(1)
   snapshotInfo.textContent = `v${snapshot.version} · ${elapsed}s ago · ${snapshot.targets.length} targets`
 
-  // Populate reason filter dynamically
   const reasons = [...new Set(snapshot.targets.map(t => t.reason))]
   const currentReason = reasonFilter.value
   reasonFilter.innerHTML = '<option value="">All reasons</option>' +
     reasons.map(r => `<option value="${r}"${r === currentReason ? ' selected' : ''}>${r}</option>`).join('')
 
-  // Populate action filter dynamically
   const actionKinds = [...new Set(snapshot.targets.flatMap(t => t.actionKinds))]
   const currentAction = actionFilter.value
   actionFilter.innerHTML = '<option value="">All actions</option>' +
@@ -188,21 +161,19 @@ function render() {
   const aFilter = actionFilter.value
   const search = searchInput.value.toLowerCase()
 
-  // Build target list by group
   targetList.innerHTML = ''
   for (const group of snapshot.groups) {
     const groupTargets = group.targetIds
       .map(id => snapshot!.targets.find(t => t.targetId === id))
       .filter((t): t is PageTarget => !!t)
       .filter(t => !rFilter || t.reason === rFilter)
-      .filter(t => !aFilter || t.actionKinds.includes(aFilter as any))
+      .filter(t => !aFilter || t.actionKinds.includes(aFilter as PageTarget['actionKinds'][number]))
       .filter(t => !search || t.name.toLowerCase().includes(search) || (t.groupName ?? '').toLowerCase().includes(search) || (t.textContent ?? '').toLowerCase().includes(search))
 
     if (groupTargets.length === 0) continue
 
     const collapsed = collapsedGroups.has(group.groupId)
 
-    // Group header
     const header = document.createElement('div')
     header.className = 'group-header'
     header.innerHTML = `<span>${collapsed ? '▸' : '▾'} ${group.groupName ?? group.groupId} <span class="group-desc">${group.groupDesc ? '— ' + group.groupDesc : ''}</span></span><span class="group-count">${groupTargets.length}</span>`
@@ -215,7 +186,6 @@ function render() {
 
     if (collapsed) continue
 
-    // Target rows
     for (const target of groupTargets) {
       const row = document.createElement('div')
       row.className = 'target-row' + (target.targetId === selectedTargetId ? ' selected' : '')
@@ -276,31 +246,29 @@ function renderDetail() {
 }
 
 function highlightInPage(target: PageTarget) {
-  wsSend({
-    type: 'highlight',
-    targetId: target.targetId,
-  })
+  ws.send({ type: 'highlight', targetId: target.targetId })
 }
 
-// --- Connection status + tab select CSS ---
+function escapeText(s: string): string {
+  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// --- Inline status dot CSS kept from original panel.ts ---
 const style = document.createElement('style')
 style.textContent = `
-  .status-dot {
-    font-size: 14px;
-    line-height: 1;
-  }
-  .status-dot.connected {
-    color: #a6e3a1;
-  }
-  .status-dot.disconnected {
-    color: #f38ba8;
-  }
-  #tabSelect {
-    max-width: 200px;
-  }
+  .status-dot { font-size: 14px; line-height: 1; }
+  .status-dot.connected { color: #a6e3a1; }
+  .status-dot.disconnected { color: #f38ba8; }
+  #tabSelect { max-width: 200px; }
 `
 document.head.appendChild(style)
 
-// --- Initial render & connect ---
+// Silence unused import warning for subviews (retained for side-effects only).
+void logsView
+void sessionsView
+void hitlToolbar
+
+// --- Initial boot ---
+setTab('snapshot')
 render()
-connect()
+ws.connect()
