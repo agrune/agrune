@@ -97,39 +97,36 @@ v1.2+ 로 연기된 항목. v1.1 로드맵에는 포함되지 않으며, 별도 
 
 ## Traceability
 
-phase 매핑은 로드맵 작성 시 채워진다.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INPUT-01 | TBD | Pending |
-| INPUT-02 | TBD | Pending |
-| INPUT-03 | TBD | Pending |
-| INPUT-04 | TBD | Pending |
-| HEAL-01 | TBD | Pending |
-| HEAL-02 | TBD | Pending |
-| HEAL-03 | TBD | Pending |
-| HEAL-04 | TBD | Pending |
-| SESS-01 | TBD | Pending |
-| SESS-02 | TBD | Pending |
-| SESS-03 | TBD | Pending |
-| SESS-04 | TBD | Pending |
-| DEVT-01 | TBD | Pending |
-| DEVT-02 | TBD | Pending |
-| DEVT-03 | TBD | Pending |
-| DEVT-04 | TBD | Pending |
-| QUAL-01 | TBD | Pending |
-| QUAL-02 | TBD | Pending |
-| QUAL-03 | TBD | Pending |
-| DOCS-01 | TBD | Pending |
-| DOCS-02 | TBD | Pending |
-| DOCS-03 | TBD | Pending |
-| DOCS-04 | TBD | Pending |
+| INPUT-01 | 5 | Pending |
+| INPUT-02 | 5 | Pending |
+| INPUT-03 | 5 | Pending |
+| INPUT-04 | 5 | Pending |
+| HEAL-01 | 6 | Pending |
+| HEAL-02 | 6 | Pending |
+| HEAL-03 | 6 | Pending |
+| HEAL-04 | 6 | Pending |
+| SESS-01 | 7 | Pending |
+| SESS-02 | 7 | Pending |
+| SESS-03 | 7 | Pending |
+| SESS-04 | 8 | Pending |
+| DEVT-01 | 8 | Pending |
+| DEVT-02 | 8 | Pending |
+| DEVT-03 | 8 | Pending |
+| DEVT-04 | 8 | Pending |
+| QUAL-01 | 9 | Pending |
+| QUAL-02 | 9 | Pending |
+| QUAL-03 | 9 | Pending |
+| DOCS-01 | 10 | Pending |
+| DOCS-02 | 10 | Pending |
+| DOCS-03 | 10 | Pending |
+| DOCS-04 | 10 | Pending |
 
 **Coverage:**
 - v1 requirements: 23 total
-- Mapped to phases: 0 (roadmap 작성 전)
-- Unmapped: 23 (정상 — 로드맵 작성 시 매핑)
+- Mapped to phases: 23, Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-18*
-*Last updated: 2026-04-18 after initial v1.1 definition*
+*Last updated: 2026-04-18 — roadmap 작성 완료, traceability 채움 (Phase 5-10)*
