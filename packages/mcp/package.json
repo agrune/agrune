@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
+    },
+    "./devtools-server": {
+      "import": "./dist/src/devtools-server.js",
+      "types": "./dist/src/devtools-server.d.ts"
     }
   },
   "bin": {

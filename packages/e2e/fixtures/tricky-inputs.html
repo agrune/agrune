@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>tricky-inputs fixture</title>
+  </head>
+  <body data-agrune-group="form" data-agrune-group-name="Signup form" data-agrune-group-desc="Credit card + bio form">
+    <label>Card number:
+      <input
+        data-agrune-action="fill"
+        data-agrune-name="Card number"
+        data-agrune-desc="Credit card number — 16 digits"
+        data-agrune-key="cc-number"
+        inputmode="numeric"
+        maxlength="19"
+        id="cc"
+      >
+    </label>
+
+    <label>Bio:
+      <div
+        contenteditable="true"
+        data-agrune-action="fill"
+        data-agrune-name="Bio"
+        data-agrune-desc="Short bio — rich text"
+        data-agrune-key="bio"
+        id="bio"
+        style="border:1px solid #ccc; min-height:40px; padding:4px;"
+      ></div>
+    </label>
+
+    <label>Password:
+      <input
+        type="password"
+        data-agrune-action="fill"
+        data-agrune-name="Password"
+        data-agrune-desc="Account password — sensitive"
+        data-agrune-key="pw"
+        data-agrune-sensitive
+        id="pw"
+      >
+    </label>
+  </body>
+</html>

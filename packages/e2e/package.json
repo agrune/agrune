@@ -1,0 +1,23 @@
+{
+  "name": "@agrune/e2e",
+  "version": "0.4.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pretest:e2e": "pnpm -w -r --filter @agrune/runtime --filter @agrune/devtools --filter @agrune/mcp --filter @agrune/core --filter @agrune/browser run build",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install --with-deps chromium",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@agrune/core": "workspace:*",
+    "@agrune/devtools": "workspace:*",
+    "@agrune/mcp": "workspace:*",
+    "@agrune/runtime": "workspace:*",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.7.0",
+    "ws": "^8.20.0"
+  }
+}

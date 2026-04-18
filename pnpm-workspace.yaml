@@ -1,4 +1,5 @@
 packages:
+  # includes packages/e2e (added in Phase 9 for Playwright harness)
   - packages/*
 
 onlyBuiltDependencies:

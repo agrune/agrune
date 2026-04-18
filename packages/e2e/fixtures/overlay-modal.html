@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>overlay-modal fixture</title>
+    <style>
+      body { font-family: sans-serif; margin: 0; padding: 16px; }
+      #toolbar { display: flex; gap: 8px; padding: 12px; background: #eee; }
+      #toolbar button { padding: 8px 12px; }
+      .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 9999; }
+      .modal-backdrop.open { display: flex; }
+      .modal { background: white; padding: 24px; border-radius: 8px; min-width: 280px; }
+      .modal button { padding: 8px 12px; margin-right: 8px; }
+    </style>
+  </head>
+  <body>
+    <main data-agrune-group="toolbar" data-agrune-group-name="Toolbar" data-agrune-group-desc="Document toolbar">
+      <div id="toolbar">
+        <button
+          data-agrune-action="click"
+          data-agrune-name="Save"
+          data-agrune-desc="Save the document"
+          data-agrune-key="save-btn"
+        >Save</button>
+        <button
+          data-agrune-action="click"
+          data-agrune-name="Cancel"
+          data-agrune-desc="Cancel pending edits"
+          data-agrune-key="cancel-btn"
+          id="cancel"
+        >Cancel</button>
+      </div>
+    </main>
+
+    <div class="modal-backdrop" id="backdrop" role="presentation">
+      <div class="modal" role="dialog" aria-modal="true" data-agrune-group="confirm-modal" data-agrune-group-name="Confirm Modal" data-agrune-group-desc="Discard confirmation">
+        <p>Discard your changes?</p>
+        <button
+          data-agrune-action="click"
+          data-agrune-name="Discard"
+          data-agrune-desc="Confirm discard and close modal"
+          data-agrune-key="modal-discard"
+          id="discard"
+        >Discard</button>
+        <button
+          data-agrune-action="click"
+          data-agrune-name="Keep editing"
+          data-agrune-desc="Cancel discard and close modal"
+          data-agrune-key="modal-keep"
+          id="keep"
+        >Keep editing</button>
+      </div>
+    </div>
+
+    <script>
+      const backdrop = document.getElementById('backdrop')
+      document.getElementById('cancel').addEventListener('click', () => backdrop.classList.add('open'))
+      document.getElementById('keep').addEventListener('click', () => backdrop.classList.remove('open'))
+      document.getElementById('discard').addEventListener('click', () => { backdrop.classList.remove('open'); document.body.setAttribute('data-discarded', '1') })
+    </script>
+  </body>
+</html>
