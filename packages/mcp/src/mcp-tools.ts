@@ -186,4 +186,14 @@ export function registerAgruneTools(
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_read', args)),
   )
+
+  mcp.tool(
+    'agrune_focus',
+    'Switch the active browser session (tab). Subsequent tool calls without tabId target this tab. Best-effort brings the underlying browser window to the foreground. Get tabIds from agrune_sessions.',
+    {
+      tabId: z.number().optional().describe('Tab ID to focus (preferred)'),
+      sessionId: z.string().optional().describe('Reserved — pass numeric-string sessionId for future compatibility'),
+    },
+    async (args) => toMcpToolResult(await handleToolCall('agrune_focus', args)),
+  )
 }

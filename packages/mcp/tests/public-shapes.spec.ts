@@ -29,6 +29,44 @@ describe('public MCP shapes', () => {
       title: 'Project Management Tool',
       hasSnapshot: true,
       snapshotVersion: 3,
+      active: false,
+    })
+  })
+
+  it('passes through session.active when provided', () => {
+    const session = {
+      tabId: 7,
+      url: 'https://a.com',
+      title: 'A',
+      hasSnapshot: false,
+      snapshotVersion: null,
+      active: true,
+    }
+    expect(toPublicSession(session)).toEqual({
+      tabId: 7,
+      url: 'https://a.com',
+      title: 'A',
+      hasSnapshot: false,
+      snapshotVersion: null,
+      active: true,
+    })
+  })
+
+  it('toPublicSessionMeta carries wasActive/becameActive', async () => {
+    const { toPublicSessionMeta } = await import('../src/public-shapes.js')
+    const session = {
+      tabId: 11,
+      url: 'https://b.com',
+      title: 'B',
+      hasSnapshot: false,
+      snapshotVersion: null,
+    }
+    expect(toPublicSessionMeta(session, { wasActive: false, becameActive: true })).toEqual({
+      tabId: 11,
+      url: 'https://b.com',
+      title: 'B',
+      wasActive: false,
+      becameActive: true,
     })
   })
 

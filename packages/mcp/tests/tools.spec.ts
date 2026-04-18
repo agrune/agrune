@@ -4,7 +4,7 @@ import { getToolDefinitions } from '../src/tools'
 describe('getToolDefinitions', () => {
   const tools = getToolDefinitions()
 
-  it('defines all 9 required tools', () => {
+  it('defines all 10 required tools', () => {
     const names = tools.map((t) => t.name)
     expect(names).toEqual([
       'agrune_sessions',
@@ -16,6 +16,7 @@ describe('getToolDefinitions', () => {
       'agrune_guide',
       'agrune_config',
       'agrune_read',
+      'agrune_focus',
     ])
   })
 
@@ -90,5 +91,17 @@ describe('getToolDefinitions', () => {
     expect(props).toHaveProperty('pointerDurationMs')
     expect(props).toHaveProperty('autoScroll')
     expect(config.inputSchema.required ?? []).toEqual([])
+  })
+
+  it('agrune_focus exposes tabId and sessionId as optional properties', () => {
+    const focus = tools.find((t) => t.name === 'agrune_focus')!
+    expect(focus.inputSchema.properties).toHaveProperty('tabId')
+    expect(focus.inputSchema.properties).toHaveProperty('sessionId')
+    expect(focus.inputSchema.required ?? []).toEqual([])
+  })
+
+  it('agrune_focus description mentions switching the active session', () => {
+    const focus = tools.find((t) => t.name === 'agrune_focus')!
+    expect(focus.description.toLowerCase()).toContain('active')
   })
 })

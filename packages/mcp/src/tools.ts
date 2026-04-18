@@ -158,5 +158,20 @@ export function getToolDefinitions(): ToolDefinition[] {
         },
       },
     },
+    {
+      name: 'agrune_focus',
+      description:
+        'Switch the active browser session and best-effort bring the underlying tab to the front. Use before a series of tool calls to ensure subsequent calls target a specific tab. Requires tabId from agrune_sessions.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID to focus.' },
+          sessionId: {
+            type: 'string',
+            description: 'Reserved for future string session IDs. If present and parseable as a number, treated as tabId.',
+          },
+        },
+      },
+    },
   ]
 }

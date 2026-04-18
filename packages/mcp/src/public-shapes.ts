@@ -13,6 +13,7 @@ export interface PublicSession {
   title: string
   hasSnapshot: boolean
   snapshotVersion: number | null
+  active: boolean
 }
 
 export interface PublicSnapshotGroup {
@@ -81,6 +82,32 @@ export function toPublicSession(
     title: session.title || snapshot?.title || '',
     hasSnapshot: session.hasSnapshot ?? snapshot !== null,
     snapshotVersion: session.snapshotVersion ?? snapshot?.version ?? null,
+    active: session.active ?? false,
+  }
+}
+
+export interface PublicSessionMeta {
+  tabId: number
+  url: string
+  title: string
+  wasActive: boolean
+  becameActive: boolean
+}
+
+export function toPublicSessionMeta(
+  session: Session & { snapshot?: PageSnapshot | null },
+  opts: { wasActive: boolean; becameActive: boolean },
+): PublicSessionMeta {
+  const snapshot =
+    'snapshot' in session && session.snapshot
+      ? session.snapshot
+      : null
+  return {
+    tabId: session.tabId,
+    url: session.url,
+    title: session.title || snapshot?.title || '',
+    wasActive: opts.wasActive,
+    becameActive: opts.becameActive,
   }
 }
 

@@ -1,9 +1,14 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { AgruneRuntimeConfig, BrowserDriver } from '@agrune/core'
+import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, Session } from '@agrune/core'
 import { registerAgruneTools } from './mcp-tools.js'
 import type { ToolHandlerResult } from './mcp-tools.js'
-import { toPublicCommandResult, toPublicSession, toPublicSnapshot } from './public-shapes.js'
-import type { PublicSnapshotOptions } from './public-shapes.js'
+import {
+  toPublicCommandResult,
+  toPublicSession,
+  toPublicSessionMeta,
+  toPublicSnapshot,
+} from './public-shapes.js'
+import type { PublicSessionMeta, PublicSnapshotOptions } from './public-shapes.js'
 
 declare const __MCP_SERVER_VERSION__: string
 
@@ -47,7 +52,11 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
         if (tabId == null) return { text: 'No active sessions.', isError: true }
         const snapshot = driver.getSnapshot(tabId)
         if (!snapshot) return { text: `No snapshot available for tab ${tabId}.`, isError: true }
-        return { text: JSON.stringify(toPublicSnapshot(snapshot, resolveSnapshotOptions(args)), null, 2) }
+        const payload = {
+          ...toPublicSnapshot(snapshot, resolveSnapshotOptions(args)),
+          session: buildSessionMeta(driver, tabId, false),
+        }
+        return { text: JSON.stringify(payload, null, 2) }
       }
       case 'agrune_act':
       case 'agrune_fill':
@@ -57,12 +66,55 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
       case 'agrune_guide':
       case 'agrune_read': {
         if (tabId == null) return { text: 'No active sessions.', isError: true }
+        const wasActive = driver.listSessions().find(s => s.tabId === tabId)?.active === true
         const command: Record<string, unknown> & { kind: string } = {
           kind: name.replace('agrune_', ''), ...args,
         }
         delete command.tabId
         const result = await driver.execute(tabId, command)
-        return { text: JSON.stringify(toPublicCommandResult(result), null, 2) }
+        const publicResult = toPublicCommandResult(result)
+        const after = driver.listSessions().find(s => s.tabId === tabId)
+        const sessionMeta = after
+          ? toPublicSessionMeta(after as Session, {
+              wasActive,
+              becameActive: after.active === true && !wasActive,
+            })
+          : undefined
+        const payload = sessionMeta ? { ...publicResult, session: sessionMeta } : publicResult
+        return { text: JSON.stringify(payload, null, 2) }
+      }
+      case 'agrune_focus': {
+        const focusArg = resolveFocusTabId(args)
+        if (focusArg == null) {
+          return errorText('TAB_NOT_FOUND', 'agrune_focus requires tabId or numeric sessionId.')
+        }
+        const target = driver.listSessions().find(s => s.tabId === focusArg)
+        if (!target) {
+          return errorText('TAB_NOT_FOUND', `No session exists for tabId ${focusArg}.`, { tabId: focusArg })
+        }
+        const wasActive = target.active === true
+        try {
+          const focusResult = await driver.focusSession(focusArg)
+          const refreshed = driver.listSessions().find(s => s.tabId === focusArg) ?? target
+          const sessionMeta = toPublicSessionMeta(refreshed as Session, {
+            wasActive,
+            becameActive: focusResult.becameActive && !wasActive,
+          })
+          const payload: Record<string, unknown> = {
+            ok: true,
+            session: sessionMeta,
+          }
+          if (focusResult.cdpFocusError) {
+            payload.cdpFocusError = focusResult.cdpFocusError
+          }
+          return { text: JSON.stringify(payload, null, 2) }
+        } catch (error) {
+          const shape = error as Partial<CommandErrorShape>
+          if (shape && typeof shape.code === 'string' && shape.code === 'TAB_NOT_FOUND') {
+            return errorText('TAB_NOT_FOUND', shape.message ?? 'Tab not found.', shape.details)
+          }
+          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
+        }
       }
       case 'agrune_config': {
         const config: Partial<AgruneRuntimeConfig> = {}
@@ -97,5 +149,42 @@ function resolveSnapshotOptions(args: Record<string, unknown>): PublicSnapshotOp
     mode: args.mode === 'full' ? 'full' : 'outline',
     ...(groupIds.size > 0 ? { groupIds: [...groupIds] } : {}),
     ...(args.includeTextContent === true ? { includeTextContent: true } : {}),
+  }
+}
+
+function buildSessionMeta(
+  driver: BrowserDriver,
+  tabId: number,
+  becameActive: boolean,
+): PublicSessionMeta | undefined {
+  const session = driver.listSessions().find(s => s.tabId === tabId)
+  if (!session) return undefined
+  return toPublicSessionMeta(session as Session, {
+    wasActive: session.active === true,
+    becameActive,
+  })
+}
+
+function resolveFocusTabId(args: Record<string, unknown>): number | null {
+  if (typeof args.tabId === 'number' && Number.isFinite(args.tabId)) return args.tabId
+  if (typeof args.sessionId === 'string') {
+    const parsed = Number(args.sessionId)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
+}
+
+function errorText(
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+): ToolHandlerResult {
+  return {
+    text: JSON.stringify(
+      { ok: false, error: { code, message, ...(details ? { details } : {}) } },
+      null,
+      2,
+    ),
+    isError: true,
   }
 }
