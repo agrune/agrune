@@ -162,3 +162,79 @@ describe('waitForSnapshot', () => {
     expect(await p2).toBe(true)
   })
 })
+
+describe('active session tracking', () => {
+  it('getActiveSessionId returns null by default', () => {
+    const mgr = new SessionManager()
+    expect(mgr.getActiveSessionId()).toBeNull()
+  })
+
+  it('setActiveSession returns false for unknown tab and leaves state untouched', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    expect(mgr.setActiveSession(999)).toBe(false)
+    expect(mgr.getActiveSessionId()).toBeNull()
+  })
+
+  it('setActiveSession marks a known tab as active', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.openSession(2, 'https://b.com', 'B')
+    expect(mgr.setActiveSession(2)).toBe(true)
+    expect(mgr.getActiveSessionId()).toBe(2)
+  })
+
+  it('touchSession updates lastInteractionAt and marks the tab active', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    expect(mgr.getSession(1)!.lastInteractionAt).toBeUndefined()
+    const before = Date.now() - 1
+    expect(mgr.touchSession(1)).toBe(true)
+    expect(mgr.getActiveSessionId()).toBe(1)
+    const lastAt = mgr.getSession(1)!.lastInteractionAt
+    expect(typeof lastAt).toBe('number')
+    expect(lastAt!).toBeGreaterThanOrEqual(before)
+  })
+
+  it('touchSession returns false for unknown tab', () => {
+    const mgr = new SessionManager()
+    expect(mgr.touchSession(42)).toBe(false)
+    expect(mgr.getActiveSessionId()).toBeNull()
+  })
+
+  it('closeSession clears active when closing the active tab', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.openSession(2, 'https://b.com', 'B')
+    mgr.setActiveSession(2)
+    mgr.closeSession(2)
+    expect(mgr.getActiveSessionId()).toBeNull()
+    expect(mgr.getSession(1)).not.toBeNull()
+  })
+
+  it('closeSession does not clear active when closing a different tab', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.openSession(2, 'https://b.com', 'B')
+    mgr.setActiveSession(1)
+    mgr.closeSession(2)
+    expect(mgr.getActiveSessionId()).toBe(1)
+  })
+
+  it('clear resets activeSessionId', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.setActiveSession(1)
+    mgr.clear()
+    expect(mgr.getActiveSessionId()).toBeNull()
+  })
+
+  it('openSession preserves lastInteractionAt when the URL is unchanged', () => {
+    const mgr = new SessionManager()
+    mgr.openSession(1, 'https://a.com', 'A')
+    mgr.touchSession(1)
+    const firstTouch = mgr.getSession(1)!.lastInteractionAt!
+    mgr.openSession(1, 'https://a.com', 'A (updated)')
+    expect(mgr.getSession(1)!.lastInteractionAt).toBe(firstTouch)
+  })
+})

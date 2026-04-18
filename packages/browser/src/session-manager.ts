@@ -6,11 +6,13 @@ export interface Session {
   title: string
   snapshot: PageSnapshot | null
   openedAt: number
+  lastInteractionAt?: number
 }
 
 export class SessionManager {
   private sessions = new Map<number, Session>()
   private snapshotWaiters: Array<() => void> = []
+  private activeSessionId: number | null = null
 
   openSession(tabId: number, url: string, title: string): void {
     const existing = this.sessions.get(tabId)
@@ -20,15 +22,20 @@ export class SessionManager {
       title,
       snapshot: existing?.url === url ? existing.snapshot : null,
       openedAt: existing?.openedAt ?? Date.now(),
+      lastInteractionAt: existing?.lastInteractionAt,
     })
   }
 
   closeSession(tabId: number): void {
     this.sessions.delete(tabId)
+    if (this.activeSessionId === tabId) {
+      this.activeSessionId = null
+    }
   }
 
   clear(): void {
     this.sessions.clear()
+    this.activeSessionId = null
   }
 
   getSession(tabId: number): Session | null {
@@ -37,6 +44,29 @@ export class SessionManager {
 
   getSessions(): Session[] {
     return [...this.sessions.values()]
+  }
+
+  getActiveSessionId(): number | null {
+    if (this.activeSessionId !== null && !this.sessions.has(this.activeSessionId)) {
+      this.activeSessionId = null
+    }
+    return this.activeSessionId
+  }
+
+  setActiveSession(tabId: number): boolean {
+    if (!this.sessions.has(tabId)) {
+      return false
+    }
+    this.activeSessionId = tabId
+    return true
+  }
+
+  touchSession(tabId: number): boolean {
+    const session = this.sessions.get(tabId)
+    if (!session) return false
+    session.lastInteractionAt = Date.now()
+    this.activeSessionId = tabId
+    return true
   }
 
   updateSnapshot(tabId: number, snapshot: PageSnapshot): void {
