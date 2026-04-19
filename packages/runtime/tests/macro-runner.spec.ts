@@ -6,6 +6,34 @@ import type { MacroRunnerDeps } from '../src/runtime/macro-runner'
 import { MacroRunner, interpolateParams } from '../src/runtime/macro-runner'
 
 // ---------------------------------------------------------------------------
+// Mock handleAct / handleFill at module level (hoisted by vi.mock)
+// ---------------------------------------------------------------------------
+
+vi.mock('../src/runtime/command-handlers', async (importOriginal) => {
+  const original = (await importOriginal()) as Record<string, unknown>
+  return {
+    ...original,
+    handleAct: vi.fn(async () => ({ ok: true })),
+    handleFill: vi.fn(async () => ({ ok: true })),
+  }
+})
+
+// Import mocked module AFTER vi.mock declaration
+import * as cmdHandlers from '../src/runtime/command-handlers'
+
+// ---------------------------------------------------------------------------
+// Convenience accessors for mocked functions
+// ---------------------------------------------------------------------------
+
+function getMockedHandleAct() {
+  return vi.mocked(cmdHandlers.handleAct)
+}
+
+function getMockedHandleFill() {
+  return vi.mocked(cmdHandlers.handleFill)
+}
+
+// ---------------------------------------------------------------------------
 // Helpers — fake CommandHandlerDeps
 // ---------------------------------------------------------------------------
 
@@ -19,32 +47,27 @@ function makeElement(attrs: Record<string, string> = {}): HTMLElement {
   return el
 }
 
-/** Builds a minimal CommandHandlerDeps that resolves targetIds by CSS selector. */
-function makeDeps(
-  elements: Record<string, HTMLElement>,
-  overrides: { actOk?: boolean; fillOk?: boolean; actThrows?: boolean; fillThrows?: boolean } = {},
-): {
-  deps: CommandHandlerDeps
-  actCalls: Array<{ targetId: string; action?: string }>
-  fillCalls: Array<{ targetId: string; value: string }>
-} {
-  const actCalls: Array<{ targetId: string; action?: string }> = []
-  const fillCalls: Array<{ targetId: string; value: string }> = []
+function makeDeps(elements: Record<string, HTMLElement>): CommandHandlerDeps {
+  // Set data-testid and data-agrune-key so resolveByLadder can find elements
+  for (const [targetId, el] of Object.entries(elements)) {
+    el.setAttribute('data-testid', targetId)
+    el.setAttribute('data-agrune-key', targetId)
+  }
 
-  const deps: CommandHandlerDeps = {
+  return {
     captureSnapshot: vi.fn(() => ({ version: 1, targets: [], signature: 'x' }) as any),
     captureSettledSnapshot: vi.fn(async () => ({ version: 1, targets: [], signature: 'x' }) as any),
-    getDescriptors: vi.fn(() => {
-      return Object.entries(elements).map(([targetId, el]) => ({
+    getDescriptors: vi.fn(() =>
+      Object.entries(elements).map(([targetId]) => ({
         actionKinds: ['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'] as any,
         groupId: 'test',
         target: {
           targetId,
           actionKinds: ['click', 'fill'],
-          selector: { css: `[data-testid="${targetId}"]` },
+          selector: { css: `[data-agrune-key="${targetId}"]` },
         },
-      }))
-    }),
+      })),
+    ),
     resolveExecutionConfig: vi.fn(() => ({}) as any),
     queue: {
       enqueue: vi.fn(async (fn: () => Promise<unknown>) => fn()),
@@ -55,19 +78,6 @@ function makeDeps(
     } as any,
     eventSequences: {} as any,
   }
-
-  // Patch resolveRuntimeTarget — we inject elements directly via module mock
-  // Instead, we patch getDescriptors to return our elements, but resolveRuntimeTarget
-  // calls findElements → resolveByLadder which uses DOM.
-  // So we set data-testid on actual DOM elements.
-  for (const [targetId, el] of Object.entries(elements)) {
-    el.setAttribute('data-testid', targetId)
-    el.setAttribute('data-agrune-key', targetId)
-  }
-
-  // We also need handleAct and handleFill to be mockable.
-  // MacroRunner imports them directly. We'll spy via vi.mock below.
-  return { deps, actCalls, fillCalls }
 }
 
 function makeMacroRunnerDeps(
@@ -77,10 +87,9 @@ function makeMacroRunnerDeps(
     onStepEnd?: MacroRunnerDeps['onStepEnd']
     onSensitiveStep?: MacroRunnerDeps['onSensitiveStep']
   } = {},
-): MacroRunnerDeps & { commandHandlerDeps: CommandHandlerDeps } {
-  const { deps } = makeDeps(elements)
+): MacroRunnerDeps {
   return {
-    commandHandlerDeps: deps,
+    commandHandlerDeps: makeDeps(elements),
     onStepStart: overrides.onStepStart,
     onStepEnd: overrides.onStepEnd,
     onSensitiveStep: overrides.onSensitiveStep,
@@ -88,51 +97,16 @@ function makeMacroRunnerDeps(
 }
 
 // ---------------------------------------------------------------------------
-// Mock handleAct / handleFill so MacroRunner can inject results
-// ---------------------------------------------------------------------------
-
-const mockActResult = { ok: true, error: undefined }
-const mockFillResult = { ok: true, error: undefined }
-
-let actShouldFail = false
-let fillShouldFail = false
-let actShouldThrow = false
-let fillShouldThrow = false
-
-const actCalls: Array<{ targetId: string; action?: string }> = []
-const fillCalls: Array<{ targetId: string; value: string }> = []
-
-vi.mock('../src/runtime/command-handlers', async (importOriginal) => {
-  const original = (await importOriginal()) as Record<string, unknown>
-  return {
-    ...original,
-    handleAct: vi.fn(async (_deps: CommandHandlerDeps, input: { targetId: string; action?: string }) => {
-      actCalls.push({ targetId: input.targetId, action: input.action })
-      if (actShouldThrow) throw new Error('act threw')
-      if (actShouldFail) return { ok: false, error: { message: 'act failed' } }
-      return { ok: true }
-    }),
-    handleFill: vi.fn(async (_deps: CommandHandlerDeps, input: { targetId: string; value: string }) => {
-      fillCalls.push({ targetId: input.targetId, value: input.value })
-      if (fillShouldThrow) throw new Error('fill threw')
-      if (fillShouldFail) return { ok: false, error: { message: 'fill failed' } }
-      return { ok: true }
-    }),
-  }
-})
-
-// ---------------------------------------------------------------------------
 // Setup / teardown
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
   document.body.innerHTML = ''
-  actShouldFail = false
-  fillShouldFail = false
-  actShouldThrow = false
-  fillShouldThrow = false
-  actCalls.length = 0
-  fillCalls.length = 0
+  getMockedHandleAct().mockReset()
+  getMockedHandleFill().mockReset()
+  // Default: both succeed
+  getMockedHandleAct().mockResolvedValue({ ok: true } as any)
+  getMockedHandleFill().mockResolvedValue({ ok: true } as any)
 })
 
 afterEach(() => {
@@ -140,7 +114,7 @@ afterEach(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Helper: macro fixture
+// Fixture helpers
 // ---------------------------------------------------------------------------
 
 function makeMacro(overrides: Partial<ManifestMacro> = {}): ManifestMacro {
@@ -175,9 +149,7 @@ describe('precondition', () => {
   it('precondition true → already-satisfied, no steps executed', async () => {
     const btn = makeElement()
     const onStepStart = vi.fn()
-    const runner = new MacroRunner(
-      makeMacroRunnerDeps({ btn }, { onStepStart }),
-    )
+    const runner = new MacroRunner(makeMacroRunnerDeps({ btn }, { onStepStart }))
     const macro = makeMacro({
       precondition: 'params.loggedIn === true',
       steps: [makeStep()],
@@ -203,8 +175,7 @@ describe('precondition', () => {
   })
 
   it('precondition false → enters step loop (normal execution)', async () => {
-    const btn = makeElement()
-    const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
+    const runner = new MacroRunner(makeMacroRunnerDeps({}))
     const macro = makeMacro({
       precondition: 'params.loggedIn === true',
       steps: [],
@@ -238,8 +209,8 @@ describe('step loop — happy path', () => {
     })
     const result = await runner.run(macro, {})
     expect(result.status).toBe('ok')
-    expect(fillCalls).toHaveLength(1)
-    expect(actCalls).toHaveLength(1)
+    expect(getMockedHandleFill()).toHaveBeenCalledTimes(1)
+    expect(getMockedHandleAct()).toHaveBeenCalledTimes(1)
     expect(onStepStart).toHaveBeenCalledTimes(2)
     expect(onStepEnd).toHaveBeenCalledTimes(2)
     runner.dispose()
@@ -252,7 +223,10 @@ describe('step loop — happy path', () => {
       steps: [makeStep({ targetId: 'email', action: 'fill', value: '{{email}}' })],
     })
     await runner.run(macro, { email: 'a@b.com' })
-    expect(fillCalls[0]?.value).toBe('a@b.com')
+    expect(getMockedHandleFill()).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ value: 'a@b.com' }),
+    )
     runner.dispose()
   })
 
@@ -263,7 +237,10 @@ describe('step loop — happy path', () => {
       steps: [makeStep({ targetId: 'email', action: 'fill', value: '{{missing}}' })],
     })
     await runner.run(macro, {})
-    expect(fillCalls[0]?.value).toBe('')
+    expect(getMockedHandleFill()).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ value: '' }),
+    )
     runner.dispose()
   })
 
@@ -272,11 +249,11 @@ describe('step loop — happy path', () => {
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn: btnEl }))
 
     for (const action of ['click', 'dblclick', 'contextmenu', 'hover', 'longpress'] as const) {
-      actCalls.length = 0
+      getMockedHandleAct().mockClear()
       const macro = makeMacro({ steps: [makeStep({ targetId: 'btn', action })] })
       const result = await runner.run(macro, {})
       expect(result.status).toBe('ok')
-      expect(actCalls).toHaveLength(1)
+      expect(getMockedHandleAct()).toHaveBeenCalledTimes(1)
     }
     runner.dispose()
   })
@@ -311,10 +288,14 @@ describe('interpolateParams', () => {
 describe('circuit breaker — MACRO-04', () => {
   it('default maxRetries=2: 2 consecutive failures → circuit-open at step 1', async () => {
     const btn = makeElement()
-    actShouldFail = true
+    getMockedHandleAct().mockResolvedValue({ ok: false, error: { message: 'fail' } } as any)
+
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
     const macro = makeMacro({
-      steps: [makeStep({ targetId: 'btn', action: 'click' }), makeStep({ targetId: 'btn', action: 'click' })],
+      steps: [
+        makeStep({ targetId: 'btn', action: 'click' }),
+        makeStep({ targetId: 'btn', action: 'click' }),
+      ],
     })
     const result = await runner.run(macro, {})
     expect(result.status).toBe('circuit-open')
@@ -326,7 +307,8 @@ describe('circuit breaker — MACRO-04', () => {
 
   it('maxRetries:3 → 3 consecutive failures to trigger circuit-open', async () => {
     const btn = makeElement()
-    actShouldFail = true
+    getMockedHandleAct().mockResolvedValue({ ok: false, error: { message: 'fail' } } as any)
+
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
     const macro = makeMacro({
       circuitBreaker: { maxRetries: 3 },
@@ -336,9 +318,6 @@ describe('circuit breaker — MACRO-04', () => {
         makeStep({ targetId: 'btn', action: 'click' }),
       ],
     })
-    // 2 failures → step-error (not circuit-open yet for maxRetries:3)
-    // Actually: we need a fresh runner per test since failures accumulate
-    // maxRetries:3 → trips on 3rd consecutive failure
     const result = await runner.run(macro, {})
     expect(result.status).toBe('circuit-open')
     if (result.status === 'circuit-open') {
@@ -347,30 +326,24 @@ describe('circuit breaker — MACRO-04', () => {
     runner.dispose()
   })
 
-  it('success after failure resets consecutive count', async () => {
+  it('success after failure resets consecutive count — fail/succeed/fail → no circuit-open', async () => {
     const btn = makeElement()
+    let callCount = 0
+    getMockedHandleAct().mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) return { ok: false, error: { message: 'fail 1' } } as any
+      if (callCount === 2) return { ok: true } as any
+      return { ok: false, error: { message: 'fail 3' } } as any
+    })
+
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
     const macro = makeMacro({
       steps: [
-        makeStep({ targetId: 'btn', action: 'click' }), // fail
-        makeStep({ targetId: 'btn', action: 'click' }), // success
-        makeStep({ targetId: 'btn', action: 'click' }), // fail
+        makeStep({ targetId: 'btn', action: 'click' }), // fail → consecutiveFailures=1
+        makeStep({ targetId: 'btn', action: 'click' }), // succeed → reset to 0
+        makeStep({ targetId: 'btn', action: 'click' }), // fail → consecutiveFailures=1
       ],
     })
-
-    // step 0: fail, step 1: succeed, step 2: fail
-    let callCount = 0
-    const { handleAct } = await import('../src/runtime/command-handlers')
-    ;(handleAct as ReturnType<typeof vi.fn>).mockImplementation(
-      async (_deps: CommandHandlerDeps, input: { targetId: string; action?: string }) => {
-        actCalls.push({ targetId: input.targetId, action: input.action })
-        callCount++
-        if (callCount === 1) return { ok: false, error: { message: 'fail 1' } }
-        if (callCount === 2) return { ok: true }
-        return { ok: false, error: { message: 'fail 3' } }
-      },
-    )
-
     const result = await runner.run(macro, {})
     // After fail/succeed/fail: consecutiveFailures=1 → not circuit-open (< 2)
     expect(result.status).toBe('step-error')
@@ -380,31 +353,31 @@ describe('circuit breaker — MACRO-04', () => {
   it('resetAfterMs → setTimeout resets consecutiveFailures after delay', async () => {
     vi.useFakeTimers()
     const btn = makeElement()
-    actShouldFail = true
+
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
     const macro = makeMacro({
       circuitBreaker: { maxRetries: 2, resetAfterMs: 10 },
       steps: [makeStep({ targetId: 'btn', action: 'click' })],
     })
 
-    // First run — 1 failure
+    // First run — 1 failure (consecutiveFailures=1)
+    getMockedHandleAct().mockResolvedValueOnce({ ok: false, error: { message: 'fail' } } as any)
     await runner.run(macro, {})
-    // consecutiveFailures = 1
 
-    // Advance timers past resetAfterMs
+    // Advance timers past resetAfterMs → consecutiveFailures resets to 0
     await vi.advanceTimersByTimeAsync(15)
-    // consecutiveFailures should be reset to 0
 
-    // Second run should NOT circuit-open on first failure
-    actShouldFail = false
+    // Second run — succeed: consecutiveFailures was reset so no circuit-open
+    getMockedHandleAct().mockResolvedValueOnce({ ok: true } as any)
     const result = await runner.run(macro, {})
     expect(result.status).toBe('ok')
     runner.dispose()
   })
 
-  it('circuit-open → remaining steps not executed', async () => {
+  it('circuit-open → remaining steps are not executed', async () => {
     const btn = makeElement()
-    actShouldFail = true
+    getMockedHandleAct().mockResolvedValue({ ok: false, error: { message: 'fail' } } as any)
+
     const runner = new MacroRunner(makeMacroRunnerDeps({ btn }))
     const macro = makeMacro({
       circuitBreaker: { maxRetries: 2 },
@@ -417,8 +390,8 @@ describe('circuit breaker — MACRO-04', () => {
     })
     const result = await runner.run(macro, {})
     expect(result.status).toBe('circuit-open')
-    // handleAct called exactly 2 times (circuit-open at step 1)
-    expect(actCalls).toHaveLength(2)
+    // handleAct called exactly 2 times (steps 0 and 1)
+    expect(getMockedHandleAct()).toHaveBeenCalledTimes(2)
     runner.dispose()
   })
 })
@@ -442,15 +415,17 @@ describe('target resolution', () => {
     runner.dispose()
   })
 
-  it('target-not-found increments consecutiveFailures', async () => {
-    // Two not-found targets → circuit-open (default maxRetries=2)
+  it('target-not-found × 2 across runs → circuit-open', async () => {
+    // Two consecutive target-not-found runs on the same runner instance
+    // share consecutiveFailures (session-scoped circuit breaker)
     const runner = new MacroRunner(makeMacroRunnerDeps({}))
     const macro = makeMacro({
-      steps: [
-        makeStep({ targetId: 'ghost-1', action: 'click' }),
-        makeStep({ targetId: 'ghost-2', action: 'click' }),
-      ],
+      steps: [makeStep({ targetId: 'ghost', action: 'click' })],
     })
+
+    // Run 1: target-not-found, consecutiveFailures=1
+    await runner.run(macro, {})
+    // Run 2: consecutiveFailures=2 >= threshold=2 → circuit-open
     const result = await runner.run(macro, {})
     expect(result.status).toBe('circuit-open')
     runner.dispose()
@@ -534,17 +509,19 @@ describe('postcondition', () => {
     runner.dispose()
   })
 
-  it('postcondition failure increments consecutiveFailures across runs', async () => {
+  it('postcondition failure increments consecutiveFailures (state carries to next run)', async () => {
     const runner = new MacroRunner(makeMacroRunnerDeps({}))
-    const macro = makeMacro({ postcondition: 'false', steps: [], circuitBreaker: { maxRetries: 2 } })
+    const macro = makeMacro({
+      postcondition: 'false',
+      steps: [],
+      circuitBreaker: { maxRetries: 2 },
+    })
     // Run 1: postcondition-failed → consecutiveFailures=1
-    await runner.run(macro, {})
-    // Run 2: postcondition-failed → consecutiveFailures=2 → circuit-open
+    const result1 = await runner.run(macro, {})
+    expect(result1.status).toBe('postcondition-failed')
+    // Run 2: postcondition-failed → consecutiveFailures=2
     const result2 = await runner.run(macro, {})
-    // After 2 postcondition failures, the circuit breaker should trip
-    // Note: circuit-open check happens inside step loop, postcondition failure
-    // just increments consecutiveFailures for NEXT run
-    // So run 2 is also postcondition-failed (circuit check is in step loop only)
+    // Status is still postcondition-failed (circuit-open check is in step loop)
     expect(['postcondition-failed', 'circuit-open']).toContain(result2.status)
     runner.dispose()
   })
@@ -563,7 +540,6 @@ describe('eval isolation — security', () => {
     })
     const result = await runner.run(macro, {})
     // Return value is false → enters step loop (not already-satisfied)
-    // The mutation side-effect exists but only the return value matters
     expect(result.status).toBe('ok')
     runner.dispose()
   })
@@ -600,7 +576,6 @@ describe('dispose', () => {
 // describe: PageAgentRuntime integration
 // ===========================================================================
 
-// Import after mocks so the vi.mock('command-handlers') is in effect
 import { createPageAgentRuntime } from '../src/runtime/page-agent-runtime'
 import type { AgruneManifest } from '../src/types'
 
@@ -615,12 +590,10 @@ const mockCdpPostMessage = vi.fn((_type: string, data: unknown) => {
 
 function makeManifestWithMacros(): AgruneManifest {
   const emailEl = document.createElement('input')
-  emailEl.setAttribute('data-testid', 'email')
   emailEl.setAttribute('data-agrune-key', 'email')
   document.body.appendChild(emailEl)
 
   const btnEl = document.createElement('button')
-  btnEl.setAttribute('data-testid', 'login-btn')
   btnEl.setAttribute('data-agrune-key', 'login-btn')
   document.body.appendChild(btnEl)
 
@@ -635,13 +608,13 @@ function makeManifestWithMacros(): AgruneManifest {
             targetId: 'email',
             name: '이메일',
             actionKinds: ['fill'],
-            selector: { css: '[data-testid="email"]' },
+            selector: { css: '[data-agrune-key="email"]' },
           },
           {
             targetId: 'login-btn',
             name: '로그인',
             actionKinds: ['click'],
-            selector: { css: '[data-testid="login-btn"]' },
+            selector: { css: '[data-agrune-key="login-btn"]' },
           },
         ],
       },
@@ -675,32 +648,13 @@ describe('PageAgentRuntime integration', () => {
   let runtime: ReturnType<typeof createPageAgentRuntime>
 
   beforeEach(() => {
-    // Reset mocks
-    const { handleAct, handleFill } = vi.mocked(
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../src/runtime/command-handlers'),
-    )
-    handleAct.mockImplementation(
-      async (_deps: CommandHandlerDeps, input: { targetId: string; action?: string }) => {
-        actCalls.push({ targetId: input.targetId, action: input.action })
-        return { ok: true }
-      },
-    )
-    handleFill.mockImplementation(
-      async (_deps: CommandHandlerDeps, input: { targetId: string; value: string }) => {
-        fillCalls.push({ targetId: input.targetId, value: input.value })
-        return { ok: true }
-      },
-    )
+    // Reset mocks to success defaults before each integration test
+    getMockedHandleAct().mockResolvedValue({ ok: true } as any)
+    getMockedHandleFill().mockResolvedValue({ ok: true } as any)
 
     runtime = createPageAgentRuntime(makeManifestWithMacros(), {
       cdpPostMessage: mockCdpPostMessage,
     })
-  })
-
-  afterEach(() => {
-    // dispose is not directly available on PageAgentRuntime (it's on Handle)
-    // but the runtime holds macroRunners — we call dispose via handle pattern
   })
 
   it('runMacro returns MacroResult & { macroId, stepCount }', async () => {
@@ -710,7 +664,7 @@ describe('PageAgentRuntime integration', () => {
     expect(result.stepCount).toBe(2)
   })
 
-  it('unknown macroId → step-error (macro not found)', async () => {
+  it('unknown macroId → step-error with "macro not found" message', async () => {
     const result = await runtime.runMacro({ macroId: 'nonexistent' })
     expect(result.status).toBe('step-error')
     if (result.status === 'step-error') {
@@ -719,39 +673,30 @@ describe('PageAgentRuntime integration', () => {
     }
   })
 
-  it('consecutive failures carry over (cached MacroRunner)', async () => {
-    // First call: fail once (consecutiveFailures=1)
-    const { handleAct } = vi.mocked(
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../src/runtime/command-handlers'),
-    )
-    handleAct.mockImplementationOnce(async () => ({ ok: false, error: { message: 'fail' } }))
-
+  it('consecutive failures carry over via cached MacroRunner', async () => {
+    // Run 1: fail once → consecutiveFailures=1
+    getMockedHandleAct().mockResolvedValueOnce({ ok: false, error: { message: 'fail' } } as any)
     const result1 = await runtime.runMacro({ macroId: 'macroA' })
     expect(result1.status).toBe('step-error')
 
-    // Second call: fail again → circuit-open (consecutiveFailures=2)
-    handleAct.mockImplementationOnce(async () => ({ ok: false, error: { message: 'fail 2' } }))
-
+    // Run 2: fail again → consecutiveFailures=2 >= maxRetries=2 → circuit-open
+    getMockedHandleAct().mockResolvedValueOnce({ ok: false, error: { message: 'fail 2' } } as any)
     const result2 = await runtime.runMacro({ macroId: 'macroA' })
     expect(result2.status).toBe('circuit-open')
   })
 
   it('different macroIds have independent failure counts', async () => {
-    const { handleAct } = vi.mocked(
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require('../src/runtime/command-handlers'),
-    )
-    // macroA fails once
-    handleAct.mockImplementationOnce(async () => ({ ok: false, error: { message: 'fail' } }))
+    // macroA fails once → consecutiveFailures=1 for macroA
+    getMockedHandleAct().mockResolvedValueOnce({ ok: false, error: { message: 'fail' } } as any)
     await runtime.runMacro({ macroId: 'macroA' })
 
-    // macroB should be unaffected — next handleAct call for macroB succeeds
+    // macroB is unaffected — next call succeeds
+    getMockedHandleAct().mockResolvedValueOnce({ ok: true } as any)
     const result = await runtime.runMacro({ macroId: 'macroB' })
     expect(result.status).toBe('ok')
   })
 
-  it('onStepProgress callback fires start/end/sensitive events in order', async () => {
+  it('onStepProgress callback fires start/end events in order', async () => {
     const events: Array<{ phase: string; stepIndex: number }> = []
 
     await runtime.runMacro({
@@ -765,7 +710,7 @@ describe('PageAgentRuntime integration', () => {
     const phases = events.map(e => e.phase)
     expect(phases).toContain('start')
     expect(phases).toContain('end')
-    // start events come before end events for same step
+    // start events precede end events for the same step
     const firstStart = phases.indexOf('start')
     const firstEnd = phases.indexOf('end')
     expect(firstStart).toBeLessThan(firstEnd)

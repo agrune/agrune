@@ -20,3 +20,10 @@ export {
 export { scanAnnotations, scanGroups } from './dom-scanner.js'
 export type { ScannedTarget, ScannedGroup } from './dom-scanner.js'
 export { buildManifest } from './manifest-builder.js'
+
+export {
+  MacroRunner,
+  interpolateParams,
+  type MacroResult,
+  type MacroRunnerDeps,
+} from './runtime/macro-runner'
