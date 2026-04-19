@@ -58,9 +58,9 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### REMOVE — Inline 제거 + 문서
 
-- [ ] **REMOVE-01**: `packages/runtime/src/runtime/dom-scanner.ts`·`manifest-builder.ts`의 bootstrap 경로 제거 (테스트 픽스처만 잔존)
-- [ ] **REMOVE-02**: README·AGENTS·`docs/*`에서 `data-agrune-*` 어노테이션 섹션 제거 + manifest 중심 재작성
-- [ ] **REMOVE-03**: 외부 `.github/profile/README.md` sync + "annotation" → "target mapping" 용어 전환
+- [x] **REMOVE-01**: `packages/runtime/src/runtime/dom-scanner.ts`·`manifest-builder.ts`의 bootstrap 경로 제거 (테스트 픽스처만 잔존)
+- [x] **REMOVE-02**: README·AGENTS·`docs/*`에서 `data-agrune-*` 어노테이션 섹션 제거 + manifest 중심 재작성
+- [x] **REMOVE-03**: 외부 `.github/profile/README.md` sync + "annotation" → "target mapping" 용어 전환
 
 ### REGISTRY — 공개 + Governance
 
@@ -149,9 +149,9 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | RECORD-03 | Phase 16 | Complete |
 | RECORD-04 | Phase 16 | Complete |
 | RECORD-05 | Phase 16 | Complete |
-| REMOVE-01 | Phase 17 | Pending |
-| REMOVE-02 | Phase 17 | Pending |
-| REMOVE-03 | Phase 17 | Pending |
+| REMOVE-01 | Phase 17 | Complete |
+| REMOVE-02 | Phase 17 | Complete |
+| REMOVE-03 | Phase 17 | Complete |
 | REGISTRY-01 | Phase 18 | Pending |
 | REGISTRY-02 | Phase 18 | Pending |
 | REGISTRY-03 | Phase 18 | Pending |

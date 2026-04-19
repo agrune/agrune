@@ -149,7 +149,11 @@
   2. README·AGENTS·`docs/*` 의 `data-agrune-*` 어노테이션 섹션이 전부 제거되고 manifest + `defineTarget`/`defineMacro` 중심으로 재작성된다. 예제·튜토리얼이 inline 어노테이션을 보여주지 않는다.
   3. 외부 `/Users/chenjing/dev/agrune/.github/profile/README.md` 가 "annotation" → "target mapping" 용어로 sync되고, 제품 표면 설명이 manifest pivot을 반영한다.
   4. `grep -r 'data-agrune-' packages/` 가 테스트 픽스처(`packages/*/test-fixtures/` 등)와 build-linter 레거시 참조 외에는 매치하지 않는다.
-**Plans**: TBD
+**Plans**: 4 plans
+- [x] 17-01-PLAN.md — runtime/browser src legacy 제거 (9 call-site group + 2 파일 삭제 + regression spec 2개 신설)
+- [x] 17-02-PLAN.md — e2e bootstrap manifest-only + legacy-annotated.html 의미 반전
+- [x] 17-03-PLAN.md — 루트 문서 7개 manifest 재작성 + SOT pointer 배치 (`.agents/skills/manifest/SKILL.md`)
+- [x] 17-04-PLAN.md — regression guard script + CI 배선 + `lint:annotations` → `lint:no-legacy` 전환 + 외부 `.github/profile/README.md` sync + external-sync-instructions.md
 **UI hint**: no
 
 ### Phase 18: REGISTRY
@@ -185,9 +189,9 @@
 | 14. MACRO | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 16. RECORD | v0.5 | 4/4 | Complete | 2026-04-19 |
-| 17. REMOVE | v0.5 | 3/4 | In progress | — |
+| 17. REMOVE | v0.5 | 4/4 | Complete | 2026-04-19 |
 | 18. REGISTRY | v0.5 | 0/? | Not started | — |
 
 ---
 
-v0.5 Manifest Pivot 활성. Phase 11-16 완료 (21 plans) + Phase 17 진행 중 (3/4 plans: 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전, 17-03 루트 문서 7개 manifest 재작성 + SOT pointer 배치). Next: 17-04 (외부 profile/skills sync + regression guard + lint:annotations 정리).
+v0.5 Manifest Pivot 활성. Phase 11-17 완료 (25 plans) — 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전, 17-03 루트 문서 7개 manifest 재작성 + SOT pointer 배치, 17-04 regression guard + CI 배선 + `lint:no-legacy` 전환 + 외부 `.github/profile/README.md` sync (로컬 커밋; 사용자 수동 push 대기). Next: Phase 18 (REGISTRY) — schema stable 확정 후 공개.
