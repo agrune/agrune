@@ -313,9 +313,9 @@ export function getEventTargetAtPoint(
  * to override a heuristic — the parameter type is `true | undefined`, not
  * `boolean`, and the schema (@agrune/manifest) rejects `sensitive: false`.
  *
- * MANIFEST-04. Phase 14 extends the DOM heuristic with word-boundary regex
- * on name/id/placeholder/aria-label and multilingual ARIA scanning. This
- * phase establishes the shape and the OR-only contract skeleton.
+ * MANIFEST-04 / MACRO-03. Phase 14 extends the DOM heuristic with
+ * word-boundary regex on name/id/placeholder/aria-label and multilingual
+ * ARIA scanning.
  */
 const AUTOCOMPLETE_SENSITIVE = new Set([
   'current-password',
@@ -326,6 +326,49 @@ const AUTOCOMPLETE_SENSITIVE = new Set([
   'cc-exp',
   'cc-exp-month',
   'cc-exp-year',
+])
+
+// ---------------------------------------------------------------------------
+// Phase 14 MACRO-03: sensitive DOM heuristic 확장 (T-14-01, T-14-02)
+// ---------------------------------------------------------------------------
+
+/**
+ * placeholder / aria-label 속성용 단어 경계 regex.
+ * 공백이 \b 역할을 하므로 영어 단어 토큰에 안전하게 적용된다.
+ * ReDoS 위험 없음 — 고정 길이 alternation만 사용, 중첩 quantifier 없음 (T-14-04).
+ */
+export const SENSITIVE_WORD_BOUNDARY =
+  /\b(password|passwd|pwd|cvv|ssn|secret|pin|otp|passcode)\b/i
+
+/**
+ * name / id 속성용 regex.
+ * underscore · dash · dot · whitespace 를 단어 경계로 처리한다.
+ * 예: "user_password" → match, "passwordless" → no match.
+ */
+export const SENSITIVE_NAME_ATTR =
+  /(?:^|[_\-\s.])(?:password|passwd|pwd|cvv|ssn|secret|pin|otp|passcode)(?:[_\-\s.]|$)/i
+
+/**
+ * 다국어 aria-label exact/token match 목록.
+ * 모든 엔트리는 lowercase·trim 상태로 저장.
+ *
+ * CJK 문자는 \b 가 동작하지 않으므로 (regex word boundary는 \w = [a-zA-Z0-9_] 기준)
+ * Set exact-match 가 의도적 설계다 (research Q6, T-14-02).
+ * ReadonlySet 으로 런타임 override 를 방지 (T-14-06).
+ */
+export const SENSITIVE_ARIA_LABELS_MULTILANG: ReadonlySet<string> = new Set<string>([
+  // 한국어
+  '비밀번호', '패스워드', '핀번호', '보안코드',
+  // 일본어
+  'パスワード', 'ぱすわーど', '暗証番号',
+  // 중국어 간체 / 번체
+  '密码', '口令', '密碼',
+  // 프랑스어 (lowercase + trim 형태로 저장 — 비교 시 .toLowerCase() 적용)
+  'mot de passe',
+  // 독일어
+  'passwort', 'kennwort',
+  // 스페인어
+  'contraseña',
 ])
 
 export function isSensitive(
@@ -349,6 +392,40 @@ export function isSensitive(
 
   // 4. Legacy inline annotation — maintained until Phase 17 REMOVE
   if (element.getAttribute('data-agrune-sensitive') === 'true') return true
+
+  // -------------------------------------------------------------------------
+  // Phase 14 추가 — word-boundary regex (MACRO-03)
+  // -------------------------------------------------------------------------
+
+  // 5. placeholder 속성 — 공백 분리된 토큰에 \b 정상 작동
+  const placeholder = element.getAttribute('placeholder') ?? ''
+  if (placeholder && SENSITIVE_WORD_BOUNDARY.test(placeholder)) return true
+
+  // 6. name 속성 — underscore/dash/dot 구분 경계 regex
+  const nameAttr = element.getAttribute('name') ?? ''
+  if (nameAttr && SENSITIVE_NAME_ATTR.test(nameAttr)) return true
+
+  // 7. id 속성 — name 과 동일 regex (dot separator 포함)
+  const idAttr = element.id ?? ''
+  if (idAttr && SENSITIVE_NAME_ATTR.test(idAttr)) return true
+
+  // -------------------------------------------------------------------------
+  // Phase 14 추가 — 다국어 aria-label (MACRO-03, CJK Set exact-match)
+  // -------------------------------------------------------------------------
+
+  // 8. aria-label — exact phrase match + 공백 분리 토큰 + 영어 word-boundary
+  const ariaLabelRaw = element.getAttribute('aria-label') ?? ''
+  const ariaLabel = ariaLabelRaw.trim().toLowerCase()
+  if (ariaLabel) {
+    // 8a. Exact phrase match (e.g. "mot de passe", "비밀번호")
+    if (SENSITIVE_ARIA_LABELS_MULTILANG.has(ariaLabel)) return true
+    // 8b. 공백 분리 토큰 — CJK 복합 label (e.g. "비밀번호 입력") 처리
+    for (const token of ariaLabel.split(/\s+/)) {
+      if (token && SENSITIVE_ARIA_LABELS_MULTILANG.has(token)) return true
+    }
+    // 8c. 영어 단어 경계 regex (e.g. "Credit card CVV")
+    if (SENSITIVE_WORD_BOUNDARY.test(ariaLabelRaw)) return true
+  }
 
   return false
 }
