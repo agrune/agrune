@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 16-03-PLAN.md
-last_updated: "2026-04-19T12:23:49Z"
-last_activity: 2026-04-19 -- Phase 16 Plan 03 (agrune manifest dev CLI + ts-morph watcher) complete
+stopped_at: Completed 16-04-PLAN.md
+last_updated: "2026-04-19T12:43:26Z"
+last_activity: 2026-04-19 -- Phase 16 Plan 04 (manifest skill + sensitive corpus CI + TodoMVC demo) complete
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -26,14 +26,14 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 16 (record) — EXECUTING
-Plan: 4 of 4 (16-01·16-02·16-03 complete, 16-04 next)
-Status: Executing Phase 16
-Last activity: 2026-04-19 -- Phase 16 Plan 03 (agrune manifest dev CLI + ts-morph watcher) complete
+Phase: 16 (record) — COMPLETE (all 4 plans landed)
+Plan: 4 of 4 complete (16-01 IdentityBridge v2 · 16-02 RecorderView+PendingStore · 16-03 manifest dev CLI+watcher · 16-04 skill+corpus+demo)
+Status: Awaiting Phase 17 planning (/gsd-plan-phase 17)
+Last activity: 2026-04-19 -- Phase 16 Plan 04 (manifest skill + sensitive corpus CI + TodoMVC demo) complete
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
-다음 단계: `/gsd-plan-phase 11` 으로 MANIFEST phase의 plans 분해.
+다음 단계: `/gsd-plan-phase 17` 으로 REMOVE phase의 plans 분해 (inline data-agrune-* 스캐너 제거 + 문서 재작성 + 용어 전환).
 
 ## Accumulated Context
 
@@ -66,13 +66,19 @@ Recent decisions carrying forward:
 - [Phase 16-03]: `buildDefineTargetText` 는 `JSON.stringify` 기반 직렬화 — selector/targetId 안의 따옴표·특수문자가 모두 문자열 리터럴로 escape 됨. `actionKinds: ['click']` 은 하드코딩 (capture 시점에 추론 불가 — recorder 한계 의도적)
 - [Phase 16-03]: tsup banner 에 `__filename`/`__dirname` shim 추가 — ts-morph 가 embed 하는 TypeScript compiler host 가 CJS 글로벌 요구. 빌드된 CLI 가 ESM 환경에서 `ReferenceError` 로 죽던 문제 해결 (Rule 3 auto-fix)
 - [Phase 16-03]: Watcher 테스트는 log-line 기반 `waitFor(predicate)` 로 동기화 — `setImmediate` stacking 은 flaky 했고, production 코드에 test-facing hook 을 뚫지 않고도 deterministic 스펙 확보
+- [Phase 16-04]: Corpus fixture는 실제 `isSensitive()` 동작을 그대로 기록 (aspirational target 금지). heuristic이 실제로 놓치는 케이스(`Security code` placeholder, `name=cvc`, 일본어 concatenated `パスワードの確認`, 한국어 `인증번호`)는 `expected: false` + `notes:` 로 gap 문서화. 향후 개선 시 2줄 diff + 가시적 CI 신호.
+- [Phase 16-04]: TodoMVC fixture는 `@ts-nocheck` + e2e tsconfig include 밖 — `@agrune/e2e` 가 react/@agrune/react peerDep 없음. manifest.ts 는 standalone `tsc` 로 컴파일 검증. 실제 실행은 README.md recipe 로 별도 Vite 프로젝트 lift.
+- [Phase 16-04]: Skill 위치 `.agents/skills/manifest/` (Decision C) — 코드와 skill 진화를 git 으로 같이 추적. Legacy `skills/annotate/` 은 Phase 17 까지 병행.
+- [Phase 16-04]: Precision/recall CI threshold = 0.90/0.95 (plan spec), 실측 = 1.000/1.000. Headroom 은 미세 regression 은 허용하되 5–10% 이상 FP/FN 증가 시 CI fail.
 
 ### Pending Todos
 
 - 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치, v1.1 잔여)
-- Phase 11 계획 분해 (`/gsd-plan-phase 11`)
-- "annotation" → "target mapping" 용어 전환 (Phase 17에서 실행)
+- Phase 17 계획 분해 (`/gsd-plan-phase 17`) — inline data-agrune-* 제거 + "annotation" → "target mapping" 용어 전환
+- Phase 18 계획 분해 (`/gsd-plan-phase 18`) — registry 공개 + governance + seed manifest
 - Registry seed manifest 선정 기준 확정 (Phase 18 research-phase 후보)
+- RECORD-05 TodoMVC 데모 수동 검증 (실제 skill 호출 → README 체크리스트 대조) — 사용자 실행
+- Corpus 확장 (v0.6+): `name=cvc`, `인증번호`, Japanese `パスワードの確認` substring mode 등 documented gap 해결
 
 ### Blockers/Concerns
 
@@ -102,9 +108,13 @@ Recent decisions carrying forward:
 - ~~v0.5(v1.2) milestone 스코프 결정~~ — Manifest Pivot으로 확정 (2026-04-19)
 - ~~v0.5 REQUIREMENTS.md 정의~~ — 37 requirements, 9 categories (2026-04-19)
 - ~~v0.5 ROADMAP.md 생성~~ — Phases 11-18, 100% coverage (2026-04-19)
+- ~~Phase 11 계획 분해~~ — 5 plans 완료 (2026-04-19)
+- ~~Phase 16 RECORD~~ — 4 plans 완료 (16-01 IdentityBridge v2 · 16-02 Recorder+PendingStore · 16-03 manifest dev watcher · 16-04 skill+corpus+demo, 2026-04-19)
+- ~~RECORD-04 sensitive heuristic CI 증명~~ — 116 fixture 코퍼스 + precision 1.000/recall 1.000 CI gate (2026-04-19)
+- ~~RECORD-05 manifest authoring skill 작성~~ — `.agents/skills/manifest/` + TodoMVC reference fixture (2026-04-19, 수동 검증 게이트)
 
 ## Session Continuity
 
-Last session: 2026-04-19T12:23:49Z
-Stopped at: Completed 16-03-PLAN.md
+Last session: 2026-04-19T12:43:26Z
+Stopped at: Completed 16-04-PLAN.md (Phase 16 전체 완료)
 Resume file: None
