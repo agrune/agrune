@@ -15,7 +15,7 @@ describe('NativeMessage type guards', () => {
     const msg: NativeMessage = {
       type: 'snapshot_update',
       tabId: 1,
-      snapshot: { version: 1, capturedAt: Date.now(), url: '', title: '', groups: [], targets: [] },
+      snapshot: { schemaVersion: 3, version: 1, capturedAt: Date.now(), url: '', title: '', groups: [], targets: [] },
     }
     expect(isSnapshotUpdate(msg)).toBe(true)
     expect(isCommandRequest(msg)).toBe(false)

@@ -1,5 +1,7 @@
 import type { ActionKind } from './manifest.js'
+import type { SelectorLadder } from './manifest.js'
 export type { ActionKind } from './manifest.js'
+export type { SelectorLadder } from './manifest.js'
 
 export const COMMAND_ERROR_CODES = [
   'STALE_SNAPSHOT',
@@ -77,7 +79,7 @@ export interface PageTarget {
   name: string
   description: string
   actionKinds: ActionKind[]
-  selector: string
+  selector: SelectorLadder
   visible: boolean
   inViewport: boolean
   enabled: boolean
@@ -97,6 +99,8 @@ export interface PageTarget {
 }
 
 export interface PageSnapshot {
+  /** Protocol schema version. v3 = SelectorLadder ladder on PageTarget.selector. Breaking change vs v2 (see Phase 12 RESOLVE-03). */
+  schemaVersion: 3
   version: number
   capturedAt: number
   url: string
