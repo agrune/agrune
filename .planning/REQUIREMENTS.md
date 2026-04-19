@@ -37,10 +37,10 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### MACRO — Composed Flows + Sensitive
 
-- [ ] **MACRO-01**: `MacroRunner`가 페이지 런타임 내부에서 실행 + 기존 `CommandBroker`/`HitlController`/`action-queue` 재사용
-- [ ] **MACRO-02**: MCP tool `agrune_macro_run(macroId, params)` 노출
-- [ ] **MACRO-03**: `SensitiveMask` DOM heuristic(type=password, autocomplete whitelist, 단어 경계 regex, 다국어 ARIA label)이 snapshot/log/valuePreview에서 자동 마스킹
-- [ ] **MACRO-04**: Macro precondition/postcondition 실패 시 circuit breaker 발동 — partial-execution account-lockout 방지
+- [x] **MACRO-01**: `MacroRunner`가 페이지 런타임 내부에서 실행 + 기존 `CommandBroker`/`HitlController`/`action-queue` 재사용
+- [x] **MACRO-02**: MCP tool `agrune_macro_run(macroId, params)` 노출
+- [x] **MACRO-03**: `SensitiveMask` DOM heuristic(type=password, autocomplete whitelist, 단어 경계 regex, 다국어 ARIA label)이 snapshot/log/valuePreview에서 자동 마스킹
+- [x] **MACRO-04**: Macro precondition/postcondition 실패 시 circuit breaker 발동 — partial-execution account-lockout 방지
 
 ### REPEAT — Dynamic Lists
 
@@ -137,10 +137,10 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | REACT-03 | Phase 13 | Complete |
 | REACT-04 | Phase 13 | Complete |
 | REACT-05 | Phase 13 | Complete |
-| MACRO-01 | Phase 14 | Pending |
-| MACRO-02 | Phase 14 | Pending |
-| MACRO-03 | Phase 14 | Pending |
-| MACRO-04 | Phase 14 | Pending |
+| MACRO-01 | Phase 14 | Complete |
+| MACRO-02 | Phase 14 | Complete |
+| MACRO-03 | Phase 14 | Complete |
+| MACRO-04 | Phase 14 | Complete |
 | REPEAT-01 | Phase 15 | Pending |
 | REPEAT-02 | Phase 15 | Pending |
 | REPEAT-03 | Phase 15 | Pending |

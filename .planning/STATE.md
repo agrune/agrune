@@ -4,13 +4,13 @@ milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
 stopped_at: Completed 11-03-PLAN.md
-last_updated: "2026-04-19T09:19:02.980Z"
-last_activity: 2026-04-19 -- Phase 13 execution started
+last_updated: "2026-04-19T10:06:25.479Z"
+last_activity: 2026-04-19 -- Phase 14 execution started
 progress:
   total_phases: 8
-  completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
+  completed_phases: 4
+  total_plans: 14
+  completed_plans: 14
   percent: 100
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Phase 13 — REACT
+**Current focus:** Phase 14 — MACRO
 
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 13 (REACT) — EXECUTING
+Phase: 14 (MACRO) — EXECUTING
 Plan: 1 of 3
-Status: Executing Phase 13
-Last activity: 2026-04-19 -- Phase 13 execution started
+Status: Executing Phase 14
+Last activity: 2026-04-19 -- Phase 14 execution started
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 

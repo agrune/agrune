@@ -35,7 +35,7 @@
 - [x] **Phase 11: MANIFEST** — `@agrune/manifest` SDK + v3 schema + CSS-only runtime resolver
 - [x] **Phase 12: INJECT** — CDP manifest preload + `agrune_manifest_load` MCP tool + PageSnapshot v3 landing
 - [x] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
-- [ ] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
+- [x] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [ ] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
 - [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite
 - [ ] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
@@ -103,9 +103,9 @@
   3. Macro precondition(예: `login-form visible`) 실패 시 step 실행 전에 중단되고 "already-in-target-state" 신호가 반환된다. Postcondition 실패 또는 연속 실패 시 circuit breaker가 발동해 partial execution account-lockout을 방지한다.
   4. MacroRunner가 기존 `CommandBroker`/`HitlController`/`action-queue` 를 재사용해 devtools 웹앱 command log에 step별 progress가 스트리밍되고, `sensitive:true` step은 HITL gate를 강제한다.
 **Plans**: 3 plans
-- [ ] 14-01-PLAN.md — isSensitive 확장 (word-boundary regex + 다국어 ARIA label) for MACRO-03
-- [ ] 14-02-PLAN.md — MacroRunner + circuit breaker + PageAgentRuntime.runMacro for MACRO-01/MACRO-04
-- [ ] 14-03-PLAN.md — agrune_macro_run MCP tool (3파일 동기화) + 4개 에러 코드 + CdpDriver.runMacro for MACRO-02
+- [x] 14-01-PLAN.md — isSensitive 확장 (word-boundary regex + 다국어 ARIA label) for MACRO-03
+- [x] 14-02-PLAN.md — MacroRunner + circuit breaker + PageAgentRuntime.runMacro for MACRO-01/MACRO-04
+- [x] 14-03-PLAN.md — agrune_macro_run MCP tool (3파일 동기화) + 4개 에러 코드 + CdpDriver.runMacro for MACRO-02
 **UI hint**: no
 
 ### Phase 15: REPEAT
@@ -175,7 +175,7 @@
 | 11. MANIFEST | v0.5 | 5/5 | Complete | 2026-04-19 |
 | 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 13. REACT | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 14. MACRO | v0.5 | 0/3 | Planned | — |
+| 14. MACRO | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 15. REPEAT | v0.5 | 0/? | Not started | — |
 | 16. RECORD | v0.5 | 0/? | Not started | — |
 | 17. REMOVE | v0.5 | 0/? | Not started | — |
