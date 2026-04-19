@@ -8,6 +8,7 @@ const HELP_TEXT = `agrune — AI 에이전트용 CDP 기반 브라우저 자동�
 
 Usage:
   agrune [options]
+  agrune manifest validate <file> [--url <url>] [--wait-selector <css>]
 
 Options:
   --headless              Chrome 을 headless 모드로 실행 (UI 없음)
@@ -22,6 +23,10 @@ Options:
   -h, --help              이 도움말 출력 후 종료
   -v, --version           버전 출력 후 종료
 
+Subcommands:
+  manifest validate <file> [--url <url>] [--wait-selector <css>]
+                          manifest schema 검증 (+ --url 지정 시 live DOM selector 검증)
+
 DevTools 웹앱: http://localhost:<port>/devtools  (기본 포트 47654)
 
 예시:
@@ -30,6 +35,8 @@ DevTools 웹앱: http://localhost:<port>/devtools  (기본 포트 47654)
   agrune --attach ws://127.0.0.1:9222/...  # 기존 Chrome 에 연결
   agrune --port 47655 --no-devtools        # 포트 변경 + DevTools 비활성화
   agrune --user-data-dir ~/.agrune/profile # automation profile 재사용
+  agrune manifest validate my.manifest.ts  # manifest schema 검증
+  agrune manifest validate my.manifest.json --url http://localhost:3000  # schema + live DOM
 
 문서: https://github.com/agrune/agrune
 `
@@ -44,6 +51,22 @@ if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write(`agrune v${MCP_SERVER_VERSION}\n`)
   process.exit(0)
 }
+
+// ── 서브커맨드 분기 ────────────────────────────────────────────────────────────
+// manifest 서브커맨드는 CdpDriver / createMcpServer 를 전혀 건드리지 않고
+// process.exit() 로 종료하므로 기존 MCP 서버 플로우에 영향이 없다 (T-11-27).
+if (args[0] === 'manifest') {
+  const subArgs = args.slice(1)
+  if (subArgs[0] === 'validate') {
+    const { runValidateCli } = await import('../src/manifest-validate-cli.js')
+    const code = await runValidateCli(subArgs.slice(1))
+    process.exit(code)
+  }
+  process.stderr.write(`Unknown manifest subcommand: ${subArgs[0] ?? '(none)'}\n`)
+  process.stderr.write(`Usage: agrune manifest validate <file> [--url <url>]\n`)
+  process.exit(1)
+}
+// ── 서브커맨드 분기 끝 ─────────────────────────────────────────────────────────
 
 const attachEndpoint = getArgValue('--attach')
 const headless = args.includes('--headless')

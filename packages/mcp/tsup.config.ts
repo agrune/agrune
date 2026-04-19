@@ -10,7 +10,10 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   target: 'es2022',
-  noExternal: [/.*/],
+  // Bundle everything except @playwright/* and playwright-core which use native
+  // binaries and CJS internals (chromium-bidi) that esbuild cannot resolve.
+  // These are resolved at runtime from node_modules instead.
+  noExternal: [/^(?!@playwright|playwright|chromium-bidi).*/],
   define: {
     __MCP_SERVER_VERSION__: JSON.stringify(pkg.version),
   },
