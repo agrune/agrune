@@ -46,6 +46,14 @@ describe('RecorderController (Phase 16 RECORD-02)', () => {
     const broadcast = vi.fn()
     const controller = new RecorderController(pending as never, broadcast)
     controller.handleToggle() // idle → picking
+    // WR-03 guard: commit 은 recording-action 상태에서만 허용되므로 반드시
+    // capture 를 먼저 시뮬레이트 해야 한다.
+    controller.handleCaptured({
+      url: 'https://example.com',
+      roleSelector: { role: 'button', name: 'Login' },
+      cssSelector: 'button.login',
+      autoTargetId: 'loginButton_1',
+    })
 
     await controller.handleCommit(validCommit())
     expect(pending.writePending).toHaveBeenCalledTimes(1)
@@ -61,6 +69,13 @@ describe('RecorderController (Phase 16 RECORD-02)', () => {
     const pending = makePendingStoreMock()
     const broadcast = vi.fn()
     const controller = new RecorderController(pending as never, broadcast)
+    // WR-03 guard 때문에 recording-action 전이 먼저.
+    controller.handleToggle()
+    controller.handleCaptured({
+      url: 'https://example.com',
+      cssSelector: 'button.login',
+      autoTargetId: 'loginButton_1',
+    })
 
     await controller.handleCommit(validCommit({ targetId: "x'); drop;--" }))
     expect(pending.writePending).not.toHaveBeenCalled()
@@ -78,6 +93,47 @@ describe('RecorderController (Phase 16 RECORD-02)', () => {
       const msg = errorCalls[0] as { code?: string }
       expect(msg.code).toBe('RECORDER_INVALID_TARGET_ID')
     }
+  })
+
+  it('R6 (WR-03): handleCommit in idle mode is refused with RECORDER_NOT_RECORDING error', async () => {
+    const pending = makePendingStoreMock()
+    const broadcast = vi.fn()
+    const controller = new RecorderController(pending as never, broadcast)
+    // idle 상태에서 직접 commit → reject
+    await controller.handleCommit(validCommit())
+    expect(pending.writePending).not.toHaveBeenCalled()
+    const errorCalls = broadcast.mock.calls.find(
+      ([msg]) =>
+        typeof msg === 'object' &&
+        msg !== null &&
+        (msg as { type?: string }).type === 'recorder_error',
+    )
+    expect(errorCalls).toBeDefined()
+    const msg = errorCalls![0] as { code?: string }
+    expect(msg.code).toBe('RECORDER_NOT_RECORDING')
+    // 모드는 여전히 idle
+    expect(controller.getMode()).toBe('idle')
+  })
+
+  it('R7 (WR-03): handleCommit in picking mode (before capture) is also refused', async () => {
+    const pending = makePendingStoreMock()
+    const broadcast = vi.fn()
+    const controller = new RecorderController(pending as never, broadcast)
+    controller.handleToggle() // idle → picking, 아직 capture 없음
+    broadcast.mockClear()
+    await controller.handleCommit(validCommit())
+    expect(pending.writePending).not.toHaveBeenCalled()
+    const errorCalls = broadcast.mock.calls.find(
+      ([msg]) =>
+        typeof msg === 'object' &&
+        msg !== null &&
+        (msg as { type?: string }).type === 'recorder_error',
+    )
+    expect(errorCalls).toBeDefined()
+    const msg = errorCalls![0] as { code?: string }
+    expect(msg.code).toBe('RECORDER_NOT_RECORDING')
+    // 여전히 picking 모드 유지
+    expect(controller.getMode()).toBe('picking')
   })
 
   it('R4: reset() forces mode to idle and broadcasts (disconnect handling, Pitfall 6 server-side)', () => {

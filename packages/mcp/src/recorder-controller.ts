@@ -84,8 +84,22 @@ export class RecorderController {
   /**
    * Persist the capture into pending storage. On success resets to idle;
    * on validation failure emits a recorder_error and leaves mode untouched.
+   *
+   * WR-03: `recording-action` 모드에서만 commit 을 허용한다. 이를 통해
+   * 인증 없는 WS 엔드포인트로 붙은 악성 클라이언트가 idle 상태에서
+   * recorder_commit 을 쏴서 pending 디렉터리를 채우는 경로를 차단한다.
+   * 정상 플로우는 반드시 handleCaptured → handleCommit 순서이며, 그 외
+   * 시점의 commit 은 RECORDER_NOT_RECORDING error 로 거절된다.
    */
   async handleCommit(payload: CommitPayload): Promise<void> {
+    if (this.mode !== 'recording-action') {
+      this.broadcast({
+        type: 'recorder_error',
+        code: 'RECORDER_NOT_RECORDING',
+        message: 'cannot commit: recorder is not in recording-action mode',
+      })
+      return
+    }
     // Prefer the in-flight sessionId over whatever the client echoed.
     const sessionId = this.sessionId ?? sanitizedUuid()
 
