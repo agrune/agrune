@@ -1,0 +1,56 @@
+name: Weekly Health Check
+
+on:
+  schedule:
+    # Monday 06:00 UTC — off-peak for US/EU/APAC, minimises load on external sites
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write    # commit .github/health-state.json
+  issues: write      # open stale manifests issue (2-strike rule)
+
+concurrency:
+  group: health-check
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install script dependencies
+        working-directory: .github/scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Install Playwright Chromium
+        working-directory: .github/scripts
+        run: npx playwright install --with-deps chromium
+
+      - name: Run health check (snapshot-only)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .github/scripts/health-check.mjs
+
+      - name: Commit updated health-state.json
+        run: |
+          git config user.name "agrune-health-bot"
+          git config user.email "health-bot@agrune.invalid"
+          git add .github/health-state.json
+          if git diff --cached --quiet; then
+            echo "no changes to health-state.json"
+          else
+            git commit -m "chore(health): update consecutive-fail state"
+            git push
+          fi

@@ -1,0 +1,52 @@
+name: PR Bot
+
+# Uses pull_request_target (not pull_request) so that GITHUB_TOKEN has the
+# necessary issues/pull-requests:write scope when the PR originates from a
+# fork. Safety note (T-18-26): this workflow only attaches labels via
+# `octokit.issues.addLabels` — no file writes back to the repo, no
+# `npm install` of untrusted fork code, and the checkout ref is explicitly
+# pinned to the PR head SHA so there is no ambiguity about which source
+# tree is being analysed.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'manifests/**'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-bot-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR head (read-only analysis only)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install script dependencies
+        working-directory: .github/scripts
+        run: npm install --no-audit --no-fund
+
+      - name: Analyze PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node .github/scripts/pr-bot.mjs
