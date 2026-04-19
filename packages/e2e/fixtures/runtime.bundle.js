@@ -22,12 +22,9 @@ var __agrune_runtime__ = (() => {
   var page_runtime_exports = {};
   __export(page_runtime_exports, {
     buildEmptyManifest: () => buildEmptyManifest,
-    buildManifest: () => buildManifest,
     createPageAgentRuntime: () => createPageAgentRuntime,
     getInstalledPageAgentRuntime: () => getInstalledPageAgentRuntime,
-    installPageAgentRuntime: () => installPageAgentRuntime,
-    scanAnnotations: () => scanAnnotations,
-    scanGroups: () => scanGroups
+    installPageAgentRuntime: () => installPageAgentRuntime
   });
 
   // ../core/dist/index.js
@@ -433,23 +430,6 @@ var __agrune_runtime__ = (() => {
       clientY: rect.top + rect.height / 2
     };
   }
-  function getVisibleCenter(element) {
-    const rect = element.getBoundingClientRect();
-    const visibleLeft = Math.max(rect.left, 0);
-    const visibleTop = Math.max(rect.top, 0);
-    const visibleRight = Math.min(rect.right, window.innerWidth);
-    const visibleBottom = Math.min(rect.bottom, window.innerHeight);
-    if (visibleRight <= visibleLeft || visibleBottom <= visibleTop) {
-      return {
-        clientX: rect.left + rect.width / 2,
-        clientY: rect.top + rect.height / 2
-      };
-    }
-    return {
-      clientX: (visibleLeft + visibleRight) / 2,
-      clientY: (visibleTop + visibleBottom) / 2
-    };
-  }
   function getDragPlacementCoords(element, placement) {
     const rect = element.getBoundingClientRect();
     const horizontalCenter = rect.left + rect.width / 2;
@@ -481,6 +461,30 @@ var __agrune_runtime__ = (() => {
     "cc-exp-month",
     "cc-exp-year"
   ]);
+  var SENSITIVE_WORD_BOUNDARY = /\b(password|passwd|pwd|cvv|ssn|secret|pin|otp|passcode)\b/i;
+  var SENSITIVE_NAME_ATTR = /(?:^|[_\-\s.])(?:password|passwd|pwd|cvv|ssn|secret|pin|otp|passcode)(?:[_\-\s.]|$)/i;
+  var SENSITIVE_ARIA_LABELS_MULTILANG = /* @__PURE__ */ new Set([
+    // 한국어
+    "\uBE44\uBC00\uBC88\uD638",
+    "\uD328\uC2A4\uC6CC\uB4DC",
+    "\uD540\uBC88\uD638",
+    "\uBCF4\uC548\uCF54\uB4DC",
+    // 일본어
+    "\u30D1\u30B9\u30EF\u30FC\u30C9",
+    "\u3071\u3059\u308F\u30FC\u3069",
+    "\u6697\u8A3C\u756A\u53F7",
+    // 중국어 간체 / 번체
+    "\u5BC6\u7801",
+    "\u53E3\u4EE4",
+    "\u5BC6\u78BC",
+    // 프랑스어 (lowercase + trim 형태로 저장 — 비교 시 .toLowerCase() 적용)
+    "mot de passe",
+    // 독일어
+    "passwort",
+    "kennwort",
+    // 스페인어
+    "contrase\xF1a"
+  ]);
   function isSensitive(element, manifestFlag) {
     if (manifestFlag === true) return true;
     if (element instanceof HTMLInputElement && element.type === "password") {
@@ -491,7 +495,21 @@ var __agrune_runtime__ = (() => {
       const normalized = autocomplete.toLowerCase().trim();
       if (AUTOCOMPLETE_SENSITIVE.has(normalized)) return true;
     }
-    if (element.getAttribute("data-agrune-sensitive") === "true") return true;
+    const placeholder = element.getAttribute("placeholder") ?? "";
+    if (placeholder && SENSITIVE_WORD_BOUNDARY.test(placeholder)) return true;
+    const nameAttr = element.getAttribute("name") ?? "";
+    if (nameAttr && SENSITIVE_NAME_ATTR.test(nameAttr)) return true;
+    const idAttr = element.id ?? "";
+    if (idAttr && SENSITIVE_NAME_ATTR.test(idAttr)) return true;
+    const ariaLabelRaw = element.getAttribute("aria-label") ?? "";
+    const ariaLabel = ariaLabelRaw.trim().toLowerCase();
+    if (ariaLabel) {
+      if (SENSITIVE_ARIA_LABELS_MULTILANG.has(ariaLabel)) return true;
+      for (const token of ariaLabel.split(/\s+/)) {
+        if (token && SENSITIVE_ARIA_LABELS_MULTILANG.has(token)) return true;
+      }
+      if (SENSITIVE_WORD_BOUNDARY.test(ariaLabelRaw)) return true;
+    }
     return false;
   }
   function isOverlayElement(element) {
@@ -516,41 +534,6 @@ var __agrune_runtime__ = (() => {
   }
   function canReceiveTextInput(element) {
     return isFillableElement(element) || isContentEditableElement(element);
-  }
-  function escapeAttributeValue(value) {
-    return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-  }
-  function buildDomPathSelector(element) {
-    const segments = [];
-    let current = element;
-    while (current && current !== document.body) {
-      const tagName = current.tagName.toLowerCase();
-      let siblingIndex = 1;
-      let sibling = current.previousElementSibling;
-      while (sibling) {
-        if (sibling.tagName === current.tagName) {
-          siblingIndex += 1;
-        }
-        sibling = sibling.previousElementSibling;
-      }
-      segments.unshift(`${tagName}:nth-of-type(${siblingIndex})`);
-      current = current.parentElement;
-    }
-    return `body > ${segments.join(" > ")}`;
-  }
-  function buildLiveSelector(element) {
-    const key = element.getAttribute("data-agrune-key")?.trim();
-    if (key) {
-      return `[data-agrune-key="${escapeAttributeValue(key)}"]`;
-    }
-    const name = element.getAttribute("data-agrune-name")?.trim();
-    if (name) {
-      const selector = `[data-agrune-name="${escapeAttributeValue(name)}"]`;
-      if (document.querySelectorAll(selector).length === 1) {
-        return selector;
-      }
-    }
-    return buildDomPathSelector(element);
   }
   function isRelevantSnapshotMutation(mutation) {
     if (mutation.type === "attributes") {
@@ -605,61 +588,141 @@ var __agrune_runtime__ = (() => {
       }
     }
   }
-  function viewportToCanvas(viewportX, viewportY, transform) {
-    return {
-      x: Math.round((viewportX - transform.translateX) / transform.scale),
-      y: Math.round((viewportY - transform.translateY) / transform.scale)
-    };
-  }
-  function canvasToViewport(canvasX, canvasY, transform) {
-    return {
-      x: Math.round(canvasX * transform.scale + transform.translateX),
-      y: Math.round(canvasY * transform.scale + transform.translateY)
-    };
-  }
-  function parseTransform(element) {
-    const rect = element.getBoundingClientRect();
-    const style = window.getComputedStyle(element);
-    if (!style.transform || style.transform === "none") {
-      return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 };
+
+  // src/runtime/repeat-expander.ts
+  var REPEAT_MAX_INSTANCES = 1e3;
+  var RepeatExpander = class {
+    /**
+     * DOM strategy: container(또는 document) 안에서 row CSS selector로 전체 element 열거.
+     * keyFrom은 `new Function('el', expr)` 스코프 격리 실행 (T-14-07).
+     */
+    expand(repeat, container) {
+      const scope = container ?? document;
+      const rowCss = this.resolveRowCss(repeat);
+      const all = Array.from(scope.querySelectorAll(rowCss));
+      const capped = this.applyCap(all, repeat.repeatId);
+      return this.buildInstances(capped, repeat.keyFrom, repeat.repeatId);
     }
-    const m = new DOMMatrix(style.transform);
-    return {
-      translateX: Math.round(rect.left),
-      translateY: Math.round(rect.top),
-      scale: Math.round(m.a * 1e3) / 1e3
-    };
-  }
-  async function autoPanToCanvasPoint(canvasX, canvasY, groupEl, canvasSelector, eventSequences, maxAttempts = 3) {
-    const MARGIN = 50;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const transformEl2 = groupEl.querySelector(canvasSelector);
-      if (!transformEl2) return null;
-      const transform = parseTransform(transformEl2);
-      const vp = canvasToViewport(canvasX, canvasY, transform);
-      if (vp.x >= MARGIN && vp.y >= MARGIN && vp.x <= window.innerWidth - MARGIN && vp.y <= window.innerHeight - MARGIN) {
-        return transform;
+    /**
+     * Virtualized strategy: viewport 내부 row만 반환 + aria-rowcount/setsize READ-ONLY 추출.
+     * Pitfall 5: setAttribute 절대 금지.
+     */
+    expandVirtualized(repeat, container) {
+      const scope = container ?? document;
+      const rowCss = this.resolveRowCss(repeat);
+      const all = Array.from(scope.querySelectorAll(rowCss));
+      const visible = all.filter((el) => isElementInViewport(el));
+      const capped = this.applyCap(visible, repeat.repeatId);
+      const instances = this.buildInstances(capped, repeat.keyFrom, repeat.repeatId);
+      const logicalSize = this.readLogicalSize(container ?? null);
+      return { instances, logicalSize };
+    }
+    // ---------------------------------------------------------------------------
+    // Private helpers
+    // ---------------------------------------------------------------------------
+    /**
+     * repeat.targets[0].selector.css를 row CSS selector로 사용.
+     * css 없으면 testId → role → '*' 순서로 fallback.
+     */
+    resolveRowCss(repeat) {
+      const firstTarget = repeat.targets[0];
+      if (!firstTarget) return "*";
+      const ladder = firstTarget.selector;
+      if (ladder.css) return ladder.css;
+      if (ladder.testId) return `[data-testid="${CSS.escape(ladder.testId)}"]`;
+      if (ladder.role) return `[role="${CSS.escape(ladder.role.name)}"]`;
+      if (ladder.attr) return `[${ladder.attr}]`;
+      return "*";
+    }
+    /**
+     * 리스트를 REPEAT_MAX_INSTANCES 개까지만 허용 (DoS cap, T-15-06).
+     * 초과 시 경고 + 앞 1000개만 반환.
+     */
+    applyCap(list, repeatId) {
+      if (list.length <= REPEAT_MAX_INSTANCES) return list;
+      console.warn(
+        `[agrune] RepeatExpander: repeat "${repeatId}" truncated from ${list.length} to ${REPEAT_MAX_INSTANCES} instances (DoS cap)`
+      );
+      return list.slice(0, REPEAT_MAX_INSTANCES);
+    }
+    /**
+     * element 배열 → RepeatInstance 배열.
+     *
+     * keyFrom 평가 순서:
+     *   1. `new Function('el', `return String(${expr})`)` 컴파일 시도 (T-15-05 스코프 격리)
+     *   2. 컴파일 실패(문법 오류, CSP EvalError) → 경고 + 모든 인스턴스 fallback `__idx_N`
+     *   3. 런타임 실행 실패(ReferenceError, 예외) → 해당 인스턴스만 fallback + 경고
+     *   4. 결과가 undefined/null/'undefined'/'null' → fallback + 경고
+     *   5. 중복 key → `{key}__dup_{index}` suffix + 경고 (Pitfall 3)
+     */
+    buildInstances(els, keyFromExpr, repeatId) {
+      let keyFn = null;
+      try {
+        keyFn = new Function("el", `return String(${keyFromExpr})`);
+      } catch (err) {
+        console.warn(
+          `[agrune] RepeatExpander: keyFrom compile failed for repeat "${repeatId}":`,
+          err
+        );
       }
-      const centerX = window.innerWidth / 2;
-      const centerY = window.innerHeight / 2;
-      const deltaX = vp.x - centerX;
-      const deltaY = vp.y - centerY;
-      await eventSequences.wheel({ x: centerX, y: centerY }, deltaY, false);
-      await new Promise((r) => setTimeout(r, 100));
-      const newTransform = parseTransform(transformEl2);
-      if (newTransform.translateX === transform.translateX && newTransform.translateY === transform.translateY && newTransform.scale === transform.scale) {
+      const seen = /* @__PURE__ */ new Map();
+      return els.map((el, index) => {
+        let key;
+        if (keyFn) {
+          try {
+            const raw = keyFn(el);
+            if (raw === void 0 || raw === null || raw === "undefined" || raw === "null") {
+              console.warn(
+                `[agrune] RepeatExpander: keyFrom returned ${JSON.stringify(raw)} for repeat "${repeatId}" at index ${index}, using fallback`
+              );
+              key = `__idx_${index}`;
+            } else {
+              key = raw;
+            }
+          } catch (err) {
+            console.warn(
+              `[agrune] RepeatExpander: keyFrom eval failed for repeat "${repeatId}" at index ${index}:`,
+              err
+            );
+            key = `__idx_${index}`;
+          }
+        } else {
+          key = `__idx_${index}`;
+        }
+        if (seen.has(key)) {
+          const dupKey = `${key}__dup_${index}`;
+          console.warn(
+            `[agrune] RepeatExpander: duplicate key "${key}" for repeat "${repeatId}" at index ${index}, using "${dupKey}"`
+          );
+          seen.set(dupKey, index);
+          return { el, key: dupKey, index };
+        }
+        seen.set(key, index);
+        return { el, key, index };
+      });
+    }
+    /**
+     * container element에서 aria-rowcount/setsize를 READ-ONLY로 읽어 logicalSize 반환.
+     * Pitfall 5: setAttribute/setAttributeNS 절대 금지 — T-15-10 mitigate.
+     *
+     * 우선순위: aria-rowcount > aria-setsize > null
+     */
+    readLogicalSize(container) {
+      if (!container) return null;
+      const rowCount = container.getAttribute("aria-rowcount");
+      if (rowCount !== null) {
+        const n = Number.parseInt(rowCount, 10);
+        if (Number.isFinite(n) && n >= 0) return n;
         return null;
       }
+      const setSize = container.getAttribute("aria-setsize");
+      if (setSize !== null) {
+        const n = Number.parseInt(setSize, 10);
+        if (Number.isFinite(n) && n >= 0) return n;
+      }
+      return null;
     }
-    const transformEl = groupEl.querySelector(canvasSelector);
-    if (!transformEl) return null;
-    const finalTransform = parseTransform(transformEl);
-    const finalVp = canvasToViewport(canvasX, canvasY, finalTransform);
-    if (isPointInsideViewport(finalVp.x, finalVp.y)) {
-      return finalTransform;
-    }
-    return null;
-  }
+  };
 
   // src/runtime/target-resolver.ts
   var HASH_CLASS_PATTERN = /\.[a-zA-Z0-9]{8,}(?![a-zA-Z0-9-])/;
@@ -736,6 +799,16 @@ var __agrune_runtime__ = (() => {
     return value.replace(/["\\]/g, "\\$&");
   }
   function resolveByLadder(ladder, doc = document) {
+    if (ladder.fiber) {
+      const bridge = globalThis.__agrune_identity__;
+      if (bridge && typeof bridge.resolve === "function") {
+        try {
+          const el = bridge.resolve(ladder.fiber.path);
+          if (el) return [el];
+        } catch {
+        }
+      }
+    }
     if (ladder.role) {
       const matched = resolveByRole(doc, ladder.role);
       if (matched.length > 0) return matched;
@@ -762,31 +835,20 @@ var __agrune_runtime__ = (() => {
   // src/runtime/snapshot.ts
   var VALID_ACTIONS = /* @__PURE__ */ new Set(["click", "fill", "dblclick", "contextmenu", "hover", "longpress"]);
   var ACT_COMPATIBLE_KINDS = /* @__PURE__ */ new Set(["click", "dblclick", "contextmenu", "hover", "longpress"]);
-  var LIVE_SCAN_ACTION_SELECTOR = "[data-agrune-action]";
-  var LIVE_SCAN_GROUP_SELECTOR = "[data-agrune-group]";
-  var LIVE_SCAN_DEFAULT_GROUP_ID = "default";
-  var LIVE_SCAN_DEFAULT_GROUP_NAME = "Default";
   var DOM_SETTLE_TIMEOUT_MS = 320;
   var DOM_SETTLE_QUIET_WINDOW_MS = 48;
   var DOM_SETTLE_STABLE_FRAMES = 2;
   var SNAPSHOT_RELEVANT_ATTRIBUTES = [
     "aria-modal",
     "class",
-    "data-agrune-action",
-    "data-agrune-canvas",
-    "data-agrune-desc",
-    "data-agrune-group",
-    "data-agrune-group-desc",
-    "data-agrune-group-name",
-    "data-agrune-key",
-    "data-agrune-meta",
-    "data-agrune-name",
     "disabled",
     "hidden",
     "role",
     "style"
   ];
   var REPEATED_TARGET_ID_DELIMITER = "__agrune_idx_";
+  var REPEATED_TARGET_KEY_DELIMITER = "__agrune_repeatKey_";
+  var _repeatExpander = new RepeatExpander();
   function collectDescriptors(manifest) {
     const result = [];
     for (const group of manifest.groups) {
@@ -802,97 +864,84 @@ var __agrune_runtime__ = (() => {
         });
       }
       for (const repeat of group.repeats ?? []) {
-        for (const target of repeat.targets) {
-          const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k));
-          if (kinds.length === 0) continue;
-          result.push({
-            actionKinds: [...new Set(kinds)],
-            groupId: group.groupId,
-            groupName: group.name,
-            groupDesc: group.desc,
-            target
-          });
+        const { instances, logicalSize } = _expandRepeat(repeat);
+        for (const instance of instances) {
+          for (const target of repeat.targets) {
+            const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k));
+            if (kinds.length === 0) continue;
+            result.push({
+              actionKinds: [...new Set(kinds)],
+              groupId: group.groupId,
+              groupName: group.name,
+              groupDesc: group.desc,
+              target,
+              repeatInstance: {
+                repeatId: repeat.repeatId,
+                index: instance.index,
+                key: instance.key
+              },
+              _instanceEl: instance.el,
+              _repeatStrategy: repeat.strategy,
+              _repeatLogicalSize: logicalSize
+            });
+          }
         }
       }
     }
     return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId));
   }
-  function collectLiveDescriptors() {
-    const result = [];
-    const elements = document.querySelectorAll(LIVE_SCAN_ACTION_SELECTOR);
-    elements.forEach((element, index) => {
-      const rawAction = element.getAttribute("data-agrune-action") ?? "";
-      const kinds = [...new Set(
-        rawAction.split(",").map((a) => a.trim()).filter((a) => VALID_ACTIONS.has(a))
-      )];
-      if (kinds.length === 0) return;
-      const key = element.getAttribute("data-agrune-key")?.trim();
-      const groupEl = element.closest(LIVE_SCAN_GROUP_SELECTOR);
-      const groupId = groupEl?.getAttribute("data-agrune-group")?.trim() || LIVE_SCAN_DEFAULT_GROUP_ID;
-      result.push({
-        actionKinds: kinds,
-        groupId,
-        groupName: groupEl?.getAttribute("data-agrune-group-name") || (groupId === LIVE_SCAN_DEFAULT_GROUP_ID ? LIVE_SCAN_DEFAULT_GROUP_NAME : groupId),
-        groupDesc: groupEl?.getAttribute("data-agrune-group-desc") || void 0,
-        target: {
-          targetId: key || `agrune_${index}`,
-          name: element.getAttribute("data-agrune-name") ?? void 0,
-          desc: element.getAttribute("data-agrune-desc") ?? void 0,
-          actionKinds: kinds,
-          // Legacy live scan wraps CSS selector in SelectorLadder — Phase 17에서 제거 예정
-          selector: { css: buildLiveSelector(element) },
-          sourceFile: "",
-          sourceLine: 0,
-          sourceColumn: 0
-        }
-      });
-    });
-    return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId));
-  }
-  function mergeDescriptors(manifestDescriptors, liveDescriptors) {
-    if (liveDescriptors.length === 0) {
-      return manifestDescriptors;
+  function _expandRepeat(repeat) {
+    const containerEl = repeat.containerSelector ? resolveByLadder(repeat.containerSelector)[0] ?? void 0 : void 0;
+    if (repeat.strategy === "virtualized") {
+      const result = _repeatExpander.expandVirtualized(repeat, containerEl);
+      return { instances: result.instances, logicalSize: result.logicalSize };
     }
-    const merged = new Map(
-      manifestDescriptors.map((descriptor) => [descriptor.target.targetId, descriptor])
-    );
-    let changed = false;
-    for (const descriptor of liveDescriptors) {
-      const existing = merged.get(descriptor.target.targetId);
-      if (!existing) {
-        merged.set(descriptor.target.targetId, descriptor);
-        changed = true;
-        continue;
-      }
-      merged.set(descriptor.target.targetId, {
-        actionKinds: descriptor.actionKinds,
-        groupId: descriptor.groupId,
-        groupName: descriptor.groupName,
-        groupDesc: descriptor.groupDesc,
-        target: {
-          ...existing.target,
-          name: descriptor.target.name ?? existing.target.name,
-          desc: descriptor.target.desc ?? existing.target.desc,
-          selector: descriptor.target.selector
-        }
-      });
-      changed = true;
-    }
-    if (!changed) {
-      return manifestDescriptors;
-    }
-    return Array.from(merged.values()).sort((left, right) => left.target.targetId.localeCompare(right.target.targetId));
+    return { instances: _repeatExpander.expand(repeat, containerEl), logicalSize: null };
   }
   function findElements(descriptor) {
+    if (descriptor._instanceEl) {
+      const rowEl = descriptor._instanceEl;
+      const ladder = descriptor.target.selector;
+      if (ladder.css) {
+        const scoped = Array.from(rowEl.querySelectorAll(ladder.css));
+        if (scoped.length > 0) return scoped;
+      }
+      return [rowEl];
+    }
     return resolveByLadder(descriptor.target.selector);
   }
-  function toRuntimeTargetId(baseTargetId, index, total) {
-    if (total <= 1) {
+  function toRuntimeTargetId(baseTargetId, indexOrRepeat, total) {
+    if (typeof indexOrRepeat === "object") {
+      return `${indexOrRepeat.repeatId}${REPEATED_TARGET_KEY_DELIMITER}${indexOrRepeat.key}.${baseTargetId}`;
+    }
+    const index = indexOrRepeat;
+    const resolvedTotal = total ?? 1;
+    if (resolvedTotal <= 1) {
       return baseTargetId;
     }
     return `${baseTargetId}${REPEATED_TARGET_ID_DELIMITER}${index}`;
   }
   function parseRuntimeTargetId(targetId) {
+    const keyDelimIdx = targetId.indexOf(REPEATED_TARGET_KEY_DELIMITER);
+    if (keyDelimIdx > 0) {
+      const repeatId = targetId.slice(0, keyDelimIdx);
+      const rest = targetId.slice(keyDelimIdx + REPEATED_TARGET_KEY_DELIMITER.length);
+      const dotIdx = rest.indexOf(".");
+      if (dotIdx > 0) {
+        const repeatKey = rest.slice(0, dotIdx);
+        const baseTargetId2 = rest.slice(dotIdx + 1);
+        if (repeatId && repeatKey && baseTargetId2) {
+          return {
+            baseTargetId: baseTargetId2,
+            index: 0,
+            hasExplicitIndex: false,
+            repeatId,
+            repeatKey
+          };
+        }
+      }
+      return { baseTargetId: targetId, index: 0, hasExplicitIndex: false };
+    }
     const markerIndex = targetId.lastIndexOf(REPEATED_TARGET_ID_DELIMITER);
     if (markerIndex < 0) {
       return {
@@ -918,7 +967,21 @@ var __agrune_runtime__ = (() => {
     };
   }
   function resolveRuntimeTarget(descriptors, requestedTargetId) {
-    const { baseTargetId, index } = parseRuntimeTargetId(requestedTargetId);
+    const parsed = parseRuntimeTargetId(requestedTargetId);
+    if (parsed.repeatId && parsed.repeatKey) {
+      const match = descriptors.find(
+        (d) => d.repeatInstance != null && d.repeatInstance.repeatId === parsed.repeatId && d.repeatInstance.key === parsed.repeatKey && d.target.targetId === parsed.baseTargetId
+      );
+      if (!match) return null;
+      const elements2 = findElements(match);
+      if (elements2.length === 0) return null;
+      return {
+        descriptor: match,
+        element: elements2[0],
+        targetId: requestedTargetId
+      };
+    }
+    const { baseTargetId, index } = parsed;
     const descriptor = descriptors.find((entry) => entry.target.targetId === baseTargetId);
     if (!descriptor) {
       return null;
@@ -978,13 +1041,12 @@ var __agrune_runtime__ = (() => {
       })
     };
   }
-  function captureTarget(descriptor, element, targetId, viewportTransform) {
-    const isCanvasGroup = viewportTransform !== void 0;
-    const state = captureTargetState(descriptor.actionKinds, element, isCanvasGroup);
+  function captureTarget(descriptor, element, targetId) {
+    const state = captureTargetState(descriptor.actionKinds, element, false);
     const textContent = element.textContent?.trim() ?? "";
     const valuePreview = isFillableElement(element) && !state.sensitive ? element.value : null;
-    const name = descriptor.target.name ?? element.getAttribute("data-agrune-name") ?? textContent;
-    const description = descriptor.target.desc ?? element.getAttribute("data-agrune-desc") ?? "";
+    const name = descriptor.target.name ?? textContent;
+    const description = descriptor.target.desc ?? "";
     let center;
     let size;
     let coordSpace;
@@ -992,19 +1054,9 @@ var __agrune_runtime__ = (() => {
       const domRect = element.getBoundingClientRect();
       const cx = domRect.left + domRect.width / 2;
       const cy = domRect.top + domRect.height / 2;
-      if (viewportTransform) {
-        const canvasCenter = viewportToCanvas(cx, cy, viewportTransform);
-        center = canvasCenter;
-        size = {
-          w: Math.round(domRect.width / viewportTransform.scale),
-          h: Math.round(domRect.height / viewportTransform.scale)
-        };
-        coordSpace = "canvas";
-      } else {
-        center = { x: Math.round(cx), y: Math.round(cy) };
-        size = { w: Math.round(domRect.width), h: Math.round(domRect.height) };
-        coordSpace = "viewport";
-      }
+      center = { x: Math.round(cx), y: Math.round(cy) };
+      size = { w: Math.round(domRect.width), h: Math.round(domRect.height) };
+      coordSpace = "viewport";
     }
     return {
       actionKinds: descriptor.actionKinds,
@@ -1030,57 +1082,52 @@ var __agrune_runtime__ = (() => {
       coordSpace,
       sourceFile: descriptor.target.sourceFile ?? "",
       sourceLine: descriptor.target.sourceLine ?? 0,
-      sourceColumn: descriptor.target.sourceColumn ?? 0
+      sourceColumn: descriptor.target.sourceColumn ?? 0,
+      // Phase 15-02 (REPEAT-03): repeatInstance passthrough (T-15-11: _instanceEl은 제외)
+      ...descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}
     };
   }
-  function callMetaFunction(groupEl) {
-    const fnName = groupEl.getAttribute("data-agrune-meta")?.trim();
-    if (!fnName) return null;
-    const fn = window[fnName];
-    if (typeof fn !== "function") {
-      console.warn(`[agrune] meta function not found: ${fnName}`);
-      return null;
-    }
-    try {
-      const result = fn();
-      JSON.stringify(result);
-      return result;
-    } catch (e) {
-      console.error(`[agrune] meta function error: ${fnName}`, e);
-      return null;
-    }
-  }
   function makeSnapshot(descriptors, store) {
-    const canvasSelectors = /* @__PURE__ */ new Map();
-    for (const el of Array.from(document.querySelectorAll("[data-agrune-canvas]"))) {
-      const groupId = el.getAttribute("data-agrune-group")?.trim();
-      const selector = el.getAttribute("data-agrune-canvas")?.trim();
-      if (groupId && selector) canvasSelectors.set(groupId, selector);
-    }
-    function parseViewportTransform(groupId) {
-      const selector = canvasSelectors.get(groupId);
-      if (!selector) return void 0;
-      const groupEl = document.querySelector(`[data-agrune-group="${groupId}"]`);
-      const transformEl = groupEl?.querySelector(selector);
-      if (!transformEl) return void 0;
-      const rect = transformEl.getBoundingClientRect();
-      const style = window.getComputedStyle(transformEl);
-      if (!style.transform || style.transform === "none") return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 };
-      const m = new DOMMatrix(style.transform);
-      return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: Math.round(m.a * 1e3) / 1e3 };
-    }
     const targets = descriptors.flatMap((descriptor) => {
       const elements = findElements(descriptor);
-      const transform = canvasSelectors.has(descriptor.groupId) ? parseViewportTransform(descriptor.groupId) : void 0;
+      if (descriptor.repeatInstance) {
+        return elements.map(
+          (element) => captureTarget(
+            descriptor,
+            element,
+            toRuntimeTargetId(descriptor.target.targetId, {
+              repeatId: descriptor.repeatInstance.repeatId,
+              key: descriptor.repeatInstance.key
+            })
+          )
+        );
+      }
       return elements.map(
         (element, index) => captureTarget(
           descriptor,
           element,
-          toRuntimeTargetId(descriptor.target.targetId, index, elements.length),
-          transform
+          toRuntimeTargetId(descriptor.target.targetId, index, elements.length)
         )
       );
     });
+    const groupRepeatsAgg = /* @__PURE__ */ new Map();
+    for (const descriptor of descriptors) {
+      if (!descriptor.repeatInstance) continue;
+      const { repeatId } = descriptor.repeatInstance;
+      if (!groupRepeatsAgg.has(descriptor.groupId)) {
+        groupRepeatsAgg.set(descriptor.groupId, /* @__PURE__ */ new Map());
+      }
+      const groupMap = groupRepeatsAgg.get(descriptor.groupId);
+      if (!groupMap.has(repeatId)) {
+        groupMap.set(repeatId, {
+          strategy: "dom",
+          // default — 아래에서 manifest에서 읽어올 수 없으므로 추적 필요
+          instanceCount: 0,
+          logicalSize: null
+        });
+      }
+      groupMap.get(repeatId).instanceCount += 1;
+    }
     const groups = /* @__PURE__ */ new Map();
     for (const target of targets) {
       const group = groups.get(target.groupId);
@@ -1088,18 +1135,39 @@ var __agrune_runtime__ = (() => {
         group.targetIds.push(target.targetId);
         continue;
       }
-      const groupEl = document.querySelector(
-        `[data-agrune-group="${target.groupId}"]`
-      );
-      const meta = groupEl ? callMetaFunction(groupEl) : null;
       groups.set(target.groupId, {
         groupId: target.groupId,
         groupName: target.groupName,
         groupDesc: target.groupDesc,
-        targetIds: [target.targetId],
-        viewportTransform: parseViewportTransform(target.groupId),
-        ...meta !== null ? { meta } : {}
+        targetIds: [target.targetId]
       });
+    }
+    const repeatMetaByKey = /* @__PURE__ */ new Map();
+    for (const descriptor of descriptors) {
+      if (!descriptor.repeatInstance) continue;
+      const metaKey = `${descriptor.groupId}::${descriptor.repeatInstance.repeatId}`;
+      if (!repeatMetaByKey.has(metaKey)) {
+        repeatMetaByKey.set(metaKey, {
+          strategy: descriptor._repeatStrategy ?? "dom",
+          logicalSize: descriptor._repeatLogicalSize ?? null
+        });
+      }
+    }
+    for (const [groupId, repeatMap] of groupRepeatsAgg) {
+      const group = groups.get(groupId);
+      if (!group) continue;
+      const repeatsArr = Array.from(repeatMap.entries()).map(([repeatId, agg]) => {
+        const meta = repeatMetaByKey.get(`${groupId}::${repeatId}`);
+        return {
+          repeatId,
+          strategy: meta?.strategy ?? agg.strategy,
+          instanceCount: agg.instanceCount,
+          logicalSize: meta?.logicalSize ?? agg.logicalSize
+        };
+      });
+      if (repeatsArr.length > 0) {
+        group.repeats = repeatsArr;
+      }
     }
     const signature = JSON.stringify({
       targets: targets.map((target) => ({
@@ -1113,7 +1181,9 @@ var __agrune_runtime__ = (() => {
         targetId: target.targetId,
         textContent: target.textContent,
         valuePreview: target.valuePreview,
-        visible: target.visible
+        visible: target.visible,
+        // Phase 15-02: signature에 repeatInstance.key 포함 → row reorder 시 version 증가
+        repeatInstance: target.repeatInstance
       })),
       title: document.title,
       url: window.location.href
@@ -1130,8 +1200,7 @@ var __agrune_runtime__ = (() => {
         groupName: group.groupName,
         groupDesc: group.groupDesc,
         targetIds: group.targetIds.sort(),
-        ...group.viewportTransform ? { viewportTransform: group.viewportTransform } : {},
-        ...group.meta !== void 0 ? { meta: group.meta } : {}
+        ...group.repeats && group.repeats.length > 0 ? { repeats: group.repeats } : {}
       })),
       targets,
       title: document.title,
@@ -2244,7 +2313,6 @@ ${el.textContent ?? ""}
     element.dispatchEvent(new Event("change", { bubbles: true }));
   }
   function detectMaskedInput(element) {
-    if (element.getAttribute("data-agrune-masked") === "true") return true;
     if (!(element instanceof HTMLInputElement)) return false;
     const type = element.type;
     if (type === "tel") return true;
@@ -2269,6 +2337,16 @@ ${el.textContent ?? ""}
     }
     const resolvedTarget = resolveRuntimeTarget(deps.getDescriptors(), targetId);
     if (!resolvedTarget) {
+      const parsed = parseRuntimeTargetId(targetId);
+      if (parsed.repeatId && parsed.repeatKey) {
+        return buildErrorResult(
+          commandId,
+          "REPEAT_INDEX_OUT_OF_RANGE",
+          `repeat "${parsed.repeatId}": key "${parsed.repeatKey}" not found in current snapshot.`,
+          currentSnapshot,
+          targetId
+        );
+      }
       return buildErrorResult(commandId, "TARGET_NOT_FOUND", `target not found: ${targetId}`, currentSnapshot, targetId);
     }
     return effect(resolvedTarget.descriptor, resolvedTarget.element, currentSnapshot);
@@ -2362,7 +2440,7 @@ ${el.textContent ?? ""}
       if (!isElementInViewport(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
-      if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+      if (!isTopmostInteractable(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
       if (!isEnabled(element)) {
@@ -2575,7 +2653,7 @@ ${el.textContent ?? ""}
       if (!isElementInViewport(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
-      if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+      if (!isTopmostInteractable(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
       if (!isEnabled(element)) {
@@ -2619,60 +2697,10 @@ ${el.textContent ?? ""}
       });
     });
   }
-  function isInCanvasGroup(groupId) {
-    const groupEl = document.querySelector(
-      `[data-agrune-group="${groupId}"]`
-    );
-    return groupEl?.hasAttribute("data-agrune-canvas") ?? false;
-  }
-  function getCanvasGroupTransform(descriptors, targetId) {
-    const { baseTargetId } = parseRuntimeTargetId(targetId);
-    const descriptor = descriptors.find((d) => d.target.targetId === baseTargetId);
-    if (!descriptor) return void 0;
-    const groupEl = document.querySelector(
-      `[data-agrune-group="${descriptor.groupId}"]`
-    );
-    if (!groupEl) return void 0;
-    const canvasSelector = groupEl.getAttribute("data-agrune-canvas")?.trim();
-    if (!canvasSelector) return void 0;
-    const transformEl = groupEl.querySelector(canvasSelector);
-    if (!transformEl) return void 0;
-    const rect = transformEl.getBoundingClientRect();
-    const style = window.getComputedStyle(transformEl);
-    if (!style.transform || style.transform === "none") {
-      return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 };
-    }
-    const m = new DOMMatrix(style.transform);
-    return {
-      translateX: Math.round(rect.left),
-      translateY: Math.round(rect.top),
-      scale: Math.round(m.a * 1e3) / 1e3
-    };
-  }
-  function findCanvasGroupEl(descriptors, targetId) {
-    const { baseTargetId } = parseRuntimeTargetId(targetId);
-    const descriptor = descriptors.find((d) => d.target.targetId === baseTargetId);
-    if (!descriptor) return null;
-    return document.querySelector(
-      `[data-agrune-group="${descriptor.groupId}"]`
-    );
-  }
-  function buildMovedTarget(element, targetId, transform) {
+  function buildMovedTarget(element, targetId) {
     const domRect = element.getBoundingClientRect();
     const cx = domRect.left + domRect.width / 2;
     const cy = domRect.top + domRect.height / 2;
-    if (transform) {
-      const canvasCenter = viewportToCanvas(cx, cy, transform);
-      return {
-        targetId,
-        center: canvasCenter,
-        size: {
-          w: Math.round(domRect.width / transform.scale),
-          h: Math.round(domRect.height / transform.scale)
-        },
-        coordSpace: "canvas"
-      };
-    }
     return {
       targetId,
       center: { x: Math.round(cx), y: Math.round(cy) },
@@ -2744,7 +2772,7 @@ ${el.textContent ?? ""}
             sourceDescriptor.target.targetId
           );
         }
-        if (!isInCanvasGroup(sourceDescriptor.groupId) && !isTopmostInteractable(sourceElement)) {
+        if (!isTopmostInteractable(sourceElement)) {
           return buildErrorResult(
             input.commandId ?? input.sourceTargetId,
             "NOT_VISIBLE",
@@ -2778,143 +2806,24 @@ ${el.textContent ?? ""}
                 relCoords.relativeTo
               );
             }
-            const refElement = refDescriptor.element;
-            const refRect = refElement.getBoundingClientRect();
+            const refRect = refDescriptor.element.getBoundingClientRect();
             const refCx = refRect.left + refRect.width / 2;
             const refCy = refRect.top + refRect.height / 2;
-            const refTransform = getCanvasGroupTransform(deps.getDescriptors(), relCoords.relativeTo);
-            if (refTransform) {
-              const refCanvas = viewportToCanvas(refCx, refCy, refTransform);
-              input.destinationCoords = {
-                x: refCanvas.x + relCoords.dx,
-                y: refCanvas.y + relCoords.dy
-              };
-            } else {
-              input.destinationCoords = {
-                x: Math.round(refCx + relCoords.dx),
-                y: Math.round(refCy + relCoords.dy)
-              };
-            }
-          }
-          const transform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId);
-          const srcCoords = transform ? getVisibleCenter(sourceElement) : getElementCenter(sourceElement);
-          let destCoords;
-          if (transform) {
-            if (!isElementInViewport(sourceElement)) {
-              const groupEl = findCanvasGroupEl(deps.getDescriptors(), input.sourceTargetId);
-              const canvasSelector = groupEl?.getAttribute("data-agrune-canvas")?.trim();
-              if (groupEl && canvasSelector) {
-                const srcCanvas = viewportToCanvas(srcCoords.clientX, srcCoords.clientY, transform);
-                const panResult = await autoPanToCanvasPoint(
-                  srcCanvas.x,
-                  srcCanvas.y,
-                  groupEl,
-                  canvasSelector,
-                  deps.eventSequences
-                );
-                if (!panResult) {
-                  return buildErrorResult(
-                    input.commandId ?? input.sourceTargetId,
-                    "CANVAS_PAN_FAILED",
-                    "Failed to pan canvas to bring source target into viewport.",
-                    snapshot,
-                    input.sourceTargetId
-                  );
-                }
-              }
-            }
-            const freshTransform2 = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId);
-            const vp = canvasToViewport(input.destinationCoords.x, input.destinationCoords.y, freshTransform2);
-            destCoords = { clientX: vp.x, clientY: vp.y };
-            if (!isPointInsideViewport(vp.x, vp.y)) {
-              const groupEl = findCanvasGroupEl(deps.getDescriptors(), input.sourceTargetId);
-              const canvasSelector = groupEl?.getAttribute("data-agrune-canvas")?.trim();
-              if (groupEl && canvasSelector) {
-                const panResult = await autoPanToCanvasPoint(
-                  input.destinationCoords.x,
-                  input.destinationCoords.y,
-                  groupEl,
-                  canvasSelector,
-                  deps.eventSequences
-                );
-                if (!panResult) {
-                  return buildErrorResult(
-                    input.commandId ?? input.sourceTargetId,
-                    "CANVAS_PAN_FAILED",
-                    "Failed to pan canvas to bring destination into viewport.",
-                    snapshot,
-                    input.sourceTargetId
-                  );
-                }
-                const vpAfterPan = canvasToViewport(
-                  input.destinationCoords.x,
-                  input.destinationCoords.y,
-                  panResult
-                );
-                destCoords = { clientX: vpAfterPan.x, clientY: vpAfterPan.y };
-              }
-            }
-            const freshSrcCoords = getVisibleCenter(sourceElement);
-            Object.assign(srcCoords, freshSrcCoords);
-          } else {
-            destCoords = {
-              clientX: input.destinationCoords.x,
-              clientY: input.destinationCoords.y
+            input.destinationCoords = {
+              x: Math.round(refCx + relCoords.dx),
+              y: Math.round(refCy + relCoords.dy)
             };
           }
+          const srcCoords = getElementCenter(sourceElement);
+          const destCoords = {
+            clientX: input.destinationCoords.x,
+            clientY: input.destinationCoords.y
+          };
           const srcDomRect = sourceElement.getBoundingClientRect();
-          const srcVpCx = srcDomRect.left + srcDomRect.width / 2;
-          const srcVpCy = srcDomRect.top + srcDomRect.height / 2;
-          const currentTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId);
-          const srcCanvasCenter = currentTransform ? viewportToCanvas(srcVpCx, srcVpCy, currentTransform) : { x: Math.round(srcVpCx), y: Math.round(srcVpCy) };
-          if (transform) {
-            const srcVpCenter = getElementCenter(sourceElement);
-            const topEl = document.elementFromPoint(srcVpCenter.clientX, srcVpCenter.clientY);
-            if (topEl && topEl !== sourceElement) {
-              const blockingEl = topEl.closest("[data-agrune-action]");
-              if (blockingEl && blockingEl !== sourceElement) {
-                const srcRect = sourceElement.getBoundingClientRect();
-                const srcCx = srcRect.left + srcRect.width / 2;
-                const srcCy = srcRect.top + srcRect.height / 2;
-                const PROXIMITY_PX = 10;
-                const stackedTargets = [];
-                for (const d of deps.getDescriptors()) {
-                  if (d.target.targetId === sourceDescriptor.target.targetId) continue;
-                  if (d.groupId !== sourceDescriptor.groupId) continue;
-                  const elements = findElements(d);
-                  for (const el of elements) {
-                    const r = el.getBoundingClientRect();
-                    const cx = r.left + r.width / 2;
-                    const cy = r.top + r.height / 2;
-                    if (Math.abs(cx - srcCx) < PROXIMITY_PX && Math.abs(cy - srcCy) < PROXIMITY_PX) {
-                      stackedTargets.push({
-                        targetId: d.target.targetId,
-                        name: d.target.name || el.getAttribute("data-agrune-name") || "unknown",
-                        element: el
-                      });
-                    }
-                  }
-                }
-                if (stackedTargets.length > 0) {
-                  stackedTargets.sort((a, b) => {
-                    const pos = a.element.compareDocumentPosition(b.element);
-                    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return 1;
-                    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return -1;
-                    return 0;
-                  });
-                  stackedTargets.reverse();
-                  const stackList = stackedTargets.map((t) => `${t.targetId}(${t.name})`).join(", ");
-                  return buildErrorResult(
-                    input.commandId ?? input.sourceTargetId,
-                    "NOT_VISIBLE",
-                    `Target is covered by stacked nodes at the same position. Move them in this order: ${stackList}`,
-                    snapshot,
-                    input.sourceTargetId
-                  );
-                }
-              }
-            }
-          }
+          const srcVpCenter = {
+            x: Math.round(srcDomRect.left + srcDomRect.width / 2),
+            y: Math.round(srcDomRect.top + srcDomRect.height / 2)
+          };
           if (config.pointerAnimation) {
             await deps.queue.push({
               type: "animation",
@@ -2932,15 +2841,13 @@ ${el.textContent ?? ""}
             await deps.eventSequences.pointerDrag(toCoords(srcCoords), toCoords(destCoords), steps);
           }
           const nextSnapshot2 = await deps.captureSettledSnapshot(2);
-          const freshTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId);
           const freshSource = resolveRuntimeTarget(deps.getDescriptors(), input.sourceTargetId);
           const movedElement = freshSource?.element ?? sourceElement;
-          const movedTarget = buildMovedTarget(movedElement, input.sourceTargetId, freshTransform);
+          const movedTarget = buildMovedTarget(movedElement, input.sourceTargetId);
           const movedCenter = movedTarget.center;
           const destX = input.destinationCoords.x;
-          const destY = input.destinationCoords.y;
           const elementStale = !movedElement.isConnected;
-          if (elementStale || movedCenter && Math.abs(movedCenter.x - destX) > 20 && Math.abs(movedCenter.x - srcCanvasCenter.x) < 5 && Math.abs(movedCenter.y - srcCanvasCenter.y) < 5) {
+          if (elementStale || movedCenter && Math.abs(movedCenter.x - destX) > 20 && Math.abs(movedCenter.x - srcVpCenter.x) < 5 && Math.abs(movedCenter.y - srcVpCenter.y) < 5) {
             return buildErrorResult(
               input.commandId ?? input.sourceTargetId,
               "NOT_VISIBLE",
@@ -2996,7 +2903,7 @@ ${el.textContent ?? ""}
             destinationDescriptor.target.targetId
           );
         }
-        if (!isInCanvasGroup(destinationDescriptor.groupId) && !isTopmostInteractable(destinationElement)) {
+        if (!isTopmostInteractable(destinationElement)) {
           return buildErrorResult(
             input.commandId ?? input.sourceTargetId,
             "NOT_VISIBLE",
@@ -3152,7 +3059,7 @@ ${el.textContent ?? ""}
       if (!isElementInViewport(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
-      if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+      if (!isTopmostInteractable(element)) {
         return buildErrorResult(input.commandId ?? input.targetId, "NOT_VISIBLE", `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
       if (!isEnabled(element)) {
@@ -3175,6 +3082,160 @@ ${el.textContent ?? ""}
       });
     });
   }
+
+  // src/runtime/macro-runner.ts
+  function interpolateParams(template, params) {
+    return template.replace(
+      /\{\{(\w+)\}\}/g,
+      (_, key) => params[key] == null ? "" : String(params[key])
+    );
+  }
+  var MacroRunner = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    consecutiveFailures = 0;
+    resetTimer = null;
+    disposed = false;
+    /**
+     * manifest.precondition → step loop → manifest.postcondition 을 단일 호출로 완결.
+     * CDP round-trip 없음 — handleAct/handleFill 은 in-page DOM 조작만 수행.
+     */
+    async run(macro, params = {}) {
+      if (this.disposed) {
+        return { status: "step-error", stepIndex: -1, error: "runner disposed" };
+      }
+      const threshold = macro.circuitBreaker?.maxRetries ?? 2;
+      const resetAfterMs = macro.circuitBreaker?.resetAfterMs;
+      if (resetAfterMs != null && resetAfterMs > 0) {
+        this.scheduleReset(resetAfterMs);
+      }
+      if (macro.precondition) {
+        const evalResult = this.evalExpr(macro.precondition, params);
+        if (evalResult.ok) {
+          if (evalResult.value === true) {
+            return { status: "already-satisfied" };
+          }
+        } else {
+          return { status: "precondition-failed", reason: evalResult.error };
+        }
+      }
+      const descriptors = this.deps.commandHandlerDeps.getDescriptors();
+      for (let i = 0; i < macro.steps.length; i++) {
+        const step = macro.steps[i];
+        this.deps.onStepStart?.(i, step);
+        const match = resolveRuntimeTarget(descriptors, step.targetId);
+        if (!match) {
+          this.consecutiveFailures++;
+          this.deps.onStepEnd?.(i, step, false);
+          if (this.consecutiveFailures >= threshold) {
+            return { status: "circuit-open", failedStep: i };
+          }
+          if (i === macro.steps.length - 1) {
+            return { status: "target-not-found", stepIndex: i, targetId: step.targetId };
+          }
+          continue;
+        }
+        if (isSensitive(match.element, step.sensitive)) {
+          this.deps.onSensitiveStep?.(i, step);
+        }
+        let commandResult;
+        try {
+          if (step.action === "fill") {
+            const value = step.value != null ? interpolateParams(step.value, params) : "";
+            commandResult = await handleFill(this.deps.commandHandlerDeps, {
+              targetId: step.targetId,
+              value
+            });
+          } else {
+            commandResult = await handleAct(this.deps.commandHandlerDeps, {
+              targetId: step.targetId,
+              action: step.action
+            });
+          }
+        } catch (err) {
+          this.consecutiveFailures++;
+          this.deps.onStepEnd?.(i, step, false);
+          if (this.consecutiveFailures >= threshold) {
+            return { status: "circuit-open", failedStep: i };
+          }
+          if (i < macro.steps.length - 1) {
+            continue;
+          }
+          return {
+            status: "step-error",
+            stepIndex: i,
+            error: err instanceof Error ? err.message : String(err)
+          };
+        }
+        if (commandResult.ok) {
+          this.consecutiveFailures = 0;
+        } else {
+          this.consecutiveFailures++;
+        }
+        this.deps.onStepEnd?.(i, step, commandResult.ok);
+        if (this.consecutiveFailures >= threshold) {
+          return { status: "circuit-open", failedStep: i };
+        }
+        if (!commandResult.ok) {
+          if (i < macro.steps.length - 1) {
+            continue;
+          }
+          return {
+            status: "step-error",
+            stepIndex: i,
+            error: commandResult.error?.message ?? "step failed"
+          };
+        }
+      }
+      if (macro.postcondition) {
+        const evalResult = this.evalExpr(macro.postcondition, params);
+        if (!evalResult.ok) {
+          this.consecutiveFailures++;
+          return { status: "postcondition-failed", reason: evalResult.error };
+        }
+        if (evalResult.value !== true) {
+          this.consecutiveFailures++;
+          return { status: "postcondition-failed", reason: "postcondition returned falsy" };
+        }
+      }
+      return { status: "ok" };
+    }
+    /** 모든 타이머를 정리하고 runner를 사용 불가 상태로 표시. */
+    dispose() {
+      this.disposed = true;
+      if (this.resetTimer !== null) {
+        clearTimeout(this.resetTimer);
+        this.resetTimer = null;
+      }
+    }
+    // ---------------------------------------------------------------------------
+    // Private helpers
+    // ---------------------------------------------------------------------------
+    scheduleReset(ms) {
+      if (this.resetTimer !== null) {
+        clearTimeout(this.resetTimer);
+      }
+      this.resetTimer = setTimeout(() => {
+        this.consecutiveFailures = 0;
+        this.resetTimer = null;
+      }, ms);
+    }
+    /**
+     * `new Function` 기반 sandboxed 식 평가 (T-14-07).
+     * - `eval()` 직접 호출 금지 — caller scope 변수 접근 방지
+     * - params 만 context 로 주입; 식 내 다른 identifier 는 ReferenceError
+     * - 결과는 boolean 캐스팅만 사용 (side-effect 는 무시)
+     */
+    evalExpr(expr, params) {
+      try {
+        const fn = new Function("params", `return !!(${expr})`);
+        return { ok: true, value: fn(params) };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  };
 
   // src/runtime/cdp-client.ts
   var CDP_TIMEOUT_MS = 5e3;
@@ -3424,7 +3485,7 @@ ${el.textContent ?? ""}
       childList: true,
       subtree: true
     });
-    const getDescriptors = () => mergeDescriptors(manifestDescriptors, collectLiveDescriptors());
+    const getDescriptors = () => manifestDescriptors;
     const captureSnapshot = () => makeSnapshot(getDescriptors(), snapshotStore);
     const captureSettledSnapshot = async (minimumFrames) => {
       const deadline = performance.now() + DOM_SETTLE_TIMEOUT_MS;
@@ -3498,6 +3559,36 @@ ${el.textContent ?? ""}
       queue,
       eventSequences
     };
+    const macroRunners = /* @__PURE__ */ new Map();
+    const runMacro = async ({
+      macroId,
+      params = {},
+      onStepProgress
+    }) => {
+      const macro = manifest.macros?.find((m) => m.macroId === macroId);
+      if (!macro) {
+        return {
+          status: "step-error",
+          stepIndex: -1,
+          error: `macro not found: ${macroId}`,
+          macroId,
+          stepCount: 0
+        };
+      }
+      let runner = macroRunners.get(macroId);
+      if (!runner) {
+        runner = new MacroRunner({
+          commandHandlerDeps: deps,
+          onStepStart: onStepProgress ? (i, step) => onStepProgress({ stepIndex: i, step, phase: "start" }) : void 0,
+          onStepEnd: onStepProgress ? (i, step, ok) => onStepProgress({ stepIndex: i, step, phase: "end", ok }) : void 0,
+          onSensitiveStep: onStepProgress ? (i, step) => onStepProgress({ stepIndex: i, step, phase: "sensitive" }) : void 0
+        });
+        macroRunners.set(macroId, runner);
+      } else if (onStepProgress) {
+      }
+      const result = await runner.run(macro, params);
+      return { ...result, macroId, stepCount: macro.steps.length };
+    };
     const runtime = {
       getSnapshot: captureSnapshot,
       beginAgentActivity: () => {
@@ -3528,13 +3619,16 @@ ${el.textContent ?? ""}
         }
       },
       isBusy: () => agentActivityActive || queue.active,
-      isActive: () => agentActivityActive || queue.active || activityIdleTimer !== null
+      isActive: () => agentActivityActive || queue.active || activityIdleTimer !== null,
+      runMacro
     };
     runtimeDisposers.set(runtime, () => {
       clearActivityIdleTimer();
       mutationObserver?.disconnect();
       queue.dispose();
       cdpClient.dispose();
+      macroRunners.forEach((r) => r.dispose());
+      macroRunners.clear();
     });
     return runtime;
   }
@@ -3564,94 +3658,6 @@ ${el.textContent ?? ""}
     globalStore.active = handle;
     window.agruneDom = runtime;
     return handle;
-  }
-
-  // src/dom-scanner.ts
-  var VALID_ACTION_KINDS = /* @__PURE__ */ new Set(["click", "fill", "dblclick", "contextmenu", "hover", "longpress"]);
-  function scanAnnotations(doc) {
-    const elements = doc.querySelectorAll("[data-agrune-action]");
-    const targets = [];
-    elements.forEach((el, index) => {
-      const rawAction = el.getAttribute("data-agrune-action") ?? "";
-      const actionKinds = [...new Set(
-        rawAction.split(",").map((a) => a.trim()).filter((a) => VALID_ACTION_KINDS.has(a))
-      )];
-      if (actionKinds.length === 0) return;
-      const name = el.getAttribute("data-agrune-name") ?? "";
-      const description = el.getAttribute("data-agrune-desc") ?? "";
-      const key = el.getAttribute("data-agrune-key");
-      const sensitive = el.hasAttribute("data-agrune-sensitive");
-      const targetId = key ?? `agrune_${index}`;
-      const selector = key ? `[data-agrune-key="${key}"]` : name ? `[data-agrune-name="${name}"]` : `[data-agrune-action]`;
-      const groupEl = el.closest("[data-agrune-group]");
-      const groupId = groupEl?.getAttribute("data-agrune-group") ?? void 0;
-      targets.push({
-        targetId,
-        selector,
-        name,
-        description,
-        actionKinds,
-        groupId,
-        sensitive
-      });
-    });
-    return targets;
-  }
-  function scanGroups(doc) {
-    const elements = doc.querySelectorAll("[data-agrune-group]");
-    const groups = [];
-    elements.forEach((el) => {
-      const groupId = el.getAttribute("data-agrune-group") ?? "";
-      const name = el.getAttribute("data-agrune-group-name") ?? "";
-      const description = el.getAttribute("data-agrune-group-desc") ?? "";
-      groups.push({ groupId, name, description });
-    });
-    return groups;
-  }
-
-  // src/manifest-builder.ts
-  var DEFAULT_GROUP_ID = "default";
-  var DEFAULT_GROUP_NAME = "Default";
-  var VALID_ACTION_KINDS2 = /* @__PURE__ */ new Set(["click", "fill", "dblclick", "contextmenu", "hover", "longpress"]);
-  function buildManifest(targets, groups) {
-    if (targets.length === 0) {
-      return {
-        version: 3,
-        groups: []
-      };
-    }
-    const groupMap = /* @__PURE__ */ new Map();
-    for (const g of groups) {
-      groupMap.set(g.groupId, g);
-    }
-    const targetsByGroup = /* @__PURE__ */ new Map();
-    for (const target of targets) {
-      const gid = target.groupId ?? DEFAULT_GROUP_ID;
-      let group = targetsByGroup.get(gid);
-      if (!group) {
-        const scannedGroup = groupMap.get(gid);
-        group = {
-          groupId: gid,
-          name: scannedGroup?.name || (gid === DEFAULT_GROUP_ID ? DEFAULT_GROUP_NAME : gid),
-          desc: scannedGroup?.description || void 0,
-          targets: []
-        };
-        targetsByGroup.set(gid, group);
-      }
-      const kinds = target.actionKinds.filter((k) => VALID_ACTION_KINDS2.has(k));
-      group.targets.push({
-        targetId: target.targetId,
-        name: target.name || void 0,
-        desc: target.description || void 0,
-        actionKinds: kinds,
-        // Legacy CSS selector wrapped in SelectorLadder — Phase 17에서 전체 제거 예정
-        selector: { css: target.selector }
-      });
-    }
-    return {
-      version: 3,
-      groups: Array.from(targetsByGroup.values())
-    };
   }
 
   // src/page-runtime.ts
