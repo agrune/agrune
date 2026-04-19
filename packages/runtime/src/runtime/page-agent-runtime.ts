@@ -24,9 +24,7 @@ import {
   DOM_SETTLE_TIMEOUT_MS,
   SNAPSHOT_RELEVANT_ATTRIBUTES,
   collectDescriptors,
-  collectLiveDescriptors,
   makeSnapshot,
-  mergeDescriptors,
 } from './snapshot'
 import {
   IDLE_TIMEOUT_MS,
@@ -202,7 +200,7 @@ export function createPageAgentRuntime(
     subtree: true,
   })
 
-  const getDescriptors = () => mergeDescriptors(manifestDescriptors, collectLiveDescriptors())
+  const getDescriptors = () => manifestDescriptors
   const captureSnapshot = () => makeSnapshot(getDescriptors(), snapshotStore)
   const captureSettledSnapshot = async (minimumFrames: number) => {
     const deadline = performance.now() + DOM_SETTLE_TIMEOUT_MS
