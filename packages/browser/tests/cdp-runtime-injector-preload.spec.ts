@@ -58,7 +58,10 @@ describe('prepareSession — no preload', () => {
     expect(calls.length).toBe(5)
   })
 
-  it('Runtime.evaluate expression에 __agrune_preload_manifest__ 가 없다', async () => {
+  it('Runtime.evaluate expression에 JSON.parse 형태의 preload embed snippet 이 없다', async () => {
+    // bootstrap source 자체에는 resolveManifest()가 window.__agrune_preload_manifest__를
+    // 읽는 코드가 있으므로 문자열 자체는 항상 존재한다.
+    // 구분 기준: "= JSON.parse(" 형태의 값 주입 코드가 없어야 함.
     const { send, calls } = makeMockConnection()
     const { CdpRuntimeInjector } = await import('../src/cdp-runtime-injector.js')
     const injector = new CdpRuntimeInjector({ send } as any)
@@ -68,7 +71,8 @@ describe('prepareSession — no preload', () => {
     const evalCall = calls.find(c => c.method === 'Runtime.evaluate')
     expect(evalCall).toBeDefined()
     const expression = evalCall!.params.expression as string
-    expect(expression).not.toContain('__agrune_preload_manifest__')
+    // preload embed snippet의 고유 패턴: __agrune_preload_manifest__ = JSON.parse(
+    expect(expression).not.toContain('__agrune_preload_manifest__ = JSON.parse(')
   })
 })
 
@@ -227,7 +231,9 @@ describe('cache isolation', () => {
     const secondAddScript = secondCalls.find(c => c.method === 'Page.addScriptToEvaluateOnNewDocument')
     expect(secondAddScript).toBeDefined()
     const source = secondAddScript!.params.source as string
-    expect(source).not.toContain('__agrune_preload_manifest__')
+    // bootstrap 내부 resolveManifest()에는 __agrune_preload_manifest__ 읽기 코드가 있으므로
+    // 구분 기준은 값을 주입하는 embed snippet 패턴 (= JSON.parse(...)) 유무
+    expect(source).not.toContain('__agrune_preload_manifest__ = JSON.parse(')
   })
 })
 
@@ -292,7 +298,7 @@ describe('PrepareSessionOptions interface', () => {
     await expect(injector.prepareSession('sid-compat')).resolves.toBeUndefined()
   })
 
-  it('preloadManifest: undefined 전달 시 preload 없는 경로와 동일하게 동작', async () => {
+  it('preloadManifest: undefined 전달 시 embed snippet이 없다 (preload 없는 경로와 동일)', async () => {
     const { send, calls } = makeMockConnection()
     const { CdpRuntimeInjector } = await import('../src/cdp-runtime-injector.js')
     const injector = new CdpRuntimeInjector({ send } as any)
@@ -301,6 +307,8 @@ describe('PrepareSessionOptions interface', () => {
 
     const addScriptCall = calls.find(c => c.method === 'Page.addScriptToEvaluateOnNewDocument')
     const source = addScriptCall!.params.source as string
-    expect(source).not.toContain('__agrune_preload_manifest__')
+    // bootstrap resolveManifest()에 __agrune_preload_manifest__ 읽기 코드는 항상 존재.
+    // embed snippet 패턴 (값 주입) 은 없어야 함.
+    expect(source).not.toContain('__agrune_preload_manifest__ = JSON.parse(')
   })
 })

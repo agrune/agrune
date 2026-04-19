@@ -2,9 +2,53 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire as createNodeRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { AgruneManifest } from '@agrune/core'
 import type { CdpConnection } from './cdp-connection.js'
 
 export const QUICK_MODE_RUNTIME_KEY = '__agrune_quick_mode__'
+
+export interface PrepareSessionOptions {
+  preloadManifest?: AgruneManifest
+}
+
+/**
+ * safeJsonEmbed — U+2028/U+2029를 JavaScript LineTerminator로 해석하는
+ * 일부 파서에 대한 방어. JSON string literal을 JS 소스에 embed할 때 사용.
+ *
+ * Security note: addScriptToEvaluateOnNewDocument는 V8에 직접 평가되므로
+ * HTML </script> 이탈 위협은 없으나, JSON.parse() wrapper 패턴과 조합해
+ * statement boundary 이탈을 원천 차단한다 (T-12-04, T-12-05).
+ */
+export function safeJsonEmbed(json: string): string {
+  return json
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+/**
+ * buildPreloadManifestSource — manifest를 JSON.parse() wrapper로 embed한 JS 스니펫을 생성.
+ *
+ * 이중 JSON.stringify를 사용해 임의 JS statement 이탈을 방지:
+ *  - 내부 JSON.stringify(manifest): manifest 객체 → JSON string
+ *  - 외부 JSON.stringify(...): JSON string → JS string literal (역슬래시 이스케이프)
+ * 최종 eval context는 JSON.parse("...") → valid JSON만 허용
+ */
+function buildPreloadManifestSource(manifest: AgruneManifest): string {
+  const jsonLiteral = JSON.stringify(JSON.stringify(manifest))
+  return `;(function(){try{window.__agrune_preload_manifest__ = JSON.parse(${safeJsonEmbed(jsonLiteral)});}catch(e){}})();`
+}
+
+/**
+ * getInjectedSourceWithPreload — preloadManifest가 있을 때 캐시를 우회해
+ * 세션별로 독립된 source를 생성한다 (Pitfall 1: cache isolation).
+ */
+function getInjectedSourceWithPreload(manifest: AgruneManifest): string {
+  const runtimeSource = readFileSync(resolvePageRuntimePath(), 'utf8')
+  const preloadSource = buildPreloadManifestSource(manifest)
+  // preload snippet을 runtime source 앞에 배치 → bootstrap이 resolveManifest() 시
+  // window.__agrune_preload_manifest__를 읽을 수 있음
+  return `${runtimeSource}\n${preloadSource}\n${buildBootstrapSource()}`
+}
 
 let cachedInjectedSource: string | null = null
 
@@ -70,6 +114,7 @@ function buildBootstrapSource(): string {
   let snapshotTimer = null;
   let pendingInstall = false;
   let currentConfig = {};
+  let reloadTimer = null;
 
   const dispatchSnapshot = () => {
     if (window.agruneDom && typeof window.agruneDom.getSnapshot === 'function') {
@@ -235,8 +280,13 @@ function buildBootstrapSource(): string {
     // Expose reload hook for Phase 12 manifest injection.
     // Calling reloadRuntime() after setting window.__agrune_manifest__ will
     // re-resolve the manifest and reinstall the runtime.
+    // Debounce 50ms: rapid-fire 호출 시 installRuntime 중복 실행 방지 (T-12-06).
     reloadRuntime: () => {
-      installRuntime();
+      if (reloadTimer !== null) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        reloadTimer = null;
+        installRuntime();
+      }, 50);
     },
     getManifestSource: () => {
       return resolveManifest().source;
@@ -266,8 +316,11 @@ function getInjectedSource(): string {
 export class CdpRuntimeInjector {
   constructor(private readonly connection: CdpConnection) {}
 
-  async prepareSession(sessionId: string): Promise<void> {
-    const source = getInjectedSource()
+  async prepareSession(sessionId: string, options?: PrepareSessionOptions): Promise<void> {
+    // preloadManifest가 있으면 캐시 우회 — 세션별로 다른 manifest가 섞이면 안 됨 (Pitfall 1)
+    const source = options?.preloadManifest
+      ? getInjectedSourceWithPreload(options.preloadManifest)
+      : getInjectedSource()
 
     await this.connection.send('Page.enable', {}, sessionId).catch(() => {})
     await this.connection.send('Runtime.enable', {}, sessionId)
