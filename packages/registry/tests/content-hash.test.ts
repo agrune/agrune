@@ -93,4 +93,55 @@ describe('contentHash', () => {
 
     expect(contentHash(original)).not.toBe(contentHash(mutated))
   })
+
+  // WR-04 (review 18): fast-json-stable-stringify drops `undefined`-valued
+  // keys but serialises `null` as the literal string `"null"`. For OPTIONAL
+  // fields (e.g. `target.name`, `group.name`, `macroStep.value`) the two
+  // must produce the same canonical bytes, otherwise different toolchains
+  // (protobuf-to-json, some serialisers) can produce diverging hashes for
+  // semantically identical manifests.
+  //
+  // Note: `FiberPathSegment.key: string | null` is a LEGIT null — it is an
+  // explicit semantic value ("not keyed"), not an "absent optional". That
+  // case is intentionally excluded from this regression.
+  it('treats null and undefined on optional fields as identical (cross-toolchain drift guard)', () => {
+    const withUndefined: AgruneManifest = {
+      version: 3,
+      groups: [
+        {
+          groupId: 'main',
+          // `name` and `desc` absent entirely
+          targets: [
+            {
+              targetId: 'search',
+              actionKinds: ['click'],
+              selector: { role: { name: 'Search' } },
+              // `name`, `desc` absent
+            },
+          ],
+        },
+      ],
+    }
+    const withNull = {
+      version: 3,
+      groups: [
+        {
+          groupId: 'main',
+          name: null,
+          desc: null,
+          targets: [
+            {
+              targetId: 'search',
+              actionKinds: ['click'],
+              selector: { role: { name: 'Search' } },
+              name: null,
+              desc: null,
+            },
+          ],
+        },
+      ],
+    } as unknown as AgruneManifest
+
+    expect(contentHash(withNull)).toBe(contentHash(withUndefined))
+  })
 })
