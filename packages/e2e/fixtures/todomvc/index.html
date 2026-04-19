@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TodoMVC · agrune demo</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px; background: #f5f5f5; }
+    .todoapp { max-width: 550px; margin: 0 auto; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { font-size: 42px; text-align: center; color: #b83f45; margin: 16px 0; }
+    #new-todo { width: 100%; padding: 16px; border: 0; border-bottom: 1px solid #ededed; box-sizing: border-box; font-size: 18px; }
+    .main { position: relative; padding: 0; }
+    #toggle-all { display: none; }
+    #toggle-all + label { position: absolute; top: -52px; left: 0; width: 45px; height: 40px; text-align: center; cursor: pointer; }
+    #toggle-all + label::before { content: '❯'; color: #e6e6e6; }
+    #toggle-all:checked + label::before { color: #484848; }
+    .todo-list { list-style: none; padding: 0; margin: 0; }
+    .todo-list li { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #ededed; }
+    .todo-list li.completed label { text-decoration: line-through; color: #949494; }
+    .toggle { margin-right: 12px; }
+    .todo-list label { flex: 1; cursor: pointer; }
+    .destroy { border: 0; background: transparent; color: #af5b5e; cursor: pointer; font-size: 18px; }
+    .footer { display: flex; justify-content: space-between; padding: 12px; font-size: 14px; color: #777; }
+    .filters { list-style: none; display: flex; gap: 8px; margin: 0; padding: 0; }
+    .filters a { text-decoration: none; color: inherit; padding: 3px 7px; border: 1px solid transparent; border-radius: 3px; }
+    .filters a.selected { border-color: #ce4646; }
+    .clear-completed { border: 0; background: transparent; color: #777; cursor: pointer; }
+    .clear-completed:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <section class="todoapp">
+    <header>
+      <h1>todos</h1>
+    </header>
+    <div id="root"></div>
+  </section>
+  <script type="module" src="./App.tsx"></script>
+</body>
+</html>
