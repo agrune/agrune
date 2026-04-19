@@ -14,6 +14,7 @@ describe('public MCP shapes', () => {
       title: '',
       openedAt: 1,
       snapshot: {
+        schemaVersion: 3,
         version: 3,
         capturedAt: 1,
         url: 'http://localhost:5173',
@@ -72,6 +73,7 @@ describe('public MCP shapes', () => {
 
   it('snapshots default to an active-context group outline', () => {
     const snapshot: PageSnapshot = {
+      schemaVersion: 3,
       version: 7,
       capturedAt: 123,
       url: 'http://localhost:5173',
@@ -99,7 +101,7 @@ describe('public MCP shapes', () => {
           name: 'Board Tab',
           description: 'Open the board view',
           actionKinds: ['click'],
-          selector: '[data-agrune-key="tab-board"]',
+          selector: { css: '[data-agrune-key="tab-board"]' },
           visible: true,
           inViewport: true,
           enabled: true,
@@ -122,7 +124,7 @@ describe('public MCP shapes', () => {
           name: 'Docs Tab',
           description: 'Open the docs view',
           actionKinds: ['click'],
-          selector: '[data-agrune-key="tab-docs"]',
+          selector: { css: '[data-agrune-key="tab-docs"]' },
           visible: true,
           inViewport: true,
           enabled: true,
@@ -145,7 +147,7 @@ describe('public MCP shapes', () => {
           name: 'Close Modal',
           description: 'Close the sharing dialog',
           actionKinds: ['click'],
-          selector: '[data-agrune-key="modal-close"]',
+          selector: { css: '[data-agrune-key="modal-close"]' },
           visible: true,
           inViewport: true,
           enabled: true,
@@ -183,6 +185,7 @@ describe('public MCP shapes', () => {
 
   it('snapshots expand only the requested groups within the active context', () => {
     const snapshot: PageSnapshot = {
+      schemaVersion: 3,
       version: 8,
       capturedAt: 123,
       url: 'http://localhost:5173',
@@ -210,7 +213,7 @@ describe('public MCP shapes', () => {
           name: 'Board Tab',
           description: 'Open the board view',
           actionKinds: ['click'],
-          selector: '[data-agrune-key="tab-board"]',
+          selector: { css: '[data-agrune-key="tab-board"]' },
           visible: true,
           inViewport: true,
           enabled: true,
@@ -233,7 +236,7 @@ describe('public MCP shapes', () => {
           name: 'Search Filter',
           description: 'Filter cards by keyword',
           actionKinds: ['fill'],
-          selector: '[data-agrune-key="filter-search"]',
+          selector: { css: '[data-agrune-key="filter-search"]' },
           visible: true,
           inViewport: true,
           enabled: true,
@@ -275,6 +278,7 @@ describe('public MCP shapes', () => {
       result: { actionKind: 'click', targetId: 'tab-board' },
       snapshotVersion: 9,
       snapshot: {
+        schemaVersion: 3,
         version: 9,
         capturedAt: 1,
         url: 'http://localhost:5173',

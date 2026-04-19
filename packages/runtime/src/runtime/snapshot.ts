@@ -402,8 +402,7 @@ export function captureTarget(
     groupDesc: descriptor.groupDesc,
     name,
     reason: state.reason,
-    // Phase 12에서 PageSnapshot v3 shape으로 교체 예정 — 현재는 JSON.stringify로 serialize
-    selector: JSON.stringify(descriptor.target.selector),
+    selector: descriptor.target.selector,
     sensitive: state.sensitive,
     targetId,
     visible: state.visible,
@@ -533,6 +532,7 @@ export function makeSnapshot(
   }
 
   const snapshot: PageSnapshot = {
+    schemaVersion: 3,
     capturedAt: Date.now(),
     groups: Array.from(groups.values()).map(group => ({
       groupId: group.groupId,

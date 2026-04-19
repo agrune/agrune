@@ -229,7 +229,7 @@ function renderDetail() {
       <tr><td>actionableNow</td><td>${boolCell(target.actionableNow)}</td></tr>
       <tr><td>reason</td><td><span class="reason-badge ${reasonClass(target.reason)}">${target.reason}</span></td></tr>
       <tr><td>sensitive</td><td>${target.sensitive ? '<span class="detail-bool-false">true</span>' : boolCell(false)}</td></tr>
-      <tr><td>selector</td><td style="color:#89dceb;font-size:9px;">${target.selector}</td></tr>
+      <tr><td>selector</td><td style="color:#89dceb;font-size:9px;">${JSON.stringify(target.selector)}</td></tr>
       <tr><td>textContent</td><td>${target.textContent ? target.textContent : '<span style="color:#585b70;font-style:italic;">—</span>'}</td></tr>
       <tr><td>valuePreview</td><td>${target.valuePreview ?? '<span style="color:#585b70;font-style:italic;">—</span>'}</td></tr>
     </table>
