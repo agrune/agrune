@@ -261,7 +261,13 @@ function highlightInPage(target: PageTarget) {
 }
 
 function escapeText(s: string): string {
-  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  // WR-02: `&` 를 가장 먼저 치환해야 double-unescape 취약점이 발생하지 않음.
+  // 이미 `&lt;` 로 이스케이프된 문자열이 다시 `<` 로 복원되는 것을 방지한다.
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 // --- Inline status dot CSS kept from original panel.ts ---
