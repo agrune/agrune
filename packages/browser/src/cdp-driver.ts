@@ -1,4 +1,5 @@
 import type {
+  AgruneManifest,
   AgruneRuntimeConfig,
   BrowserDriver,
   CommandResult,
@@ -341,6 +342,33 @@ export class CdpDriver implements BrowserDriver {
       becameActive: true,
       ...(cdpFocusError ? { cdpFocusError } : {}),
     }
+  }
+
+  async injectManifest(tabId: number, manifest: AgruneManifest): Promise<void> {
+    const target = this.targetManager.getTarget(tabId)
+    if (!target?.sessionId) {
+      throw createCommandError(
+        'TAB_NOT_FOUND',
+        `No session for tabId ${tabId}.`,
+        { tabId },
+      )
+    }
+
+    // JSON.stringify 이중 인코딩 + U+2028/U+2029 이스케이프 (T-12-05)
+    const jsonLiteral = JSON.stringify(JSON.stringify(manifest))
+    const escaped = jsonLiteral
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')
+
+    const expression =
+      `window.__agrune_manifest__ = JSON.parse(${escaped});` +
+      `if (window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}] && ` +
+      `typeof window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].reloadRuntime === 'function') {` +
+      `  window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].reloadRuntime();` +
+      `}`
+
+    await this.evaluateInSession(target.sessionId, expression)
+    await this.refreshSnapshot(tabId)
   }
 
   private async doConnect(): Promise<void> {
