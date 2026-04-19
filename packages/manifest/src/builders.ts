@@ -35,14 +35,7 @@ export function defineGroup<
   return input as unknown as ManifestGroup & { readonly __targetIds: TTargets[number]['targetId'] }
 }
 
-export function defineRepeat(input: {
-  repeatId: string
-  template: string
-  keyFrom: string
-  nameFrom?: string
-  strategy: 'dom' | 'virtualized'
-  targets: ManifestTarget[]
-}): ManifestRepeat {
+export function defineRepeat(input: ManifestRepeat): ManifestRepeat {
   return input
 }
 

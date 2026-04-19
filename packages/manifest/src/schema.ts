@@ -57,6 +57,9 @@ export interface ManifestRepeat {
   keyFrom: string
   nameFrom?: string
   strategy: 'dom' | 'virtualized'
+  /** Phase 15-01 (REPEAT-01): Optional container element selector for row enumeration.
+   *  If absent, RepeatExpander uses `document` as scope. */
+  containerSelector?: SelectorLadder
   targets: ManifestTarget[]
 }
 
@@ -130,6 +133,8 @@ export const RepeatSchema = z.object({
   keyFrom: z.string(),
   nameFrom: z.string().optional(),
   strategy: z.enum(['dom', 'virtualized']),
+  // Phase 15-01 (REPEAT-01): containerSelector optional — absent시 RepeatExpander가 document scope 사용
+  containerSelector: SelectorLadderSchema.optional(),
   targets: z.array(TargetSchema),
 })
 
