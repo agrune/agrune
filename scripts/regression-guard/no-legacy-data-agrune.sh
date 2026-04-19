@@ -4,8 +4,12 @@
 # Fails CI if 'data-agrune-' appears under packages/ outside the allow-list.
 #
 # The allow-list lives in scripts/regression-guard/data-agrune-allowlist.txt
-# and is matched line-by-line with `grep -vF` (substring — path fragments must
-# be specific enough to uniquely identify the file).
+# and is matched line-by-line as an anchored path prefix: each entry must be
+# the exact path (relative to repo root) of the allow-listed file, and the
+# matcher checks that `grep -rEn` output lines begin with `<allow-entry>:`.
+# Substring matches used to be accepted but were tightened in Phase 17 review
+# (WR-01) to prevent trivial rename-bypass (e.g. `foo.ts.disabled` sneaking
+# through an allow entry of `foo.ts`).
 
 set -euo pipefail
 
@@ -20,20 +24,33 @@ fi
 # Scan packages/ for any occurrence of 'data-agrune-'.
 # Excluded dirs: node_modules / dist (build artifacts) / test-results,
 # playwright-report (playwright runtime output — already gitignored).
-MATCHES=$(grep -rEn 'data-agrune-' "$ROOT/packages" \
+# `cd "$ROOT"` so grep emits *relative* paths (`packages/...`) that match
+# the allow-list entries, which are also stored relative to repo root.
+MATCHES=$(cd "$ROOT" && grep -rEn 'data-agrune-' 'packages' \
   --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html' --include='*.md' \
   --exclude-dir=node_modules --exclude-dir=dist \
   --exclude-dir=test-results --exclude-dir=playwright-report || true)
 
-# Apply allow-list: remove lines whose path contains an allow-listed substring.
-while IFS= read -r raw; do
-  # Strip comment + trailing whitespace
-  line="${raw%%#*}"
-  # shellcheck disable=SC2001
-  line="$(echo "$line" | sed -e 's/[[:space:]]*$//')"
-  [[ -z "$line" ]] && continue
-  MATCHES=$(echo "$MATCHES" | grep -vF "$line" || true)
-done < "$ALLOWLIST"
+# Apply allow-list using awk (exact path-prefix match, anchored by ':').
+# awk handles arbitrary path characters without the regex-metacharacter
+# escape hazards of `grep -E` + bash parameter expansion (notably `?` and
+# `*` inside `${var//pat/repl}` are bash globs, not literals).
+MATCHES=$(printf '%s\n' "$MATCHES" | awk -v allowlist="$ALLOWLIST" '
+  BEGIN {
+    while ((getline l < allowlist) > 0) {
+      sub(/#.*$/, "", l)
+      sub(/[[:space:]]+$/, "", l)
+      if (l != "") allow[l] = 1
+    }
+    close(allowlist)
+  }
+  {
+    # Expect lines of the form "<path>:<line-no>:<content>"
+    path = $0
+    sub(/:.*/, "", path)
+    if (!(path in allow)) print
+  }
+')
 
 if [[ -n "$MATCHES" ]]; then
   echo "Phase 17 regression: legacy 'data-agrune-' found outside allow-list:" >&2
