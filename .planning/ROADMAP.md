@@ -185,9 +185,9 @@
 | 14. MACRO | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 16. RECORD | v0.5 | 4/4 | Complete | 2026-04-19 |
-| 17. REMOVE | v0.5 | 0/? | Not started | — |
+| 17. REMOVE | v0.5 | 2/4 | In progress | — |
 | 18. REGISTRY | v0.5 | 0/? | Not started | — |
 
 ---
 
-v0.5 Manifest Pivot 활성. Phase 11-16 완료 (21 plans). Next: `/gsd-plan-phase 17` to decompose Phase 17 (REMOVE).
+v0.5 Manifest Pivot 활성. Phase 11-16 완료 (21 plans) + Phase 17 진행 중 (2/4 plans: 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전). Next: 17-03 (docs rewrite + user-flow fixture manifest 주입).

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 16-04-PLAN.md
-last_updated: "2026-04-19T12:43:26Z"
-last_activity: 2026-04-19 -- Phase 16 Plan 04 (manifest skill + sensitive corpus CI + TodoMVC demo) complete
+stopped_at: Completed 17-02-PLAN.md (e2e bootstrap shim → manifest-only + fixture 의미 반전)
+last_updated: "2026-04-19T16:00:50Z"
+last_activity: 2026-04-19 -- Phase 17 Plan 02 complete (e2e bootstrap manifest-only)
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_plans: 25
+  completed_plans: 23
+  percent: 92
 ---
 
 # Project State
@@ -21,19 +21,19 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Phase 16 — record
+**Current focus:** Phase 17 — remove
 
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 16 (record) — COMPLETE (all 4 plans landed)
-Plan: 4 of 4 complete (16-01 IdentityBridge v2 · 16-02 RecorderView+PendingStore · 16-03 manifest dev CLI+watcher · 16-04 skill+corpus+demo)
-Status: Awaiting Phase 17 planning (/gsd-plan-phase 17)
-Last activity: 2026-04-19 -- Phase 16 Plan 04 (manifest skill + sensitive corpus CI + TodoMVC demo) complete
+Phase: 17 (remove) — EXECUTING
+Plan: 3 of 4 (17-01 ✓ runtime/browser src 삭제, 17-02 ✓ e2e bootstrap manifest-only)
+Status: Executing Phase 17
+Last activity: 2026-04-19 -- Phase 17 Plan 02 complete (e2e bootstrap manifest-only)
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
-다음 단계: `/gsd-plan-phase 17` 으로 REMOVE phase의 plans 분해 (inline data-agrune-* 스캐너 제거 + 문서 재작성 + 용어 전환).
+다음 단계: 17-03 (README / AGENTS / PRIVACY / docs/* 재작성 + user-flow fixture manifest 주입으로 5개 pre-existing e2e fail 해소).
 
 ## Accumulated Context
 
@@ -112,9 +112,19 @@ Recent decisions carrying forward:
 - ~~Phase 16 RECORD~~ — 4 plans 완료 (16-01 IdentityBridge v2 · 16-02 Recorder+PendingStore · 16-03 manifest dev watcher · 16-04 skill+corpus+demo, 2026-04-19)
 - ~~RECORD-04 sensitive heuristic CI 증명~~ — 116 fixture 코퍼스 + precision 1.000/recall 1.000 CI gate (2026-04-19)
 - ~~RECORD-05 manifest authoring skill 작성~~ — `.agents/skills/manifest/` + TodoMVC reference fixture (2026-04-19, 수동 검증 게이트)
+- ~~Phase 17-01 runtime+browser src legacy 제거~~ — 9 call-site group 전부 삭제, scanner/builder file 2개 제거, regression spec 2개 신설 (2026-04-19, commit `2b69647`)
+- ~~Phase 17-02 e2e bootstrap shim manifest-only 전환~~ — `helpers.ts` BOOTSTRAP_SOURCE + `idle-boot.html` + `legacy-annotated.html` (의미 반전) + `bootstrap-idle.spec.ts` (assertion 반전) + `annotation-scan.spec.ts` (allow-list 주석). `bootstrap-idle.spec.ts` 3/3 PASS + `annotation-scan.spec.ts` 4/4 PASS (2026-04-19, commits `e59992b`..`402b0e1`)
 
 ## Session Continuity
 
-Last session: 2026-04-19T12:43:26Z
-Stopped at: Completed 16-04-PLAN.md (Phase 16 전체 완료)
+Last session: 2026-04-19T16:00:50Z
+Stopped at: Completed 17-02-PLAN.md (e2e bootstrap manifest-only)
 Resume file: None
+
+### Phase 17 Plan 02 — Known Out-of-scope Failures (for 17-03)
+
+`pnpm test:e2e` 전체 suite 에 5 개 pre-existing user-flow spec fail 이 baseline (17-01 이전에도 실패) — 17-02 가 만든 회귀가 아님. 17-03 에서 fixture 에 inline manifest 주입으로 해소 권고:
+
+- `packages/e2e/tests/user-flow/fill-real.spec.ts` (3 개) — tricky-inputs fixture 의 `cc`/`bio`/`pw` target 이 snapshot 에 없음
+- `packages/e2e/tests/user-flow/act-overlay.spec.ts` (1 개) — overlay-modal target resolution
+- `packages/e2e/tests/user-flow/manifest-inject.spec.ts` happy-path (1 개) — `manifest_load` 직후 snapshot refresh 타이밍
