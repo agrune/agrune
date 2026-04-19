@@ -3,29 +3,23 @@ import {
   type DragPlacement,
   type PageSnapshot,
   type AgruneRuntimeConfig,
-  type ViewportTransform,
   DEFAULT_RUNTIME_CONFIG,
   mergeRuntimeConfig,
 } from '@agrune/core'
 import type { ActionKind, AgruneRuntimeOptions } from '../types'
 import {
   type PointerCoords,
-  autoPanToCanvasPoint,
-  canvasToViewport,
   canReceiveTextInput,
   getElementCenter,
-  getVisibleCenter,
   getDragPlacementCoords,
   getInteractablePoint,
   isContentEditableElement,
   isElementInViewport,
   isEnabled,
   isFillableElement,
-  isPointInsideViewport,
   isTopmostInteractable,
   isVisible,
   smoothScrollIntoView,
-  viewportToCanvas,
 } from './dom-utils'
 import {
   type MutableSnapshotStore,
@@ -316,7 +310,6 @@ export function setElementValue(
 // per-character keystroke dispatch so the masking library's keydown/beforeinput
 // listeners can reformat between characters.
 function detectMaskedInput(element: HTMLElement): boolean {
-  if (element.getAttribute('data-agrune-masked') === 'true') return true
   if (!(element instanceof HTMLInputElement)) return false
   const type = element.type
   if (type === 'tel') return true
@@ -541,7 +534,7 @@ export async function handleFill(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+    if (!isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
@@ -868,7 +861,7 @@ export async function handleAct(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+    if (!isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
@@ -915,59 +908,8 @@ export async function handleAct(
 }
 
 // ---------------------------------------------------------------------------
-// canvas group helpers
+// target lookup helpers
 // ---------------------------------------------------------------------------
-
-function isInCanvasGroup(groupId: string): boolean {
-  const groupEl = document.querySelector<HTMLElement>(
-    `[data-agrune-group="${groupId}"]`,
-  )
-  return groupEl?.hasAttribute('data-agrune-canvas') ?? false
-}
-
-function getCanvasGroupTransform(
-  descriptors: TargetDescriptor[],
-  targetId: string,
-): ViewportTransform | undefined {
-  const { baseTargetId } = parseRuntimeTargetId(targetId)
-  const descriptor = descriptors.find(d => d.target.targetId === baseTargetId)
-  if (!descriptor) return undefined
-
-  const groupEl = document.querySelector<HTMLElement>(
-    `[data-agrune-group="${descriptor.groupId}"]`
-  )
-  if (!groupEl) return undefined
-
-  const canvasSelector = groupEl.getAttribute('data-agrune-canvas')?.trim()
-  if (!canvasSelector) return undefined
-
-  const transformEl = groupEl.querySelector<HTMLElement>(canvasSelector)
-  if (!transformEl) return undefined
-
-  const rect = transformEl.getBoundingClientRect()
-  const style = window.getComputedStyle(transformEl)
-  if (!style.transform || style.transform === 'none') {
-    return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 }
-  }
-  const m = new DOMMatrix(style.transform)
-  return {
-    translateX: Math.round(rect.left),
-    translateY: Math.round(rect.top),
-    scale: Math.round(m.a * 1000) / 1000,
-  }
-}
-
-function findCanvasGroupEl(
-  descriptors: TargetDescriptor[],
-  targetId: string,
-): HTMLElement | null {
-  const { baseTargetId } = parseRuntimeTargetId(targetId)
-  const descriptor = descriptors.find(d => d.target.targetId === baseTargetId)
-  if (!descriptor) return null
-  return document.querySelector<HTMLElement>(
-    `[data-agrune-group="${descriptor.groupId}"]`
-  )
-}
 
 function findTargetIdForElement(
   descriptors: TargetDescriptor[],
@@ -983,25 +925,10 @@ function findTargetIdForElement(
 function buildMovedTarget(
   element: HTMLElement,
   targetId: string,
-  transform?: ViewportTransform,
 ): Record<string, unknown> {
   const domRect = element.getBoundingClientRect()
   const cx = domRect.left + domRect.width / 2
   const cy = domRect.top + domRect.height / 2
-
-  if (transform) {
-    const canvasCenter = viewportToCanvas(cx, cy, transform)
-    return {
-      targetId,
-      center: canvasCenter,
-      size: {
-        w: Math.round(domRect.width / transform.scale),
-        h: Math.round(domRect.height / transform.scale),
-      },
-      coordSpace: 'canvas',
-    }
-  }
-
   return {
     targetId,
     center: { x: Math.round(cx), y: Math.round(cy) },
@@ -1102,7 +1029,7 @@ export async function handleDrag(
           sourceDescriptor.target.targetId,
         )
       }
-      if (!isInCanvasGroup(sourceDescriptor.groupId) && !isTopmostInteractable(sourceElement)) {
+      if (!isTopmostInteractable(sourceElement)) {
         return buildErrorResult(
           input.commandId ?? input.sourceTargetId,
           'NOT_VISIBLE',
@@ -1127,7 +1054,9 @@ export async function handleDrag(
 
       // --- Branch: coordinate-based drag ---
       if (hasCoords) {
-        // --- Resolve relativeTo to absolute coords ---
+        // --- Resolve relativeTo to absolute viewport coords ---
+        // Phase 17 REMOVE-01: canvas coord-space lookup 제거됨. 모든 coord 는
+        // viewport 기준이며, relativeTo 는 ref 요소의 viewport center + dx/dy.
         if (input.destinationCoords && 'relativeTo' in input.destinationCoords) {
           const relCoords = input.destinationCoords as unknown as { relativeTo: string; dx: number; dy: number }
           const refDescriptor = resolveRuntimeTarget(deps.getDescriptors(), relCoords.relativeTo)
@@ -1140,163 +1069,26 @@ export async function handleDrag(
               relCoords.relativeTo,
             )
           }
-          const refElement = refDescriptor.element
-          const refRect = refElement.getBoundingClientRect()
+          const refRect = refDescriptor.element.getBoundingClientRect()
           const refCx = refRect.left + refRect.width / 2
           const refCy = refRect.top + refRect.height / 2
-
-          const refTransform = getCanvasGroupTransform(deps.getDescriptors(), relCoords.relativeTo)
-          if (refTransform) {
-            const refCanvas = viewportToCanvas(refCx, refCy, refTransform)
-            input.destinationCoords = {
-              x: refCanvas.x + relCoords.dx,
-              y: refCanvas.y + relCoords.dy,
-            }
-          } else {
-            input.destinationCoords = {
-              x: Math.round(refCx + relCoords.dx),
-              y: Math.round(refCy + relCoords.dy),
-            }
+          input.destinationCoords = {
+            x: Math.round(refCx + relCoords.dx),
+            y: Math.round(refCy + relCoords.dy),
           }
         }
 
-        const transform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
-        // Use visible center for canvas groups so drag pickup works when the
-        // element center is offscreen but an edge is still visible.
-        const srcCoords = transform
-          ? getVisibleCenter(sourceElement)
-          : getElementCenter(sourceElement)
-
-        let destCoords: PointerCoords
-        if (transform) {
-          // Auto-pan source if offscreen
-          if (!isElementInViewport(sourceElement)) {
-            const groupEl = findCanvasGroupEl(deps.getDescriptors(), input.sourceTargetId)
-            const canvasSelector = groupEl?.getAttribute('data-agrune-canvas')?.trim()
-            if (groupEl && canvasSelector) {
-              const srcCanvas = viewportToCanvas(srcCoords.clientX, srcCoords.clientY, transform)
-              const panResult = await autoPanToCanvasPoint(
-                srcCanvas.x, srcCanvas.y, groupEl, canvasSelector, deps.eventSequences,
-              )
-              if (!panResult) {
-                return buildErrorResult(
-                  input.commandId ?? input.sourceTargetId,
-                  'CANVAS_PAN_FAILED',
-                  'Failed to pan canvas to bring source target into viewport.',
-                  snapshot,
-                  input.sourceTargetId,
-                )
-              }
-            }
-          }
-
-          // Re-read transform after potential pan
-          const freshTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)!
-          const vp = canvasToViewport(input.destinationCoords!.x, input.destinationCoords!.y, freshTransform)
-          destCoords = { clientX: vp.x, clientY: vp.y }
-
-          // Auto-pan destination if offscreen
-          if (!isPointInsideViewport(vp.x, vp.y)) {
-            const groupEl = findCanvasGroupEl(deps.getDescriptors(), input.sourceTargetId)
-            const canvasSelector = groupEl?.getAttribute('data-agrune-canvas')?.trim()
-            if (groupEl && canvasSelector) {
-              const panResult = await autoPanToCanvasPoint(
-                input.destinationCoords!.x, input.destinationCoords!.y,
-                groupEl, canvasSelector, deps.eventSequences,
-              )
-              if (!panResult) {
-                return buildErrorResult(
-                  input.commandId ?? input.sourceTargetId,
-                  'CANVAS_PAN_FAILED',
-                  'Failed to pan canvas to bring destination into viewport.',
-                  snapshot,
-                  input.sourceTargetId,
-                )
-              }
-              const vpAfterPan = canvasToViewport(
-                input.destinationCoords!.x, input.destinationCoords!.y, panResult,
-              )
-              destCoords = { clientX: vpAfterPan.x, clientY: vpAfterPan.y }
-            }
-          }
-
-          // Re-read source coords after potential pan (use visible center for canvas)
-          const freshSrcCoords = getVisibleCenter(sourceElement)
-          Object.assign(srcCoords, freshSrcCoords)
-        } else {
-          destCoords = {
-            clientX: input.destinationCoords!.x,
-            clientY: input.destinationCoords!.y,
-          }
+        const srcCoords = getElementCenter(sourceElement)
+        const destCoords: PointerCoords = {
+          clientX: input.destinationCoords!.x,
+          clientY: input.destinationCoords!.y,
         }
 
-        // Capture source canvas position before drag for no-move detection
+        // Capture source viewport position before drag for no-move detection
         const srcDomRect = sourceElement.getBoundingClientRect()
-        const srcVpCx = srcDomRect.left + srcDomRect.width / 2
-        const srcVpCy = srcDomRect.top + srcDomRect.height / 2
-        const currentTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
-        const srcCanvasCenter = currentTransform
-          ? viewportToCanvas(srcVpCx, srcVpCy, currentTransform)
-          : { x: Math.round(srcVpCx), y: Math.round(srcVpCy) }
-
-        // Check if other agrune targets are stacked on top at this position.
-        // Gather ALL overlapping targets so the AI can plan the full peeling
-        // sequence in one shot instead of discovering one blocker at a time.
-        if (transform) {
-          const srcVpCenter = getElementCenter(sourceElement)
-          const topEl = document.elementFromPoint(srcVpCenter.clientX, srcVpCenter.clientY)
-          if (topEl && topEl !== sourceElement) {
-            const blockingEl = topEl.closest<HTMLElement>('[data-agrune-action]')
-            if (blockingEl && blockingEl !== sourceElement) {
-              // Found at least one blocker — collect the full stack
-              const srcRect = sourceElement.getBoundingClientRect()
-              const srcCx = srcRect.left + srcRect.width / 2
-              const srcCy = srcRect.top + srcRect.height / 2
-              const PROXIMITY_PX = 10
-
-              const stackedTargets: Array<{ targetId: string; name: string; element: HTMLElement }> = []
-              for (const d of deps.getDescriptors()) {
-                if (d.target.targetId === sourceDescriptor.target.targetId) continue
-                if (d.groupId !== sourceDescriptor.groupId) continue
-                const elements = findElements(d)
-                for (const el of elements) {
-                  const r = el.getBoundingClientRect()
-                  const cx = r.left + r.width / 2
-                  const cy = r.top + r.height / 2
-                  if (Math.abs(cx - srcCx) < PROXIMITY_PX && Math.abs(cy - srcCy) < PROXIMITY_PX) {
-                    stackedTargets.push({
-                      targetId: d.target.targetId,
-                      name: d.target.name || el.getAttribute('data-agrune-name') || 'unknown',
-                      element: el,
-                    })
-                  }
-                }
-              }
-
-              if (stackedTargets.length > 0) {
-                // Sort by DOM order (later in DOM = higher z-index in React Flow)
-                // so the message lists from top to bottom (reverse DOM order).
-                stackedTargets.sort((a, b) => {
-                  const pos = a.element.compareDocumentPosition(b.element)
-                  if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return 1  // b is after a
-                  if (pos & Node.DOCUMENT_POSITION_PRECEDING) return -1 // b is before a
-                  return 0
-                })
-                stackedTargets.reverse()
-
-                const stackList = stackedTargets
-                  .map(t => `${t.targetId}(${t.name})`)
-                  .join(', ')
-                return buildErrorResult(
-                  input.commandId ?? input.sourceTargetId,
-                  'NOT_VISIBLE',
-                  `Target is covered by stacked nodes at the same position. Move them in this order: ${stackList}`,
-                  snapshot,
-                  input.sourceTargetId,
-                )
-              }
-            }
-          }
+        const srcVpCenter = {
+          x: Math.round(srcDomRect.left + srcDomRect.width / 2),
+          y: Math.round(srcDomRect.top + srcDomRect.height / 2),
         }
 
         if (config.pointerAnimation) {
@@ -1318,19 +1110,17 @@ export async function handleDrag(
         }
 
         const nextSnapshot = await deps.captureSettledSnapshot(2)
-        const freshTransform = getCanvasGroupTransform(deps.getDescriptors(), input.sourceTargetId)
 
         // Re-resolve source element — the DOM node may have been replaced during
         // the drag (e.g. React re-render).  Fall back to the original reference if
         // resolution fails, but flag it as potentially stale.
         const freshSource = resolveRuntimeTarget(deps.getDescriptors(), input.sourceTargetId)
         const movedElement = freshSource?.element ?? sourceElement
-        const movedTarget = buildMovedTarget(movedElement, input.sourceTargetId, freshTransform)
+        const movedTarget = buildMovedTarget(movedElement, input.sourceTargetId)
 
         // Check if the node actually moved (within 5px tolerance)
         const movedCenter = movedTarget.center as { x: number; y: number } | undefined
         const destX = input.destinationCoords!.x
-        const destY = input.destinationCoords!.y
 
         // Detect stale element (detached from DOM after re-render) — treat as
         // no-move because getBoundingClientRect returns zeros for detached nodes.
@@ -1340,8 +1130,8 @@ export async function handleDrag(
           elementStale ||
           (movedCenter &&
             Math.abs(movedCenter.x - destX) > 20 &&
-            Math.abs(movedCenter.x - srcCanvasCenter.x) < 5 &&
-            Math.abs(movedCenter.y - srcCanvasCenter.y) < 5)
+            Math.abs(movedCenter.x - srcVpCenter.x) < 5 &&
+            Math.abs(movedCenter.y - srcVpCenter.y) < 5)
         ) {
           return buildErrorResult(
             input.commandId ?? input.sourceTargetId,
@@ -1408,7 +1198,7 @@ export async function handleDrag(
           destinationDescriptor.target.targetId,
         )
       }
-      if (!isInCanvasGroup(destinationDescriptor.groupId) && !isTopmostInteractable(destinationElement)) {
+      if (!isTopmostInteractable(destinationElement)) {
         return buildErrorResult(
           input.commandId ?? input.sourceTargetId,
           'NOT_VISIBLE',
@@ -1620,7 +1410,7 @@ export async function handleGuide(
     if (!isElementInViewport(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
-    if (!isInCanvasGroup(descriptor.groupId) && !isTopmostInteractable(element)) {
+    if (!isTopmostInteractable(element)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
     if (!isEnabled(element)) {
