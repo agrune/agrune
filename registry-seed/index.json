@@ -1,17 +1,97 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-20T00:00:00.000Z",
-  "generatedBy": "phase-18-03-seed",
+  "generatedAt": "2026-04-19T17:40:22.883Z",
+  "generatedBy": "scripts/registry-seed/validate-seed.mjs",
   "entries": [
-    { "host": "arxiv.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/arxiv.org@1.0.0.json" },
-    { "host": "developer.mozilla.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/developer.mozilla.org@1.0.0.json" },
-    { "host": "docs.python.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/docs.python.org@1.0.0.json" },
-    { "host": "en.wikipedia.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/en.wikipedia.org@1.0.0.json" },
-    { "host": "hn.algolia.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/hn.algolia.com@1.0.0.json" },
-    { "host": "news.ycombinator.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/news.ycombinator.com@1.0.0.json" },
-    { "host": "observablehq.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/observablehq.com@1.0.0.json" },
-    { "host": "pypi.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/pypi.org@1.0.0.json" },
-    { "host": "www.gutenberg.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/www.gutenberg.org@1.0.0.json" },
-    { "host": "www.wikidata.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/www.wikidata.org@1.0.0.json" }
+    {
+      "host": "arxiv.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/arxiv.org@1.0.0.json",
+      "contentHash": "sha256:84844b02d7b93cf40b6133ab158cbf09f6486e4726808ee04124c5876ac719f3"
+    },
+    {
+      "host": "developer.mozilla.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/developer.mozilla.org@1.0.0.json",
+      "contentHash": "sha256:27ed6b811bddb4a3bbabb9668d5dd150058c74d32a9c6aee18c403d5d243e2ab"
+    },
+    {
+      "host": "docs.python.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/docs.python.org@1.0.0.json",
+      "contentHash": "sha256:7fb0d946763e76502c797639b49689e627ffe7d794ba452bb684c4854dd78629"
+    },
+    {
+      "host": "en.wikipedia.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/en.wikipedia.org@1.0.0.json",
+      "contentHash": "sha256:0b90a0d9956cbe16be5e27fe5300992412711cf49526c95060bcfe3c9c20435f"
+    },
+    {
+      "host": "hn.algolia.com",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/hn.algolia.com@1.0.0.json",
+      "contentHash": "sha256:d42810606ae42588f169cf32598d75ab687529063b3ffd357b5c0d7d6bd45b06"
+    },
+    {
+      "host": "news.ycombinator.com",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/news.ycombinator.com@1.0.0.json",
+      "contentHash": "sha256:903cd479c1fc10ef22bbec89558a2161c1c21b39c66f20e018aac284d92a378c"
+    },
+    {
+      "host": "observablehq.com",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/observablehq.com@1.0.0.json",
+      "contentHash": "sha256:2a548edb871d77c88ed95255a1078cd55b50fab4af9ff8d7ef8e8ebc1406d1e7"
+    },
+    {
+      "host": "pypi.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/pypi.org@1.0.0.json",
+      "contentHash": "sha256:e4576dc785005d6c03f844370e8e8adba53826ee06e64b018b37f305e493b2c5"
+    },
+    {
+      "host": "www.gutenberg.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/www.gutenberg.org@1.0.0.json",
+      "contentHash": "sha256:c506c66214fb898f07f07bdb6ab50e5720f54550cf314f4630b72f5a0e18a613"
+    },
+    {
+      "host": "www.wikidata.org",
+      "versions": [
+        "1.0.0"
+      ],
+      "tier": "verified",
+      "path": "manifests/www.wikidata.org@1.0.0.json",
+      "contentHash": "sha256:aba4724e0ecd6ed1f6620e5c7aebc7211982e910be2b711017c65898143e3957"
+    }
   ]
 }

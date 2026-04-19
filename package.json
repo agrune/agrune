@@ -8,7 +8,12 @@
     "typecheck": "pnpm -r --filter \"@agrune/*\" --if-present run typecheck && pnpm -r --filter \"@agrune/*\" --if-present run build",
     "test": "pnpm -r --filter \"@agrune/*\" --if-present run test",
     "lint:no-legacy": "bash ./scripts/regression-guard/no-legacy-data-agrune.sh",
+    "validate:seed": "node ./scripts/registry-seed/validate-seed.mjs",
+    "validate:seed:fix": "node ./scripts/registry-seed/validate-seed.mjs --fix-index",
     "test:e2e": "pnpm --filter @agrune/e2e run test:e2e",
     "test:e2e:install": "pnpm --filter @agrune/e2e run test:e2e:install"
+  },
+  "devDependencies": {
+    "@agrune/registry": "workspace:*"
   }
 }

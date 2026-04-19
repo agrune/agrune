@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@agrune/registry':
+        specifier: workspace:*
+        version: link:packages/registry
 
   packages/browser:
     dependencies:
