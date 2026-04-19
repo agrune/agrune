@@ -117,7 +117,10 @@
   2. `strategy: 'virtualized'` 선택 시 viewport 내 row만 enumerate하되 `aria-rowcount`/`aria-setsize` 를 logical-size hint로 PageSnapshot에 반영해 AI가 "N보다 큰 index"를 요청할 때 명시적 에러가 나온다 (fiber data-state 접근은 v0.6+ 로 연기 선언).
   3. Snapshot group에 `repeatInstance: { index, key }` 필드가 등장해 AI 에이전트가 `login.items[postId=abc123]` 같은 경로로 개별 인스턴스를 타겟한다.
   4. Validation CLI가 `defineRepeat` 에 stable key가 누락되면 빌드 실패 — index-only key는 reorder에 취약하므로 금지.
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 15-01-PLAN.md — ManifestRepeat.containerSelector + PageTarget.repeatInstance + PageSnapshotGroup.repeats + REPEAT_INDEX_OUT_OF_RANGE (Decision A 타입 계약)
+- [ ] 15-02-PLAN.md — RepeatExpander 클래스(DOM/virtualized) + snapshot.ts 통합 (keyFrom eval + aria-rowcount READ-ONLY + maxInstances=1000)
+- [ ] 15-03-PLAN.md — dot-bracket targetId 파서(Decision B) + REPEAT_INDEX_OUT_OF_RANGE 발동 + validate CLI keyFrom 강화
 **UI hint**: no
 
 ### Phase 16: RECORD
@@ -176,7 +179,7 @@
 | 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 13. REACT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 14. MACRO | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 15. REPEAT | v0.5 | 0/? | Not started | — |
+| 15. REPEAT | v0.5 | 0/3 | Planned | 2026-04-19 |
 | 16. RECORD | v0.5 | 0/? | Not started | — |
 | 17. REMOVE | v0.5 | 0/? | Not started | — |
 | 18. REGISTRY | v0.5 | 0/? | Not started | — |
