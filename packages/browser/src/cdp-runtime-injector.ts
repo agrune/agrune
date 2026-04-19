@@ -123,23 +123,9 @@ function buildBootstrapSource(): string {
   };
 
   const resolveManifest = () => {
-    // Priority: owned-app injected > CDP preload > legacy inline scan > empty (idle)
+    // Priority: owned-app injected > CDP preload > empty (idle)
     if (window.__agrune_manifest__) return { manifest: window.__agrune_manifest__, hasManifest: true, source: 'window' };
     if (window.__agrune_preload_manifest__) return { manifest: window.__agrune_preload_manifest__, hasManifest: true, source: 'preload' };
-    // Legacy inline-scan path — maintained until Phase 17 (REMOVE-01).
-    if (typeof runtimeApi.scanAnnotations === 'function' &&
-        typeof runtimeApi.scanGroups === 'function' &&
-        typeof runtimeApi.buildManifest === 'function') {
-      try {
-        const legacyManifest = runtimeApi.buildManifest(
-          runtimeApi.scanAnnotations(document),
-          runtimeApi.scanGroups(document),
-        );
-        if (legacyManifest && Array.isArray(legacyManifest.groups) && legacyManifest.groups.some(g => g.targets && g.targets.length > 0)) {
-          return { manifest: legacyManifest, hasManifest: true, source: 'inline' };
-        }
-      } catch (e) { /* fall through to idle */ }
-    }
     return { manifest: runtimeApi.buildEmptyManifest(), hasManifest: false, source: 'idle' };
   };
 
@@ -208,9 +194,8 @@ function buildBootstrapSource(): string {
     }, { capture: true });
   }
 
-  // General snapshot observer — fires on ANY DOM change. Previously this also
-  // triggered installer retries (annotation-specific). Post-Phase-11 the
-  // runtime boots once on DOMContentLoaded; manifest changes arrive via
+  // General snapshot observer — fires on ANY DOM change. The runtime boots
+  // once on DOMContentLoaded; manifest changes arrive via
   // window.__agrune_manifest__ reassignment (Phase 12+) and trigger
   // reloadRuntime() explicitly.
   const snapshotObserver = new MutationObserver(() => {
@@ -293,7 +278,7 @@ function buildBootstrapSource(): string {
     },
   };
 
-  // Bootstrap — always, regardless of annotation presence (RESOLVE-04)
+  // Bootstrap — always, regardless of manifest presence (RESOLVE-04)
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', installRuntime, { once: true });
   } else {
