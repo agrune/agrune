@@ -6,6 +6,7 @@ import { WebSocketServer, type WebSocket } from 'ws'
 import type { PageSnapshot, Session } from '@agrune/core'
 import type { CommandBroker, CommandEvent } from './command-broker.js'
 import type { HitlController, HitlState } from './hitl-controller.js'
+import type { RecorderController, CommitPayload } from './recorder-controller.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -22,6 +23,8 @@ export interface DevtoolsServerOptions {
   commandBroker?: CommandBroker
   hitl?: HitlController
   onFocusSession?: (tabId: number) => Promise<void> | void
+  /** Phase 16 RECORD-02 — recorder controller for recorder_* WS routing. */
+  recorder?: RecorderController
 }
 
 interface ConnectedClient {
@@ -166,6 +169,11 @@ export async function startDevtoolsServer(
     ws.on('close', () => {
       const index = clients.indexOf(client)
       if (index !== -1) clients.splice(index, 1)
+      // Phase 16 Pitfall 6 — when the last client drops, reset recorder mode
+      // so picking state does not leak across reconnects.
+      if (options.recorder && clients.length === 0) {
+        options.recorder.reset()
+      }
     })
   })
 
@@ -304,9 +312,40 @@ function handleClientMessage(
       })
       return
     }
+    case 'recorder_toggle': {
+      if (!options.recorder) return
+      options.recorder.handleToggle()
+      return
+    }
+    case 'recorder_commit': {
+      if (!options.recorder) return
+      const raw = (message as unknown as { data?: unknown }).data
+      if (!isValidCommitPayload(raw)) return
+      void options.recorder.handleCommit(raw)
+      return
+    }
     default:
       return
   }
+}
+
+/**
+ * Validate the shape of a `recorder_commit` payload before handing it to
+ * RecorderController. We deliberately avoid importing zod here so that the
+ * MCP devtools-server stays minimal; fields 5-6 justify hand-rolled checks.
+ *
+ * Threat: T-16-01 (spoofed WS payload). Rejects anything we cannot safely
+ * forward to PendingStore without a subsequent sanitize step.
+ */
+function isValidCommitPayload(raw: unknown): raw is CommitPayload {
+  if (typeof raw !== 'object' || raw === null) return false
+  const r = raw as Record<string, unknown>
+  if (typeof r.targetId !== 'string' || r.targetId.length === 0 || r.targetId.length > 256) return false
+  if (typeof r.url !== 'string' || r.url.length > 4096) return false
+  if (typeof r.ts !== 'number' || !Number.isFinite(r.ts)) return false
+  if (typeof r.selector !== 'object' || r.selector === null) return false
+  if ('sensitive' in r && r.sensitive !== true) return false
+  return true
 }
 
 function broadcastSessions(
