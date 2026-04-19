@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-04-19T11:47:30.000Z"
-last_activity: 2026-04-19 -- Phase 16 Plan 01 (IdentityBridge resolvePath) complete
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-04-19T12:10:00.000Z"
+last_activity: 2026-04-19 -- Phase 16 Plan 02 (RecorderView + recorder_* WS + PendingStore + recorder-injected) complete
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 21
-  completed_plans: 18
-  percent: 86
+  completed_plans: 19
+  percent: 90
 ---
 
 # Project State
@@ -27,9 +27,9 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
 Phase: 16 (record) — EXECUTING
-Plan: 2 of 4 (16-01 complete, 16-02 next)
+Plan: 3 of 4 (16-01·16-02 complete, 16-03 next)
 Status: Executing Phase 16
-Last activity: 2026-04-19 -- Phase 16 Plan 01 (IdentityBridge resolvePath) complete
+Last activity: 2026-04-19 -- Phase 16 Plan 02 (RecorderView + recorder_* WS + PendingStore + recorder-injected) complete
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
@@ -56,6 +56,11 @@ Recent decisions carrying forward:
 - [Phase 16-01]: AgruneIdentityBridge v2 는 shape-additive — `resolvePath(el)` 추가 + `version: '1'→'2'` bump. 소비자는 `typeof bridge.resolvePath === 'function'` feature detect 권장
 - [Phase 16-01]: activateBridge 내부에서 `typeof index.getPathByDom === 'function'` 방어적 delegate — v1-shape 인덱스와 graceful 상호 운용 (mock/구버전 안전)
 - [Phase 16-01]: getPathByDom 반환값은 segment 얕은 복제(`.map(seg => ({ ...seg }))`) — FiberPathSegment primitive-only 3 필드라 caller mutation 격리 충분
+- [Phase 16-02]: RecorderController 는 UUID-기반 sessionId 를 서버에서 주조 (브라우저 time/id 불신) → pending 파일 디렉토리 경로 단일 트러스트 소스
+- [Phase 16-02]: PendingStore sanitizeSessionId/targetId 를 allow-list regex + path.relative containment check 로 이중 방어 (T-16-02 / T-16-06)
+- [Phase 16-02]: isValidCommitPayload 는 zod 대신 수동 shape check — devtools-server 가 manifest zod 의존을 피하기 위한 의도적 선택. 필드 5-6 개라 유지보수 비용 낮음
+- [Phase 16-02]: page-context recorder-injected.ts 는 `.value` 접근 0 match — T-16-04 를 grep-able evidence 로 유지 (주석의 citation 2 개만 허용)
+- [Phase 16-02]: activateRecorderOverlay 는 single-shot — 첫 클릭 후 listener 해제 후 onCapture 호출, Esc 취소 경로는 RecorderController 가 서버-측에서 reset
 
 ### Pending Todos
 
@@ -95,6 +100,6 @@ Recent decisions carrying forward:
 
 ## Session Continuity
 
-Last session: 2026-04-19T11:47:30.000Z
-Stopped at: Completed 16-01-PLAN.md
+Last session: 2026-04-19T12:10:00.000Z
+Stopped at: Completed 16-02-PLAN.md
 Resume file: None
