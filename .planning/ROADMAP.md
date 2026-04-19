@@ -38,7 +38,7 @@
 - [x] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [x] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
 - [x] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite (4/4 plans)
-- [ ] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
+- [x] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
 - [ ] **Phase 18: REGISTRY** — `github.com/agrune/maps` 공개 + `agrune maps` CLI + governance(tier + velocity limit + PR bot)
 
 ## Phase Details
@@ -166,7 +166,11 @@
   3. `REGISTRY_GOVERNANCE.md` 가 존재하며 tier 시스템(`verified`/`community`/`unlisted`), 신규 저자 첫 3 PR 30일 holddown(velocity limit), revocation 경로(incident list fetch + CLI auto-disable), maintainer 부재 시 default(disable-all) 가 명시돼 있다.
   4. PR bot(GitHub Actions)이 `sensitive:false` 변경을 자동 하이라이트하고 `requires-human-review:sensitive` 라벨을 강제로 부착한다. Weekly selector health check가 돌아 stale manifest에 `stale` 라벨이 자동 부여된다.
   5. 사용자가 `agrune maps doctor` 를 실행하면 로컬 캐시의 모든 manifest가 registry 최신 버전 대비 staleness(weekly re-fetch 기준)를 진단하고, stale이면 경고와 함께 auto-disable 경로를 제안한다.
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 18-01-PLAN.md — @agrune/registry 패키지 scaffold (schema + content-hash + cache + lockfile + staleness + registry-client)
+- [ ] 18-02-PLAN.md — agrune maps {add,types,doctor,submit} CLI + bin dispatch + README/AGENTS 반영
+- [ ] 18-03-PLAN.md — registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + index/incidents/maintainers + validate-seed 스크립트
+- [ ] 18-04-PLAN.md — PR bot + weekly health check + CODEOWNERS + PR template + external-sync-instructions + Phase 18 close
 **UI hint**: no
 
 ## Progress
@@ -190,7 +194,7 @@
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 16. RECORD | v0.5 | 4/4 | Complete | 2026-04-19 |
 | 17. REMOVE | v0.5 | 4/4 | Complete | 2026-04-19 |
-| 18. REGISTRY | v0.5 | 0/? | Not started | — |
+| 18. REGISTRY | v0.5 | 0/4 | Planned | — |
 
 ---
 
