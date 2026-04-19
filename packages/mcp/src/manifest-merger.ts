@@ -91,14 +91,17 @@ export function mergeTargetIntoManifest(
 
   // 2. ts-morph Project — in-memory only, never saved. Match the existing
   //    trailing-comma and indentation style so diffs stay minimal.
-  const hasTrailingComma = detectTrailingCommaStyle(sourceText)
+  // WR-05: trailing comma 판정은 아래 6. 단계에서 실제 targets array 의
+  //    마지막 요소를 AST 로 검사한다. 주석 속 예시 코드에 속지 않도록 여기서는
+  //    heuristic 을 쓰지 않고 기본값(false) 으로 project 를 먼저 만든 뒤
+  //    후속 설정값을 계산한다.
   const indentationText = detectIndentation(sourceText)
 
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
     useInMemoryFileSystem: false,
     manipulationSettings: {
-      useTrailingCommas: hasTrailingComma,
+      useTrailingCommas: false,
       indentationText,
     },
   })
@@ -129,6 +132,11 @@ export function mergeTargetIntoManifest(
       'defineManifest({...}) must have targets: [] or groups: [defineGroup({ targets: [] })]',
     )
   }
+
+  // WR-05: targets 배열의 실제 trailing comma 여부를 AST 기반으로 판정하여
+  //    manipulationSettings 에 반영.
+  const hasTrailingComma = detectTrailingCommaStyle(arr)
+  project.manipulationSettings.set({ useTrailingCommas: hasTrailingComma, indentationText })
 
   // 5. Collect existing targetIds to reject duplicates.
   const existingIds = collectExistingTargetIds(sf)
@@ -295,11 +303,19 @@ function collectExistingTargetIds(sf: SourceFile): Set<string> {
   return ids
 }
 
-function detectTrailingCommaStyle(sourceText: string): boolean {
-  // Heuristic: look for `,` before a closing `]`, `}`, or `)` with only
-  // whitespace between. Matches multi-line trailing commas without accepting
-  // a bare closing bracket.
-  return /,\s*[\]\}\)]/m.test(sourceText)
+/**
+ * WR-05: 주어진 `targets` 배열만 검사하여 실제 trailing comma 스타일을
+ * 판정한다. 빈 배열(`[]`)이나 기존 마지막 요소 뒤에 `,` 가 없는 배열은
+ * `false` 를 반환한다. 주석이나 다른 fixture 텍스트에 속지 않도록
+ * 전역 `sourceText` 정규식 heuristic 대신 해당 배열의 full text 만
+ * 스캔한다.
+ */
+function detectTrailingCommaStyle(arr: ArrayLiteralExpression): boolean {
+  const fullText = arr.getFullText()
+  const closeIdx = fullText.lastIndexOf(']')
+  if (closeIdx < 0) return false
+  const before = fullText.slice(0, closeIdx).replace(/\s+$/, '')
+  return before.endsWith(',')
 }
 
 function detectIndentation(sourceText: string): IndentationText {
