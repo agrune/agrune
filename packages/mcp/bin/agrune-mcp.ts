@@ -3,6 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CdpDriver } from '@agrune/browser'
 import { createMcpServer } from '../src/index.js'
 import { MCP_SERVER_VERSION } from '../src/version.js'
+import { PendingStore } from '../src/pending-store.js'
+import {
+  RecorderController,
+  type RecorderBroadcast,
+} from '../src/recorder-controller.js'
 
 const HELP_TEXT = `agrune — AI 에이전트용 CDP 기반 브라우저 자동화 MCP 서버
 
@@ -106,6 +111,18 @@ if (isMcpHost) {
   await server.connect(transport)
 }
 
+// CR-01: Recorder wiring. PendingStore + RecorderController are owned here so
+// that the DevTools WS layer can forward recorder_toggle/recorder_commit into
+// RecorderController.handleToggle/handleCommit, and the controller's broadcast
+// fan-out reaches every connected DevTools webapp. The actual broadcast fn is
+// provided by startDevtoolsServer once its WS client list is initialised; we
+// stash a deferred ref to keep the initialisation order clean.
+const pendingStore = new PendingStore()
+let recorderBroadcastFn: RecorderBroadcast = () => {
+  /* no-op until startDevtoolsServer wires up the real broadcast */
+}
+const recorder = new RecorderController(pendingStore, (msg) => recorderBroadcastFn(msg))
+
 // Always start DevTools server (it works even before Chrome connects — shows empty
 // until sessions arrive). This lets users open the DevTools UI at any time to
 // observe what the AI is doing, without needing to run agrune separately.
@@ -125,6 +142,12 @@ if (!noDevtools) {
             // devtools-initiated focus is best-effort; ignore errors here
             // since the UI will re-render session list on next sessions_update.
           }
+        },
+        recorder,
+        onRecorderBroadcastReady: (broadcast) => {
+          // WS fan-out 준비가 끝난 시점에 RecorderController 의 broadcast 를
+          // 실제 구현으로 교체. 이전 no-op 은 startup race 보호용.
+          recorderBroadcastFn = broadcast
         },
       },
     )

@@ -6,7 +6,11 @@ import { WebSocketServer, type WebSocket } from 'ws'
 import type { PageSnapshot, Session } from '@agrune/core'
 import type { CommandBroker, CommandEvent } from './command-broker.js'
 import type { HitlController, HitlState } from './hitl-controller.js'
-import type { RecorderController, CommitPayload } from './recorder-controller.js'
+import type {
+  RecorderController,
+  RecorderBroadcast,
+  CommitPayload,
+} from './recorder-controller.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +29,15 @@ export interface DevtoolsServerOptions {
   onFocusSession?: (tabId: number) => Promise<void> | void
   /** Phase 16 RECORD-02 — recorder controller for recorder_* WS routing. */
   recorder?: RecorderController
+  /**
+   * CR-01 wiring: Called once the devtools-server has initialised its WS
+   * client list. The callback receives a `RecorderBroadcast` function that
+   * fans out `recorder_state` / `recorder_captured` / `recorder_error`
+   * messages to every currently-connected DevTools client. Callers (e.g.
+   * agrune-mcp.ts) construct `RecorderController` with this broadcast so
+   * that toggle/commit decisions reach the UI in real time.
+   */
+  onRecorderBroadcastReady?: (broadcast: RecorderBroadcast) => void
 }
 
 interface ConnectedClient {
@@ -217,6 +230,23 @@ export async function startDevtoolsServer(
         }
       }
     })
+  }
+
+  // --- CR-01: recorder_* broadcast fan-out ---
+  // Surface a RecorderBroadcast to the caller so RecorderController 가 만드는
+  // recorder_state / recorder_captured / recorder_error 메시지가 모든 연결된
+  // DevTools 웹앱 클라이언트로 전파되도록 한다. 이 hook 이 없으면 UI 가
+  // 토글/커밋 결과를 전혀 받지 못해 recorder 전체가 dead-path 가 된다.
+  if (options.onRecorderBroadcastReady) {
+    const recorderBroadcast: RecorderBroadcast = (msg) => {
+      const payload = JSON.stringify(msg)
+      for (const client of clients) {
+        if (client.ws.readyState === client.ws.OPEN) {
+          client.ws.send(payload)
+        }
+      }
+    }
+    options.onRecorderBroadcastReady(recorderBroadcast)
   }
 
   // --- Listen ---
