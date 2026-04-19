@@ -40,8 +40,11 @@ test.describe('RESOLVE-04 — bootstrap always runs, idle when no manifest', () 
     const tamperResult = await page.evaluate(() => {
       const before = window.__agrune_runtime_state__
       try {
-        // @ts-expect-error — intentional tamper attempt
-        window.__agrune_runtime_state__ = { hasManifest: true, source: 'window' }
+        // intentional tamper attempt — runtime publishes with writable:false
+        ;(window as unknown as { __agrune_runtime_state__: unknown }).__agrune_runtime_state__ = {
+          hasManifest: true,
+          source: 'window',
+        }
       } catch (e) {
         // strict-mode throws; non-strict silently ignores — either is acceptable
       }
