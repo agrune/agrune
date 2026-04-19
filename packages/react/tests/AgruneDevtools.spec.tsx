@@ -89,7 +89,8 @@ describe('AgruneDevtools component', () => {
     })
 
     expect(window.__agrune_identity__).toBeDefined()
-    expect(window.__agrune_identity__?.version).toBe('1')
+    // Phase 16: version bumped '1' → '2' (resolvePath 추가)
+    expect(window.__agrune_identity__?.version).toBe('2')
   })
 
   it('test 3: mode="prod" + AGRUNE_PROD_ENABLED 미설정 → bridge 게시 안 됨', async () => {
