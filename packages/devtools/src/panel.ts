@@ -4,6 +4,7 @@ import { DevtoolsWsClient } from './ws-client.js'
 import { LogsView } from './logs-view.js'
 import { SessionsView } from './sessions-view.js'
 import { HitlToolbar } from './hitl-toolbar.js'
+import { RecorderView } from './recorder-view.js'
 
 // --- Snapshot state (unchanged semantics) ---
 let snapshot: PageSnapshot | null = null
@@ -27,6 +28,7 @@ const tabBar = document.getElementById('tabBar') as HTMLDivElement
 const hitlRoot = document.getElementById('hitlToolbar') as HTMLDivElement
 const logsRoot = document.getElementById('logsRoot') as HTMLDivElement
 const sessionsRoot = document.getElementById('sessionsRoot') as HTMLDivElement
+const recorderRoot = document.getElementById('recorderRoot') as HTMLDivElement
 const viewNodes = Array.from(document.querySelectorAll<HTMLElement>('.view'))
 const tabButtons = Array.from(tabBar.querySelectorAll<HTMLButtonElement>('.tab-btn'))
 
@@ -39,6 +41,7 @@ ws.onMessage((msg) => handleMessage(msg))
 const logsView = new LogsView(logsRoot)
 const sessionsView = new SessionsView(sessionsRoot, ws)
 const hitlToolbar = new HitlToolbar(hitlRoot, ws)
+const recorderView = new RecorderView(recorderRoot, ws)
 
 // --- Tab switching ---
 function setTab(tab: TabId): void {
@@ -89,6 +92,14 @@ function handleMessage(msg: InboundMessage): void {
     }
     case 'hitl_state': {
       hitlToolbar.update(msg.data)
+      return
+    }
+    case 'recorder_state': {
+      recorderView.update(msg)
+      return
+    }
+    case 'recorder_captured': {
+      recorderView.update(msg)
       return
     }
   }
@@ -267,6 +278,7 @@ document.head.appendChild(style)
 void logsView
 void sessionsView
 void hitlToolbar
+void recorderView
 
 // --- Initial boot ---
 setTab('snapshot')
