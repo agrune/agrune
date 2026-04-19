@@ -244,18 +244,11 @@ async function createSubmissionPr(
     )
   }
 
-  // Probe whether the manifest file already exists upstream (update vs create
-  // semantics — future sha field support). A 404 is the "new submission"
-  // happy path; we swallow it.
-  try {
-    await octokit.repos.getContent({ owner, repo, path: prepared.manifestPath })
-  } catch (err) {
-    const status = (err as { status?: number }).status
-    if (status !== 404) {
-      // Non-404 errors are still informational — we proceed to fork/create
-      // regardless, since a fork owner may not have read access upstream.
-    }
-  }
+  // WR-03 (review 18): v0.5 is new-submit-only. The upstream probe used to
+  // call `getContent` here but never used the returned `sha`, so
+  // `createOrUpdateFileContents` still fails with 422 when the file already
+  // exists. Update-semantics (reusing `sha`) are deferred to v0.6+. Removing
+  // the dead probe avoids a misleading "informational" catch branch.
 
   // Idempotent fork. GitHub returns 202 Accepted on first fork; subsequent
   // calls are no-ops. Either way, the fork exists at `<userLogin>/<repo>`.
