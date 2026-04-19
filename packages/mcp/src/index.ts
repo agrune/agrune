@@ -1,5 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, Session } from '@agrune/core'
+import { validateManifest } from '@agrune/manifest'
+import type { AgruneManifest } from '@agrune/manifest'
 import { registerAgruneTools } from './mcp-tools.js'
 import type { ToolHandlerResult } from './mcp-tools.js'
 import {
@@ -123,6 +125,43 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
           }
           return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
         }
+      }
+      case 'agrune_manifest_load': {
+        const validation = validateManifest(args.manifest)
+        if (!validation.ok) {
+          return errorText(
+            'INVALID_MANIFEST',
+            'Manifest failed schema validation.',
+            { errors: validation.errors },
+          )
+        }
+        if (tabId == null) {
+          return errorText('SESSION_NOT_ACTIVE', 'No active session for manifest load.')
+        }
+        if (typeof driver.injectManifest !== 'function') {
+          return errorText('INVALID_COMMAND', 'Driver does not support injectManifest.')
+        }
+        try {
+          await driver.injectManifest(tabId, validation.manifest as AgruneManifest)
+        } catch (error) {
+          const shape = error as Partial<CommandErrorShape>
+          if (shape && typeof shape.code === 'string' && shape.code === 'TAB_NOT_FOUND') {
+            return errorText('TAB_NOT_FOUND', shape.message ?? 'Tab not found.', shape.details)
+          }
+          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
+        }
+        const session = driver.listSessions().find(s => s.tabId === tabId)
+        const payload = {
+          ok: true,
+          session: session
+            ? toPublicSessionMeta(session as Session, {
+                wasActive: session.active === true,
+                becameActive: false,
+              })
+            : null,
+          manifestSource: 'window' as const,
+        }
+        return { text: JSON.stringify(payload, null, 2) }
       }
       case 'agrune_config': {
         const config: Partial<AgruneRuntimeConfig> = {}

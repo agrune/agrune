@@ -103,6 +103,32 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
+      name: 'agrune_pointer',
+      description: 'Execute a low-level pointer/wheel event sequence on an element. Use for canvas pan, zoom, freeform drawing, or any interaction requiring raw coordinates.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
+          targetId: { type: 'string', description: 'Annotated target ID.' },
+          selector: { type: 'string', description: 'CSS selector for target element.' },
+          coords: {
+            type: 'object',
+            description: 'Viewport coordinates to find element via elementFromPoint.',
+            properties: {
+              x: { type: 'number', description: 'Viewport X coordinate' },
+              y: { type: 'number', description: 'Viewport Y coordinate' },
+            },
+          },
+          actions: {
+            type: 'array',
+            description: 'Ordered sequence of pointer/wheel events.',
+            items: { type: 'object' },
+          },
+        },
+        required: ['actions'],
+      },
+    },
+    {
       name: 'agrune_wait',
       description: 'Wait for a target element to reach a specific state (e.g., visible, hidden, enabled, disabled).',
       inputSchema: {
@@ -171,6 +197,19 @@ export function getToolDefinitions(): ToolDefinition[] {
             description: 'Reserved for future string session IDs. If present and parseable as a number, treated as tabId.',
           },
         },
+      },
+    },
+    {
+      name: 'agrune_manifest_load',
+      description:
+        'Load an AgruneManifest v3 into the active browser session. After loading, agrune_snapshot and agrune_act resolve targets defined in the manifest. Call this before using other tools on external sites (e.g. youtube.com) where the page does not ship its own window.__agrune_manifest__.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          manifest: { type: 'object', description: 'AgruneManifest v3 object. Must pass validateManifest schema (see @agrune/manifest).' },
+          tabId: { type: 'number', description: 'Tab ID (omit for active tab)' },
+        },
+        required: ['manifest'],
       },
     },
   ]

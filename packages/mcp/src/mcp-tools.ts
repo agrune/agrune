@@ -196,4 +196,18 @@ export function registerAgruneTools(
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_focus', args)),
   )
+
+  mcp.tool(
+    'agrune_manifest_load',
+    'Load an AgruneManifest v3 into the active browser session. After loading, agrune_snapshot and agrune_act resolve targets defined in the manifest. Call this before using other tools on external sites (e.g. youtube.com) where the page does not ship its own window.__agrune_manifest__.',
+    {
+      manifest: z.object({
+        version: z.literal(3),
+        groups: z.array(z.any()),
+        macros: z.array(z.any()).optional(),
+      }).describe('AgruneManifest v3 object. Must pass validateManifest schema (see @agrune/manifest).'),
+      ...optionalTabId,
+    },
+    async (args) => toMcpToolResult(await handleToolCall('agrune_manifest_load', args)),
+  )
 }
