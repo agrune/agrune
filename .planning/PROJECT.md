@@ -2,26 +2,33 @@
 
 ## Current State
 
-✅ **Shipped: v1.1 Browser Completion** (2026-04-18) — [MILESTONES.md](MILESTONES.md)
+🚧 **Active: v0.5 Manifest Pivot** (kicked off 2026-04-19, branch `feat/v0.5-manifest`)
 
-v1.0 Research (2026-04-18)에 이어 v1.1 Browser Completion도 2026-04-18 같은 날 autonomous 실행으로 완료. Phase 5-10 (INPUT→HEAL→SESS→DEVT→QUAL→DOCS)에서 23/23 requirements가 전부 phase VERIFICATION으로 잠김. `fill`의 CDP Input 도메인 통일, self-healing 자동 복구, active session + `agrune_focus`, devtools webapp 완성(로그·HITL·진단·세션 UI), Playwright E2E + annotation build-linter CI 배선, 문서·CLI·automation profile UX 재정리가 전부 출하됨.
+v1.1 Browser Completion (shipped 2026-04-18)까지 inline `data-agrune-*` 어노테이션 기반 아키텍처로 브라우저 본체 완성. v0.5부터 **manifest 기반 외부 매핑 + root-import 프레임워크 통합**으로 아키텍처 피봇. macOS AX 확장은 다음 milestone(v0.6+)으로 연기.
 
-**Next milestone:** 미정. v1.2+ 후보는 macOS AX-first hybrid 데스크톱 확장 (v1.0 연구에서 GO 권고된 방향).
+내부 milestone 번호는 semver와 정렬을 위해 v0.5부터 재시작 (실제 npm 버전 0.4.1 기준). v1.x 명명은 공식 출시 전까지 사용하지 않음.
 
-## Next Milestone Goals (v1.2 candidate — TBD)
+## Current Milestone: v0.5 Manifest Pivot
 
-사용자 확정 필요. 현 시점 carrying forward:
-- macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1에서 연기됨)
-- `docs/superpowers/specs/` 중 미실행 스펙 (capture/draw/system-interaction/qa-test-sheet)
-- Live-browser relaunch-and-reconnect E2E 실제 브라우저 시나리오
-- Masked-input heuristic 확대 (library-custom mask 자동 감지)
-- GitHub branch-protection required-check 토글 (레포 외부 작업)
-- 외부 `.github` repo push (사용자 수동 후속 조치)
+**Goal:** inline `data-agrune-*` 어노테이션을 완전 폐기하고, 외부 manifest + root-import 기반 프레임워크 통합으로 아키텍처 피봇. 외부 유명 사이트 자동화와 내부 타팀 코드에 대한 비침습 자동화를 같은 메커니즘으로 제공.
+
+**Target features:**
+- `@agrune/manifest` SDK — 타입 안전 authoring (`defineManifest`/`defineTarget`/`defineRepeat`/`defineMacro`)
+- `@agrune/react` 패키지 — root-import (`<AgruneDevtools />`) + React fiber 기반 component-identity selector, prod 옵션
+- Runtime 확장 — manifest loader, dual selector resolution (fiber/CSS), repeat primitive, macro runner, sensitive masking, route scoping
+- AI authoring skill (manifest 버전) — root-import 기반 in-app recorder
+- CLI — `agrune manifest dev/validate/submit`, `agrune maps add/types`
+- Registry — `github.com/agrune/maps` 시작 (혼자 유지 → 검증 관리자 채용 → 다중 review)
+- DevTools 웹앱 — recorder 오버레이 통합
 
 **Key context:**
-- v1.1 코드 베이스라인: 6 패키지 (`@agrune/core`, `@agrune/runtime`, `@agrune/browser`, `@agrune/mcp`, `@agrune/devtools`, `@agrune/e2e`)
-- Extension mode·native messaging·backend daemon 재도입 금지 (2026-04-15 피봇 확정)
-- 브라우저 본체는 프로덕션 품질. 다음 milestone은 데스크톱 확장 or 별도 feature set 선택.
+- **inline annotation 완전 폐기** — v1.1 유저 없어 migration 불필요, `data-agrune-*` 스캔 경로 runtime에서 제거
+- **Root-import 필수** — owned 프로젝트는 1줄 추가 (per-element 수정 0). 외부 사이트(root-import 불가)는 CSS selector fallback
+- **Prod 동작 옵션** — devtools/recorder는 dev-only, runtime loader는 prod 번들 포함 옵션
+- **Macro 포함** — `defineMacro`로 복합 플로우 패키징 (로그인 등)
+- **Sensitive 플래그** — manifest schema + AI auto-detect + 런타임 마스킹
+- **용어 전환** — "annotation" → "target mapping" 중심. 기존 "annotation" 문서/코드는 정리
+- **브랜치** `feat/v0.5-manifest` — 폐기 가능성 대비 main 격리 (acceptable to scrap and restart)
 
 ## What This Is
 
@@ -55,9 +62,19 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 
 ### Active
 
-(v1.2 milestone 미정. 아래는 carrying forward 후보)
+(v0.5 milestone — details in REQUIREMENTS.md after definition)
 
-- macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1에서 연기)
+- Manifest 포맷 표준화 + `@agrune/manifest` SDK (`defineManifest`/`defineTarget`/`defineRepeat`/`defineMacro`)
+- `@agrune/react` root-import 패키지 (component-identity selector via React fiber)
+- Runtime manifest loader + dual selector resolution (fiber/CSS) + repeat/macro/sensitive
+- AI authoring skill 재작성 (manifest 버전 + in-app recorder)
+- CLI `agrune manifest {dev,validate,submit}` + `agrune maps {add,types}`
+- Registry 초기 세팅 (`github.com/agrune/maps`)
+- DevTools 웹앱 recorder 오버레이
+
+### Carrying forward (v0.6+)
+
+- macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1·v0.5에서 연기)
 - `docs/superpowers/specs/` 미실행 스펙 (capture/draw/system-interaction/qa-test-sheet)
 - Live-browser relaunch-and-reconnect E2E 실제 시나리오
 - Masked-input heuristic 확대
@@ -124,6 +141,9 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 | **DevTools 웹앱을 CommandBroker + HitlController 기반으로 확장** | 기존 snapshot viewer만으로는 세션 관찰 불가. `CommandBroker`가 모든 도구 호출을 event-stream으로 broadcast하고 `HitlController`가 `handleToolCall`을 gate | 2026-04-18 — ✓ v1.1 DEVT-01..04 출하 |
 | **E2E를 Playwright `packages/e2e/`에 분리, CI `e2e` 잡으로 배선** | 단위 테스트만으로는 overlay/modal 실제 동작 검증 불가. `@playwright/test` + 별도 workspace package가 유지보수 비용 최소화 | 2026-04-18 — ✓ v1.1 QUAL-01 출하 |
 | **annotation build-linter를 `@agrune/core`에 내장, CLI + Vite plugin 양쪽 제공** | 어노테이션 실수는 런타임까지 가야 드러남. AST-level scan으로 HTML/JSX/TSX에서 missing/duplicate/typo를 빌드 타임에 잡음 | 2026-04-18 — ✓ v1.1 QUAL-02/03 출하 |
+| **Inline `data-agrune-*` 어노테이션 완전 폐기, manifest + root-import 기반으로 피봇** | (1) 외부 사이트(YouTube 등)는 소스 접근 불가라 inline 불가능, (2) 내부 타팀 코드에 inline 어노테이션 요청은 PR 검토 비용이 큼, (3) manifest 단일 소스로 통일하면 external·internal 같은 멘탈 모델. Root-import 1줄이 per-element 수정을 대체 (React fiber component-identity selector) | 2026-04-19 — v0.5 킥오프 |
+| **Milestone 번호를 semver와 정렬해 v0.5.x로 재시작, v1.x 명명 금지** | 실제 npm 패키지 버전은 0.4.1로 0점대 유지 중. 내부 milestone이 v1.1까지 갔지만 공식 출시 전까지 semver와 맞춰야 배포 혼동 방지 | 2026-04-19 — v0.5 킥오프 |
+| **v0.5 브랜치를 main에서 격리 (`feat/v0.5-manifest`)** | 대규모 아키텍처 피봇이라 중간에 폐기·재시작 가능성 열어둠. v1.1 이전 브라우저 코드를 main에서 안정적으로 유지하면서 v0.5 실험 진행 | 2026-04-19 — 브랜치 생성 |
 
 ## Evolution
 
@@ -143,4 +163,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-18 after v1.1 milestone — Phases 5-10 shipped (INPUT·HEAL·SESS·DEVT·QUAL·DOCS), 23/23 requirements validated*
+*Last updated: 2026-04-19 — v0.5 Manifest Pivot kickoff (branch `feat/v0.5-manifest`)*
