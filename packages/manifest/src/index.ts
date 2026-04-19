@@ -34,6 +34,8 @@ export {
 
 export type {
   ActionKind,
+  FiberPathSegment,
+  FiberIdentityPath,
   SelectorLadder,
   ManifestTarget,
   ManifestGroup,
