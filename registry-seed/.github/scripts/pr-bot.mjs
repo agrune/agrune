@@ -27,6 +27,7 @@ import { readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import * as core from '@actions/core'
 import { Octokit } from '@octokit/rest'
+import { isPrivateHost } from './_shared.mjs'
 
 // CR-01 (review 18): fork PR 로부터 받는 f.filename 이 `execSync` 쉘 문자열에
 // interpolate 되던 취약점을 막는다. `pull_request_target` 은 repo-scoped
@@ -105,17 +106,6 @@ function readAfterJson(relPath) {
     core.warning(`[${relPath}] failed to parse after-state: ${err.message}`)
     return null
   }
-}
-
-function isPrivateHost(hostname) {
-  if (!hostname) return true
-  if (hostname === 'localhost') return true
-  if (hostname.endsWith('.internal') || hostname.endsWith('.local')) return true
-  if (/^10\./.test(hostname)) return true
-  if (/^192\.168\./.test(hostname)) return true
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true
-  if (/^127\./.test(hostname)) return true
-  return false
 }
 
 /**

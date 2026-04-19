@@ -24,6 +24,7 @@ import { join } from 'node:path'
 import * as core from '@actions/core'
 import { Octokit } from '@octokit/rest'
 import { chromium } from 'playwright'
+import { isSafeSeedUrl } from './_shared.mjs'
 
 const STATE_FILE = '.github/health-state.json'
 const MANIFEST_DIR = 'manifests'
@@ -122,6 +123,14 @@ async function main() {
     const seedUrl = entry?.registry?.seedUrl
     if (!seedUrl) {
       core.notice(`[${name}] no seedUrl, skipping health check`)
+      continue
+    }
+    // WR-05 (review 18): defense-in-depth — even though pr-bot rejects
+    // non-https / private-host seedUrls at merge time, a maintainer could
+    // land a manual commit that bypasses the bot, and Playwright would
+    // otherwise happily follow `file://` or `data:` schemes. Re-check here.
+    if (!isSafeSeedUrl(seedUrl)) {
+      core.warning(`[${name}] seedUrl failed safety check (non-https or private host), skipping: ${seedUrl}`)
       continue
     }
 
