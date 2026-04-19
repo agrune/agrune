@@ -169,7 +169,7 @@
 **Plans**: 4 plans
 - [x] 18-01-PLAN.md — @agrune/registry 패키지 scaffold (schema + content-hash + cache + lockfile + staleness + registry-client)
 - [ ] 18-02-PLAN.md — agrune maps {add,types,doctor,submit} CLI + bin dispatch + README/AGENTS 반영
-- [ ] 18-03-PLAN.md — registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + index/incidents/maintainers + validate-seed 스크립트
+- [x] 18-03-PLAN.md — registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + index/incidents/maintainers + validate-seed 스크립트
 - [ ] 18-04-PLAN.md — PR bot + weekly health check + CODEOWNERS + PR template + external-sync-instructions + Phase 18 close
 **UI hint**: no
 
@@ -194,8 +194,8 @@
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 16. RECORD | v0.5 | 4/4 | Complete | 2026-04-19 |
 | 17. REMOVE | v0.5 | 4/4 | Complete | 2026-04-19 |
-| 18. REGISTRY | v0.5 | 1/4 | In Progress | — |
+| 18. REGISTRY | v0.5 | 2/4 | In Progress | — |
 
 ---
 
-v0.5 Manifest Pivot 활성. Phase 11-17 완료 (25 plans) + Phase 18 Plan 01 완료 — 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전, 17-03 루트 문서 7개 manifest 재작성 + SOT pointer 배치, 17-04 regression guard + CI 배선 + `lint:no-legacy` 전환 + 외부 `.github/profile/README.md` sync (로컬 커밋; 사용자 수동 push 대기), 18-01 `@agrune/registry` library layer (schema/content-hash/cache/lockfile/registry-client/staleness) 32 tests green. Next: Phase 18 Plan 02 (agrune maps CLI 서브커맨드) — library 를 얇은 wrapper 로 소비.
+v0.5 Manifest Pivot 활성. Phase 11-17 완료 (25 plans) + Phase 18 Plan 01/03 완료 — 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전, 17-03 루트 문서 7개 manifest 재작성 + SOT pointer 배치, 17-04 regression guard + CI 배선 + `lint:no-legacy` 전환 + 외부 `.github/profile/README.md` sync (로컬 커밋; 사용자 수동 push 대기), 18-01 `@agrune/registry` library layer (schema/content-hash/cache/lockfile/registry-client/staleness) 32 tests green, 18-03 registry-seed prototype (10 verified seed + 113줄 REGISTRY_GOVERNANCE.md + validate-seed.mjs 10/10 pass + pnpm validate:seed 배선). Next: Phase 18 Plan 02 (agrune maps CLI 서브커맨드) — library 를 얇은 wrapper 로 소비.

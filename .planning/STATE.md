@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 18-01-PLAN.md (@agrune/registry library layer — schema/content-hash/cache/lockfile/registry-client/staleness + 32 tests green)
-last_updated: "2026-04-19T17:30:33Z"
-last_activity: 2026-04-19 -- Phase 18 Plan 01 complete (REGISTRY library scaffold)
+stopped_at: Completed 18-03-PLAN.md (registry-seed 10 manifest + REGISTRY_GOVERNANCE.md 113 lines + validate-seed.mjs + pnpm validate:seed 배선 10/10 pass)
+last_updated: "2026-04-19T17:41:05Z"
+last_activity: 2026-04-19 -- Phase 18 Plan 03 complete (registry-seed prototype + governance doc + validator)
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 29
-  completed_plans: 26
-  percent: 90
+  completed_plans: 27
+  percent: 93
 ---
 
 # Project State
@@ -26,13 +26,13 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 18 (REGISTRY) — IN PROGRESS (1/4 plans)
-Status: Phase 18 Plan 01 completed 2026-04-19. Library layer (`@agrune/registry`) 착지 완료. 다음 Plan 02 (CLI 서브커맨드) 대기.
-Last activity: 2026-04-19 -- Phase 18 Plan 01 complete (@agrune/registry scaffold + schema + content-hash + cache + lockfile + registry-client + staleness, 32 tests green)
+Phase: 18 (REGISTRY) — IN PROGRESS (2/4 plans)
+Status: Phase 18 Plan 01 + Plan 03 completed 2026-04-19. Library layer + seed prototype 동시 착지. 다음 Plan 02 (CLI 서브커맨드) 대기.
+Last activity: 2026-04-19 -- Phase 18 Plan 03 complete (registry-seed 10 verified manifest + REGISTRY_GOVERNANCE.md 8 섹션 + validate-seed.mjs 10/10 pass + pnpm validate:seed 배선)
 
-브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) 완료로 CLI·seed·PR bot 3 wave 가 동일 schema/hash/validator 를 공유.
+브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) + Plan 03 (seed + governance) 완료로 CLI·PR bot wave 가 동일 schema/hash/validator/seed 콘텐츠 를 공유.
 
-다음 단계: Phase 18 Plan 02 (`agrune maps {add,types,doctor,submit}` CLI). 라이브러리 18 runtime export 를 얇은 argparse wrapper 로 consume. 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`).
+다음 단계: Phase 18 Plan 02 (`agrune maps {add,types,doctor,submit}` CLI). 라이브러리 18 runtime export 를 얇은 argparse wrapper 로 consume. 이후 Plan 04 (PR bot + weekly health check + external-sync-instructions). 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`), Plan 04 external-sync 후 `github.com/agrune/maps` push + maintainers.json placeholder 교체.
 
 ## Accumulated Context
 
@@ -87,15 +87,20 @@ Recent decisions carrying forward:
 - [Phase 18-01]: Cache host/version strict regex 화이트리스트 (`HOST_PATTERN` + `VERSION_PATTERN`) — slash, `..`, null byte 가 file path 구성 전에 리젝 (T-18-10 path traversal).
 - [Phase 18-01]: Atomic lockfile write (`tmp-<6hex>.json` + rename + catch-cleanup) — 동시 CLI 실행 시 tmp 충돌 방지 + partial write 방지 (T-18-09). 추후 cache write 에서도 재사용 가능 패턴.
 - [Phase 18-01]: registry-client `fetch` impl optional override 지원 — Plan 04 PR bot 의 record+replay 테스트 바닥 사전 깔기. 기본은 `globalThis.fetch` (Node 22 built-in).
+- [Phase 18-03]: 10 seed 후보 = RESEARCH 권고안 (HN / Wikipedia / MDN / Python docs / Gutenberg / arXiv / PyPI / HN Algolia / Wikidata / Observable) 그대로 채택. RESEARCH Assumption A1 LOW confidence 유지 — 실제 DOM resolve 검증은 Plan 04 weekly health check 가 담당.
+- [Phase 18-03]: 10 seed 전부 verified tier + allowedEnvironments=['dev','prod'] 로 초기화 — "프로젝트 자체 기여" (author='agrune-maintainers') 의미론. 일반 외부 기여자는 community tier 에서 시작 (governance Tier Transition 표 명시).
+- [Phase 18-03]: validate-seed.mjs 가 `@agrune/registry` workspace-internal import — 루트 package.json devDependencies 에 `@agrune/registry: workspace:*` link 추가로 node 가 resolve. v0.5 내내 npm publish 전까지 유지, v0.6 이후 published npm 으로 교체. PR bot plan 18-04 도 동일 제약 공유.
+- [Phase 18-03]: seed manifest 에 macro/repeat 생략 — read-only 저위험 플로우 (검색/브라우징) 만. 로그인/결제/sensitive 0 건. 첫 registry 의 surface 최소화로 PR bot 의 velocity/tier/sensitive 규칙을 단순 case 에서 먼저 validate.
+- [Phase 18-03]: Governance doc (REGISTRY_GOVERNANCE.md) 이 tier/velocity/revocation/absence/transition/staleness/security/reporting 8 섹션 완비 — PR bot Plan 04 가 집행할 normative spec. STALENESS_THRESHOLDS 상수 (7/28/56일) 와 doc Staleness Detection 표가 같은 숫자 공유해 drift 방지.
+- [Phase 18-03]: CODEOWNERS 파일은 Plan 03 에서 생성 안 함 — 실제 공개 repo 생성 시점 (Plan 04 external-sync-instructions) 에 사용자가 작성. 이 repo 에는 prototype 만 존재하므로 README/GOVERNANCE 가 CODEOWNERS 규약만 문서화.
 
 ### Pending Todos
 
 - 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치) — 로컬 main 이 origin/main 대비 2 commits 앞섬 (v1.1 DOCS-02 + Phase 17-04). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
 - 외부 `/Users/chenjing/dev/agrune/skills` repo 에서 `skills/annotate/` 디렉터리 폐기 — 사용자 수동 (pre-existing 변경 먼저 resolve 후). 상세 명령: `.planning/phases/17-remove/external-sync-instructions.md`
 - Phase 18 Plan 02 실행 (`agrune maps {add,types,doctor,submit}` CLI — library 18 runtime export 를 얇은 argparse wrapper 로 consume)
-- Phase 18 Plan 03 실행 (registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + validate-seed 스크립트)
-- Phase 18 Plan 04 실행 (PR bot + weekly health check + CODEOWNERS + Phase 18 close)
-- Registry seed manifest 선정 기준 확정 (Phase 18 research-phase 후보)
+- Phase 18 Plan 04 실행 (PR bot + weekly health check + CODEOWNERS + external-sync-instructions + Phase 18 close)
+- Plan 04 external-sync 완료 후: `github.com/agrune/maps` 공개 repo 생성 + `registry-seed/` 내용 push + maintainers.json `"agrune-solo"` placeholder 를 사용자 GitHub handle 로 교체 (사용자 수동)
 - RECORD-05 TodoMVC 데모 수동 검증 (실제 skill 호출 → README 체크리스트 대조) — 사용자 실행
 - Corpus 확장 (v0.6+): `name=cvc`, `인증번호`, Japanese `パスワードの確認` substring mode 등 documented gap 해결
 - 5 pre-existing user-flow E2E failures (act-overlay / fill-real x3 / manifest-inject) — 별도 plan 또는 Phase 18 pre-flight 에서 fixture-level inline manifest injection
@@ -139,11 +144,12 @@ Recent decisions carrying forward:
 - ~~Phase 17-04 regression guard + CI 배선 + 외부 profile sync~~ — `scripts/regression-guard/no-legacy-data-agrune.sh` + `data-agrune-allowlist.txt` (27 entries / 5 categories) / `pnpm lint:no-legacy` wire / `.github/workflows/ci.yml` build-test step 교체 / 외부 `.github/profile/README.md` 재작성 (로컬 commit `3d429ba`, push 대기) / `external-sync-instructions.md` 생성. ROADMAP + REQUIREMENTS Phase 17 Complete (2026-04-19, commits `9b32455`..`1f594a0`)
 - ~~Phase 17 REMOVE — 전체 4 waves 완료~~ — REMOVE-01/02/03 requirements 전부 validated. Phase 18 REGISTRY 공개 전제 조건 (schema stable + breaking surface 정리 + regression guard 활성) 충족 (2026-04-19)
 - ~~Phase 18-01 @agrune/registry library scaffold~~ — 신규 pnpm workspace 패키지, `errors` / `content-hash` (sha256 + fast-json-stable-stringify) / `schema` (RegistryEntrySchema + tier×env superRefine) / `cache` (0o700/0o600 + lstat symlink guard + path whitelist) / `lockfile` (atomic tmp+rename + host-sorted) / `registry-client` (HTTPS-only + latest resolver) / `staleness` (7/28/56 day) 착지. 32 unit tests green, workspace 9 패키지 build/typecheck/test 전부 pass, `pnpm lint:no-legacy` exit 0 유지. REGISTRY-03 완전 달성, REGISTRY-02/06 부분 달성 (CLI layer 는 Plan 02). 2026-04-19, commits `e63f719`..`3551b8f` (7 atomic commits).
+- ~~Phase 18-03 registry-seed + governance + validator~~ — `registry-seed/` 에 10 verified seed manifest (HN/Wikipedia/MDN/Python docs/Gutenberg/arXiv/PyPI/HN Algolia/Wikidata/Observable) + 113 줄 REGISTRY_GOVERNANCE.md (8 섹션 + 3 tier 서브) + 98 줄 README.md + incidents.json `[]` + maintainers.json solo placeholder + index.json (10 entries + sha256 contentHash per entry) 착지. `scripts/registry-seed/validate-seed.mjs` 가 RegistryEntrySchema.parse + contentHash 재계산, `pnpm validate:seed` 10/10 pass + negative test (invalid seed → exit 1 + zod issue path) 확인. 루트 package.json devDependencies 에 `@agrune/registry: workspace:*` link 추가 (node resolve 위해). Phase 17 regression guard 무영향 (`pnpm lint:no-legacy` exit 0). REGISTRY-04 완전 달성, REGISTRY-01 대부분 달성 (실제 공개 repo push 는 Plan 04 external-sync 이후 사용자 수동). 2026-04-19, commits `205fa39`/`8097f8d`/`84126be` (3 atomic commits).
 
 ## Session Continuity
 
-Last session: 2026-04-19T17:30:33Z
-Stopped at: Completed 18-01-PLAN.md (@agrune/registry library layer — schema/content-hash/cache/lockfile/registry-client/staleness + 32 tests green)
+Last session: 2026-04-19T17:41:05Z
+Stopped at: Completed 18-03-PLAN.md (registry-seed 10 manifest + REGISTRY_GOVERNANCE.md + validate-seed.mjs 10/10 pass + pnpm validate:seed 배선)
 Resume file: None
 
 ### Phase 17 완료 — Phase 18 진입 조건 요약
