@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 17-03-PLAN.md (루트 문서 7개 manifest 재작성 + SOT pointer 배치)
-last_updated: "2026-04-19T16:14:02Z"
-last_activity: 2026-04-19 -- Phase 17 Plan 03 complete (docs manifest-centric rewrite)
+stopped_at: Completed 17-04-PLAN.md (regression guard + CI 배선 + 외부 profile sync + external-sync-instructions)
+last_updated: "2026-04-19T16:32:31Z"
+last_activity: 2026-04-19 -- Phase 17 complete (REMOVE wave 4 closed)
 progress:
   total_phases: 8
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 25
-  completed_plans: 24
-  percent: 96
+  completed_plans: 25
+  percent: 100
 ---
 
 # Project State
@@ -21,19 +21,18 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Phase 17 — remove
+**Current focus:** Phase 18 — registry (다음)
 
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 17 (remove) — EXECUTING
-Plan: 4 of 4 (17-01 ✓ runtime/browser src 삭제, 17-02 ✓ e2e bootstrap manifest-only, 17-03 ✓ 루트 문서 7개 manifest 재작성 + SOT pointer)
-Status: Executing Phase 17 (last plan 17-04 남음)
-Last activity: 2026-04-19 -- Phase 17 Plan 03 complete (docs manifest-centric rewrite)
+Phase: 17 (REMOVE) — COMPLETE (4/4 plans)
+Status: Phase 17 closed 2026-04-19. 다음 Phase 18 (REGISTRY) 계획 대기.
+Last activity: 2026-04-19 -- Phase 17 Plan 04 complete (regression guard + CI 배선 + 외부 profile sync)
 
-브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
+브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족.
 
-다음 단계: 17-04 (외부 `.github/profile/README.md` sync + 외부 `skills/annotate/` 폐기 지침 + regression guard script + `lint:annotations` script 엔트리 삭제 결정).
+다음 단계: Phase 18 계획 분해 (`/gsd-plan-phase 18`) — registry 공개 + governance + seed manifest. 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`).
 
 ## Accumulated Context
 
@@ -75,15 +74,23 @@ Recent decisions carrying forward:
 - [Phase 17-03]: PRIVACY.md "browser extension" 2 회 등장 모두 제거 — 첫 건 MCP server 로 교체, 두 번째 negative 문("does not install a browser extension") 은 "does not install any browser add-on" 으로 교체해 Wave 4 regression grep 이 literal 을 0 회로 유지.
 - [Phase 17-03]: Deprecated workflows 섹션 phrasing 전략 — code block 안에 실제 legacy attribute 예시를 쓰지 않고 property-to-field upgrade map (name→targetId / action→actionKinds / group→groupId / sensitive→sensitive) 으로 설명. regression grep 에 걸리지 않으면서 upgrade 의미 전달.
 - [Phase 17-03]: SOT pointer 5 개 진입점 배치 — README (3 위치) / AGENTS (3 위치) / WORKFLOW.md 최상단 블록쿼트 / docs/agent-setup.md / packages/mcp/README. Agent 가 어느 문서로 들어와도 `.agents/skills/manifest/SKILL.md` 로 수렴.
+- [Phase 17-04]: `lint:annotations` script 엔트리 삭제 + `lint:no-legacy` 도입 (RESEARCH Open Q 1 권고 a). 외부 소비자용 `@agrune/core/annotation-lint` 패키지는 그대로 publish — 외부 프로젝트는 `agrune-lint` bin 을 직접 호출.
+- [Phase 17-04]: Regression guard allow-list 27 entries / 5 categories (A build-linter / B cursor markers / C unit tests / D e2e / E bundle) — 각 경로에 trailing comment + category divider. PR 리뷰 시 allow-list 추가가 명시적 승인 포인트로 드러남.
+- [Phase 17-04]: Script exclude-dir 에 `test-results` + `playwright-report` 추가 — playwright runtime output 이 gitignored 이지만 로컬 workspace 에 남아 script 실행 시 노이즈 생성. CI 와 로컬 동작 일관성 확보.
+- [Phase 17-04]: `packages/mcp/README.md` 의 `data-agrune-` literal phrase 제거 — 17-03 Deprecated workflows phrasing 전략과 일관. "legacy HTML data attribute (v0.4 까지 사용하던 inline 어노테이션 prefix 시리즈)" 로 교체.
+- [Phase 17-04]: 외부 `.github/profile/README.md` 의 `browser extension` literal 2 건 모두 "browser add-on" 으로 교체 — 17-03 PRIVACY 결정과 동일한 regex-safe 전략.
+- [Phase 17-04]: 외부 skills repo 파일 편집 수행 안 함 — working tree 의 pre-existing unrelated 변경 (marketplace.json, .mcp.json, mcp-server build artefacts) 때문에 agent 자동 commit 시 위험. instructions 에 사용자 선조건 resolve 를 명시하는 safer default 선택.
 
 ### Pending Todos
 
-- 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치, v1.1 잔여)
-- Phase 17 계획 분해 (`/gsd-plan-phase 17`) — inline data-agrune-* 제거 + "annotation" → "target mapping" 용어 전환
+- 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치) — 로컬 main 이 origin/main 대비 2 commits 앞섬 (v1.1 DOCS-02 + Phase 17-04). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
+- 외부 `/Users/chenjing/dev/agrune/skills` repo 에서 `skills/annotate/` 디렉터리 폐기 — 사용자 수동 (pre-existing 변경 먼저 resolve 후). 상세 명령: `.planning/phases/17-remove/external-sync-instructions.md`
 - Phase 18 계획 분해 (`/gsd-plan-phase 18`) — registry 공개 + governance + seed manifest
 - Registry seed manifest 선정 기준 확정 (Phase 18 research-phase 후보)
 - RECORD-05 TodoMVC 데모 수동 검증 (실제 skill 호출 → README 체크리스트 대조) — 사용자 실행
 - Corpus 확장 (v0.6+): `name=cvc`, `인증번호`, Japanese `パスワードの確認` substring mode 등 documented gap 해결
+- 5 pre-existing user-flow E2E failures (act-overlay / fill-real x3 / manifest-inject) — 별도 plan 또는 Phase 18 pre-flight 에서 fixture-level inline manifest injection
+- runtime full-suite order-dependent flaky 1 건 (`act는 동적으로 추가된 overlay target…`) — 17-01 SUMMARY baseline 유지, test infra 리팩터 필요
 
 ### Blockers/Concerns
 
@@ -120,20 +127,23 @@ Recent decisions carrying forward:
 - ~~Phase 17-01 runtime+browser src legacy 제거~~ — 9 call-site group 전부 삭제, scanner/builder file 2개 제거, regression spec 2개 신설 (2026-04-19, commit `2b69647`)
 - ~~Phase 17-02 e2e bootstrap shim manifest-only 전환~~ — `helpers.ts` BOOTSTRAP_SOURCE + `idle-boot.html` + `legacy-annotated.html` (의미 반전) + `bootstrap-idle.spec.ts` (assertion 반전) + `annotation-scan.spec.ts` (allow-list 주석). `bootstrap-idle.spec.ts` 3/3 PASS + `annotation-scan.spec.ts` 4/4 PASS (2026-04-19, commits `e59992b`..`402b0e1`)
 - ~~Phase 17-03 루트 문서 7 개 manifest 재작성~~ — README / AGENTS / PRIVACY / workflows/annotate/WORKFLOW / docs/agent-setup / docs/improvement-notes / packages/mcp/README. 치환된 용어 (annotate/어노테이션 → manifest/defineTarget, browser extension → MCP server) vs 유지된 용어 (annotation-lint 패키지명 / KNOWN_AGRUNE_ATTRS / lint:annotations script 엔트리 / docs/notes/ 아카이브) Pitfall 4 원칙 적용. SOT pointer `.agents/skills/manifest/SKILL.md` 를 5 개 진입점에 배치. 8 개 gate 전부 pass (2026-04-19, commits `1302d4c`..`2bc221b`)
+- ~~Phase 17-04 regression guard + CI 배선 + 외부 profile sync~~ — `scripts/regression-guard/no-legacy-data-agrune.sh` + `data-agrune-allowlist.txt` (27 entries / 5 categories) / `pnpm lint:no-legacy` wire / `.github/workflows/ci.yml` build-test step 교체 / 외부 `.github/profile/README.md` 재작성 (로컬 commit `3d429ba`, push 대기) / `external-sync-instructions.md` 생성. ROADMAP + REQUIREMENTS Phase 17 Complete (2026-04-19, commits `9b32455`..`1f594a0`)
+- ~~Phase 17 REMOVE — 전체 4 waves 완료~~ — REMOVE-01/02/03 requirements 전부 validated. Phase 18 REGISTRY 공개 전제 조건 (schema stable + breaking surface 정리 + regression guard 활성) 충족 (2026-04-19)
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:14:02Z
-Stopped at: Completed 17-03-PLAN.md (루트 문서 7개 manifest 재작성 + SOT pointer 배치)
+Last session: 2026-04-19T16:32:31Z
+Stopped at: Completed 17-04-PLAN.md (regression guard + CI 배선 + 외부 profile sync + external-sync-instructions)
 Resume file: None
 
-### Phase 17 Plan 03 — Known Out-of-scope (Deferred to 17-04 or later)
+### Phase 17 완료 — Phase 18 진입 조건 요약
 
-17-03 은 "문서 7 개 재작성" 으로 scope 가 한정되어 있어 아래 항목은 의도적으로 17-04 또는 별도 plan 으로 이관:
+Phase 17 종료 시점의 structural invariants:
 
-- `package.json` 의 `lint:annotations` script 엔트리 삭제 여부 — 17-04 결정 예정 (RESEARCH Pitfall 6, 권고 = 삭제 + README L282 / AGENTS L50 해당 line 도 함께 삭제)
-- 외부 `/Users/chenjing/dev/agrune/.github/profile/README.md` sync — 17-04 파일 수정, 사용자 수동 push
-- 외부 `/Users/chenjing/dev/agrune/skills/skills/annotate/` 폐기 지침 — 17-04 `.planning/phases/17-remove/external-sync-instructions.md` 생성 (사용자 수동 PR)
-- Regression guard script (`scripts/regression-guard/no-legacy-data-agrune.sh` + `data-agrune-allowlist.txt`) — 17-04 신설
-- 17-02 handoff 의 5 개 pre-existing user-flow E2E fail (tricky-inputs / overlay-modal / manifest-inject) 은 17-03 frontmatter scope 외라 본 plan 에서 처리 안 함 — 별도 plan 또는 17-04 rewrite pass 에서 fixture 에 inline manifest 주입으로 해소 필요
-- `manifest_load` happy-path refresh 타이밍 디버깅 — 별도 plan 또는 Phase 18 research
+1. **Runtime 이 legacy `data-agrune-*` 을 무시한다** (17-01 src 삭제 + 17-02 E2E 의미 반전 fixture 가 positive regression proof)
+2. **7 개 product-surface 문서에 legacy annotation 서술 0** (17-03 재작성)
+3. **CI 에서 legacy 재등장이 PR block** (17-04 `pnpm lint:no-legacy` + build-test job step)
+4. **외부 제품 표면 (org profile) 이 manifest 정체성 반영** (17-04 로컬 commit; 사용자 push 대기)
+5. **Allow-list 가 Phase 17 baseline 을 인코딩** — 새 fixture 추가 시 explicit entry 필요 → PR 리뷰 포인트 정립
+
+Phase 18 REGISTRY 는 이제 "inline 경로 완전 제거 확인 후에만 공개" 라는 종속성을 만족.
