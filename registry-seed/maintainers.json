@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "maintainers": ["agrune-solo"],
+  "updatedAt": "2026-04-20T00:00:00.000Z",
+  "notes": "Velocity limit holddown 면제. v0.5 초기 solo maintainer placeholder — 실제 공개 repo push 시 사용자가 자신의 GitHub handle 로 교체. 추가/변경은 REGISTRY_GOVERNANCE.md 'Tier Transition' 섹션에 따라 maintainer 2 명 승인 필요."
+}

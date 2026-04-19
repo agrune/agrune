@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-20T00:00:00.000Z",
+  "generatedBy": "phase-18-03-seed",
+  "entries": [
+    { "host": "arxiv.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/arxiv.org@1.0.0.json" },
+    { "host": "developer.mozilla.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/developer.mozilla.org@1.0.0.json" },
+    { "host": "docs.python.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/docs.python.org@1.0.0.json" },
+    { "host": "en.wikipedia.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/en.wikipedia.org@1.0.0.json" },
+    { "host": "hn.algolia.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/hn.algolia.com@1.0.0.json" },
+    { "host": "news.ycombinator.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/news.ycombinator.com@1.0.0.json" },
+    { "host": "observablehq.com", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/observablehq.com@1.0.0.json" },
+    { "host": "pypi.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/pypi.org@1.0.0.json" },
+    { "host": "www.gutenberg.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/www.gutenberg.org@1.0.0.json" },
+    { "host": "www.wikidata.org", "versions": ["1.0.0"], "tier": "verified", "path": "manifests/www.wikidata.org@1.0.0.json" }
+  ]
+}
