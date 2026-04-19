@@ -336,7 +336,22 @@ function handleClientMessage(
  *
  * Threat: T-16-01 (spoofed WS payload). Rejects anything we cannot safely
  * forward to PendingStore without a subsequent sanitize step.
+ *
+ * WR-04: selector 의 키 집합을 SelectorLadder allowlist (fiber/role/text/
+ * testId/attr/css) 로 제한하고 string 필드의 타입을 검증한다. 이렇게 하면
+ * `__proto__` 같은 prototype-pollution 페이로드나 거대한 중첩 객체가
+ * RecorderController → PendingStore → manifest-merger 경로로 흘러들어가
+ * 디스크에 직렬화되는 것을 MCP 경계에서 차단한다.
  */
+const ALLOWED_SELECTOR_KEYS: ReadonlySet<string> = new Set([
+  'fiber',
+  'role',
+  'text',
+  'testId',
+  'attr',
+  'css',
+])
+
 function isValidCommitPayload(raw: unknown): raw is CommitPayload {
   if (typeof raw !== 'object' || raw === null) return false
   const r = raw as Record<string, unknown>
@@ -345,6 +360,21 @@ function isValidCommitPayload(raw: unknown): raw is CommitPayload {
   if (typeof r.ts !== 'number' || !Number.isFinite(r.ts)) return false
   if (typeof r.selector !== 'object' || r.selector === null) return false
   if ('sensitive' in r && r.sensitive !== true) return false
+
+  // selector keys + 간이 타입 검증 (WR-04)
+  const sel = r.selector as Record<string, unknown>
+  const selKeys = Object.keys(sel)
+  if (selKeys.length === 0) return false
+  for (const k of selKeys) {
+    if (!ALLOWED_SELECTOR_KEYS.has(k)) return false
+  }
+  if ('css' in sel && typeof sel.css !== 'string') return false
+  if ('attr' in sel && typeof sel.attr !== 'string') return false
+  if ('text' in sel && typeof sel.text !== 'string') return false
+  if ('testId' in sel && typeof sel.testId !== 'string') return false
+  // fiber/role 은 object shape 이므로 유형만 대략 확인
+  if ('role' in sel && (typeof sel.role !== 'object' || sel.role === null)) return false
+  if ('fiber' in sel && (typeof sel.fiber !== 'object' || sel.fiber === null)) return false
   return true
 }
 
