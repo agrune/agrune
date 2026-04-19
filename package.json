@@ -7,7 +7,7 @@
     "build": "pnpm -r --filter \"@agrune/*\" run build",
     "typecheck": "pnpm -r --filter \"@agrune/*\" --if-present run typecheck && pnpm -r --filter \"@agrune/*\" --if-present run build",
     "test": "pnpm -r --filter \"@agrune/*\" --if-present run test",
-    "lint:annotations": "node ./packages/core/bin/agrune-lint.js packages apps",
+    "lint:no-legacy": "bash ./scripts/regression-guard/no-legacy-data-agrune.sh",
     "test:e2e": "pnpm --filter @agrune/e2e run test:e2e",
     "test:e2e:install": "pnpm --filter @agrune/e2e run test:e2e:install"
   }

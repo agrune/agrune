@@ -50,7 +50,7 @@ npm i -g @agrune/mcp
 
 ## v0.5 Breaking Changes
 
-- 더 이상 runtime 이 페이지 DOM 의 legacy HTML data attribute (`data-agrune-` prefix 시리즈) 를 스캔하지 않습니다. 모든 target 등록은 `@agrune/manifest` SDK 로 작성한 외부 manifest 를 `window.__agrune_manifest__` / `window.__agrune_preload_manifest__` / `agrune_manifest_load` 중 하나로 공급해야 합니다.
+- 더 이상 runtime 이 페이지 DOM 의 legacy HTML data attribute (v0.4 까지 사용하던 inline 어노테이션 prefix 시리즈) 를 스캔하지 않습니다. 모든 target 등록은 `@agrune/manifest` SDK 로 작성한 외부 manifest 를 `window.__agrune_manifest__` / `window.__agrune_preload_manifest__` / `agrune_manifest_load` 중 하나로 공급해야 합니다.
 - PageSnapshot 이 v2 → v3 로 bump. `selector` 필드가 문자열에서 ladder (선호도 순 selector 배열) 로 변경.
 - 런타임은 legacy 속성이 DOM 에 여전히 붙어 있어도 **idle 로 부팅** (source=idle, hasManifest=false) 합니다.
 - 이전 버전 호환 adapter 는 제공하지 않습니다 (실제 사용자 없음 — PROJECT.md 명시).

@@ -47,7 +47,7 @@ SDK reference:
 1. `pnpm build` 실행 (monorepo 전체)
 2. `pnpm test` — 유닛/통합 테스트
 3. `pnpm test:e2e` — Playwright E2E 하네스 (v1.1 phase 9 에서 추가)
-4. `pnpm lint:annotations` — 외부 소비자용 `@agrune/core/annotation-lint` build-linter (모노레포 자체 체크는 legacy 호환만)
+4. `pnpm lint:no-legacy` — Phase 17 regression guard. allow-list (`scripts/regression-guard/data-agrune-allowlist.txt`) 외에서 legacy `data-agrune-` 참조가 새로 등장하면 CI 를 실패시킨다. 외부 소비자용 build-linter (`@agrune/core/annotation-lint`) 는 그대로 publish 되므로, 외부 프로젝트는 `agrune-lint` bin 을 직접 호출한다.
 5. `agrune` 수동 실행 → Chrome 상단에 "Chrome is being controlled by automated test software" 디버깅 툴바가 떠야 정상
 6. `http://localhost:47654/devtools` 를 열어 command log / HITL toolbar / sessions panel / failure diagnostics / recorder 가 동작하는지 확인
 7. manifest 작성 후 `agrune manifest validate src/manifest.ts --url <target-url>` 로 live DOM 매칭 확인

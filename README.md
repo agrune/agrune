@@ -279,7 +279,7 @@ node packages/mcp/dist/bin/agrune-mcp.js
 - `pnpm test` — 유닛·통합 테스트
 - `pnpm test:e2e` — Playwright E2E 하네스 (v1.1 phase 9 에서 추가)
 - `agrune manifest validate <file>` — manifest target shape + live DOM 매칭 검증 (`@agrune/manifest`)
-- `pnpm lint:annotations` — 외부 소비자용 `@agrune/core/annotation-lint` build-linter (agrune 모노레포 자체에서는 legacy 호환 체크 용도)
+- `pnpm lint:no-legacy` — 모노레포 regression guard (allow-list 외에서 legacy `data-agrune-` 참조가 등장하면 실패). 외부 소비자용 build-linter 는 별도 패키지 `@agrune/core/annotation-lint` 에 그대로 남아 있으며, 외부 프로젝트는 `agrune-lint` bin 을 직접 호출해서 쓴다.
 
 ## 관련 디렉터리
 
