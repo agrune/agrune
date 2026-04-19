@@ -52,7 +52,7 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 - [ ] **RECORD-01**: DevTools 패널에 `RecorderView` 추가 — mode 모델(idle/picking/recording-action) + keyboard shortcut
 - [ ] **RECORD-02**: MCP `recorder_toggle`/`recorder_captured`/`recorder_commit` WS 프로토콜
-- [ ] **RECORD-03**: CLI `agrune manifest dev` watcher가 `~/.agrune/authoring/pending/`에서 ts-morph로 소스 manifest.ts 머지 (MCP는 pending에만 쓰고 CLI가 유일한 파일 수정 주체)
+- [x] **RECORD-03**: CLI `agrune manifest dev` watcher가 `~/.agrune/authoring/pending/`에서 ts-morph로 소스 manifest.ts 머지 (MCP는 pending에만 쓰고 CLI가 유일한 파일 수정 주체)
 - [ ] **RECORD-04**: Sensitive auto-detect at authoring time — recorder가 캡처 시점에 flag 자동 부여 + AI authoring skill이 정확도 precision≥90%/recall≥95% 달성
 - [ ] **RECORD-05**: AI authoring skill(manifest 버전)이 소스 접근 프로젝트에서 ~80-90% target 자동 생성 (demo page로 체감 검증)
 
@@ -146,7 +146,7 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | REPEAT-03 | Phase 15 | Complete |
 | RECORD-01 | Phase 16 | Pending |
 | RECORD-02 | Phase 16 | Pending |
-| RECORD-03 | Phase 16 | Pending |
+| RECORD-03 | Phase 16 | Complete |
 | RECORD-04 | Phase 16 | Pending |
 | RECORD-05 | Phase 16 | Pending |
 | REMOVE-01 | Phase 17 | Pending |

@@ -37,7 +37,7 @@
 - [x] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
 - [x] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [x] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
-- [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite (2/4 plans)
+- [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite (3/4 plans)
 - [ ] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
 - [ ] **Phase 18: REGISTRY** — `github.com/agrune/maps` 공개 + `agrune maps` CLI + governance(tier + velocity limit + PR bot)
 
@@ -136,7 +136,7 @@
 **Plans**: 4 plans
 - [x] 16-01-PLAN.md — AgruneIdentityBridge v2 (DOM→path 역방향 조회) + FiberIdentityIndex.getPathByDom
 - [x] 16-02-PLAN.md — RecorderView + recorder_* WS 프로토콜 + PendingStore + page-context capture (fiber/role/css + isSensitive 자동)
-- [ ] 16-03-PLAN.md — agrune manifest dev CLI + ts-morph watcher (사용자 confirm 후 manifest.ts 머지, 주석·포매팅 보존)
+- [x] 16-03-PLAN.md — agrune manifest dev CLI + ts-morph watcher (사용자 confirm 후 manifest.ts 머지, 주석·포매팅 보존)
 - [ ] 16-04-PLAN.md — .agents/skills/manifest/ AI skill 재작성 + 100+ corpus precision/recall CI (≥0.90/≥0.95) + TodoMVC demo fixture
 **UI hint**: yes
 

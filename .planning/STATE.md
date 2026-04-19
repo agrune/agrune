@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-04-19T12:10:00.000Z"
-last_activity: 2026-04-19 -- Phase 16 Plan 02 (RecorderView + recorder_* WS + PendingStore + recorder-injected) complete
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-04-19T12:23:49Z"
+last_activity: 2026-04-19 -- Phase 16 Plan 03 (agrune manifest dev CLI + ts-morph watcher) complete
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 21
-  completed_plans: 19
-  percent: 90
+  completed_plans: 20
+  percent: 95
 ---
 
 # Project State
@@ -27,9 +27,9 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
 Phase: 16 (record) — EXECUTING
-Plan: 3 of 4 (16-01·16-02 complete, 16-03 next)
+Plan: 4 of 4 (16-01·16-02·16-03 complete, 16-04 next)
 Status: Executing Phase 16
-Last activity: 2026-04-19 -- Phase 16 Plan 02 (RecorderView + recorder_* WS + PendingStore + recorder-injected) complete
+Last activity: 2026-04-19 -- Phase 16 Plan 03 (agrune manifest dev CLI + ts-morph watcher) complete
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
@@ -61,6 +61,11 @@ Recent decisions carrying forward:
 - [Phase 16-02]: isValidCommitPayload 는 zod 대신 수동 shape check — devtools-server 가 manifest zod 의존을 피하기 위한 의도적 선택. 필드 5-6 개라 유지보수 비용 낮음
 - [Phase 16-02]: page-context recorder-injected.ts 는 `.value` 접근 0 match — T-16-04 를 grep-able evidence 로 유지 (주석의 citation 2 개만 허용)
 - [Phase 16-02]: activateRecorderOverlay 는 single-shot — 첫 클릭 후 listener 해제 후 onCapture 호출, Esc 취소 경로는 RecorderController 가 서버-측에서 reset
+- [Phase 16-03]: `mergeTargetIntoManifest` 는 순수 함수 — ts-morph Project 를 in-memory 만 사용, `project.save()` 는 0 match (T-16-10 구조적 증명). Caller (watcher) 가 `sf.getFullText()` 결과를 받아 자신의 bounded path 로 write
+- [Phase 16-03]: Merger 는 flat `targets: []` 와 `groups[0].targets` 구조 양쪽 지원 — 실제 zod 스키마는 groups-only 지만 플랜 fixture 와 in-flight 사용자 manifest 편의를 위해 양쪽 허용
+- [Phase 16-03]: `buildDefineTargetText` 는 `JSON.stringify` 기반 직렬화 — selector/targetId 안의 따옴표·특수문자가 모두 문자열 리터럴로 escape 됨. `actionKinds: ['click']` 은 하드코딩 (capture 시점에 추론 불가 — recorder 한계 의도적)
+- [Phase 16-03]: tsup banner 에 `__filename`/`__dirname` shim 추가 — ts-morph 가 embed 하는 TypeScript compiler host 가 CJS 글로벌 요구. 빌드된 CLI 가 ESM 환경에서 `ReferenceError` 로 죽던 문제 해결 (Rule 3 auto-fix)
+- [Phase 16-03]: Watcher 테스트는 log-line 기반 `waitFor(predicate)` 로 동기화 — `setImmediate` stacking 은 flaky 했고, production 코드에 test-facing hook 을 뚫지 않고도 deterministic 스펙 확보
 
 ### Pending Todos
 
@@ -100,6 +105,6 @@ Recent decisions carrying forward:
 
 ## Session Continuity
 
-Last session: 2026-04-19T12:10:00.000Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-04-19T12:23:49Z
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None
