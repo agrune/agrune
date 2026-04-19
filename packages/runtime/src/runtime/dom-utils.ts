@@ -390,22 +390,19 @@ export function isSensitive(
     if (AUTOCOMPLETE_SENSITIVE.has(normalized)) return true
   }
 
-  // 4. Legacy inline annotation — maintained until Phase 17 REMOVE
-  if (element.getAttribute('data-agrune-sensitive') === 'true') return true
-
   // -------------------------------------------------------------------------
   // Phase 14 추가 — word-boundary regex (MACRO-03)
   // -------------------------------------------------------------------------
 
-  // 5. placeholder 속성 — 공백 분리된 토큰에 \b 정상 작동
+  // 4. placeholder 속성 — 공백 분리된 토큰에 \b 정상 작동
   const placeholder = element.getAttribute('placeholder') ?? ''
   if (placeholder && SENSITIVE_WORD_BOUNDARY.test(placeholder)) return true
 
-  // 6. name 속성 — underscore/dash/dot 구분 경계 regex
+  // 5. name 속성 — underscore/dash/dot 구분 경계 regex
   const nameAttr = element.getAttribute('name') ?? ''
   if (nameAttr && SENSITIVE_NAME_ATTR.test(nameAttr)) return true
 
-  // 7. id 속성 — name 과 동일 regex (dot separator 포함)
+  // 6. id 속성 — name 과 동일 regex (dot separator 포함)
   const idAttr = element.id ?? ''
   if (idAttr && SENSITIVE_NAME_ATTR.test(idAttr)) return true
 
@@ -413,17 +410,17 @@ export function isSensitive(
   // Phase 14 추가 — 다국어 aria-label (MACRO-03, CJK Set exact-match)
   // -------------------------------------------------------------------------
 
-  // 8. aria-label — exact phrase match + 공백 분리 토큰 + 영어 word-boundary
+  // 7. aria-label — exact phrase match + 공백 분리 토큰 + 영어 word-boundary
   const ariaLabelRaw = element.getAttribute('aria-label') ?? ''
   const ariaLabel = ariaLabelRaw.trim().toLowerCase()
   if (ariaLabel) {
-    // 8a. Exact phrase match (e.g. "mot de passe", "비밀번호")
+    // 7a. Exact phrase match (e.g. "mot de passe", "비밀번호")
     if (SENSITIVE_ARIA_LABELS_MULTILANG.has(ariaLabel)) return true
-    // 8b. 공백 분리 토큰 — CJK 복합 label (e.g. "비밀번호 입력") 처리
+    // 7b. 공백 분리 토큰 — CJK 복합 label (e.g. "비밀번호 입력") 처리
     for (const token of ariaLabel.split(/\s+/)) {
       if (token && SENSITIVE_ARIA_LABELS_MULTILANG.has(token)) return true
     }
-    // 8c. 영어 단어 경계 regex (e.g. "Credit card CVV")
+    // 7c. 영어 단어 경계 regex (e.g. "Credit card CVV")
     if (SENSITIVE_WORD_BOUNDARY.test(ariaLabelRaw)) return true
   }
 
@@ -471,52 +468,6 @@ export function canReceiveTextInput(
   element: Element,
 ): element is HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLElement {
   return isFillableElement(element) || isContentEditableElement(element)
-}
-
-// ---------------------------------------------------------------------------
-// Selector builders
-// ---------------------------------------------------------------------------
-
-export function escapeAttributeValue(value: string): string {
-  return value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')
-}
-
-export function buildDomPathSelector(element: HTMLElement): string {
-  const segments: string[] = []
-  let current: HTMLElement | null = element
-
-  while (current && current !== document.body) {
-    const tagName = current.tagName.toLowerCase()
-    let siblingIndex = 1
-    let sibling = current.previousElementSibling
-    while (sibling) {
-      if (sibling.tagName === current.tagName) {
-        siblingIndex += 1
-      }
-      sibling = sibling.previousElementSibling
-    }
-    segments.unshift(`${tagName}:nth-of-type(${siblingIndex})`)
-    current = current.parentElement
-  }
-
-  return `body > ${segments.join(' > ')}`
-}
-
-export function buildLiveSelector(element: HTMLElement): string {
-  const key = element.getAttribute('data-agrune-key')?.trim()
-  if (key) {
-    return `[data-agrune-key="${escapeAttributeValue(key)}"]`
-  }
-
-  const name = element.getAttribute('data-agrune-name')?.trim()
-  if (name) {
-    const selector = `[data-agrune-name="${escapeAttributeValue(name)}"]`
-    if (document.querySelectorAll(selector).length === 1) {
-      return selector
-    }
-  }
-
-  return buildDomPathSelector(element)
 }
 
 // ---------------------------------------------------------------------------

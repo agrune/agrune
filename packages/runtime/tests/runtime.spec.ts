@@ -185,7 +185,9 @@ describe('page agent runtime', () => {
 
     const input = document.createElement('input')
     input.setAttribute('data-agrune-key', 'email')
-    input.setAttribute('data-agrune-sensitive', 'true')
+    // Phase 17 REMOVE-01: legacy data-agrune-sensitive attribute 경로 제거됨.
+    // type=password heuristic 으로 대체하여 동일 sensitive 신호 검증.
+    input.setAttribute('type', 'password')
     input.getBoundingClientRect = () => mockRect()
 
     document.body.append(button, input)
@@ -739,7 +741,9 @@ describe('page agent runtime', () => {
       },
     )
 
-    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    // Phase 17 REMOVE-01: confirm target 은 manifest 에 미리 등록되어야 한다 —
+    // live-scan 경로 제거로 DOM 동적 추가만으로 snapshot 에 나타나지 않는다.
+    const runtime = createPageAgentRuntime(makeOverlayFlowManifest(), { cdpPostMessage: mockCdpPostMessage })
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -843,7 +847,29 @@ describe('page agent runtime', () => {
         },
       )
 
-      const runtime = makeTestRuntime(makeManifest())
+      // Phase 17 REMOVE-01: create target 은 manifest 에 미리 등록. live-scan
+      // 제거 후 DOM 에 data-agrune-* 속성이 나중에 붙어도 runtime 은 무시한다.
+      const baseManifest = makeManifest()
+      const manifestWithCreate: AgruneManifest = {
+        ...baseManifest,
+        groups: [
+          ...baseManifest.groups,
+          {
+            groupId: 'create',
+            name: 'Create Dialog',
+            targets: [
+              {
+                targetId: 'create',
+                name: 'Create Task',
+                selector: { css: '[data-agrune-key="create"]' },
+                actionKinds: ['click'],
+              },
+            ],
+          },
+        ],
+      }
+
+      const runtime = makeTestRuntime(manifestWithCreate)
       const snapshot = runtime.getSnapshot()
       const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
 
@@ -1130,7 +1156,9 @@ describe('page agent runtime', () => {
   it('민감한 fill target은 sensitive reason으로 표시된다', () => {
     const input = document.createElement('input')
     input.setAttribute('data-agrune-key', 'email')
-    input.setAttribute('data-agrune-sensitive', 'true')
+    // Phase 17 REMOVE-01: legacy data-agrune-sensitive 제거 → type=password 로
+    // heuristic 경로를 타고 sensitive:true 결과를 얻는다.
+    input.setAttribute('type', 'password')
     input.getBoundingClientRect = () => mockRect()
 
     document.body.appendChild(input)
@@ -1247,7 +1275,12 @@ describe('page agent runtime', () => {
     )
   })
 
-  it('동일 targetId가 step 전환으로 다른 selector를 가리켜도 live descriptor를 우선 반영한다', async () => {
+  it('동일 targetId가 step 전환으로 다른 element를 가리켜도 manifest selector는 재해석된다', async () => {
+    // Phase 17 REMOVE-01: live descriptor 경로 제거됨. 이제 manifest selector 가
+    // 안정 class (.wizard-primary) 등 step 전환에 survive 하는 기준으로 작성되어야
+    // 동일 targetId 가 신규 DOM 노드로 re-resolve 된다. textContent 가 snapshot.name
+    // 으로 노출되므로 (manifest.name 미지정 시) 새 element 의 "Create Task" 가
+    // 관측된다.
     const manifest: AgruneManifest = {
       version: 3,
       groups: [
@@ -1257,20 +1290,17 @@ describe('page agent runtime', () => {
           targets: [
             {
               targetId: 'agrune_0',
-              name: 'Back',
-              selector: { css: '[data-agrune-name="Back"]' },
+              selector: { css: '.wizard-back' },
               actionKinds: ['click'],
             },
             {
               targetId: 'agrune_1',
-              name: 'Next',
-              selector: { css: '[data-agrune-name="Next"]' },
+              selector: { css: '.wizard-primary' },
               actionKinds: ['click'],
             },
             {
               targetId: 'agrune_2',
-              name: 'Close',
-              selector: { css: '[data-agrune-name="Close"]' },
+              selector: { css: '.wizard-close' },
               actionKinds: ['click'],
             },
           ],
@@ -1294,8 +1324,7 @@ describe('page agent runtime', () => {
 
     const backButton = document.createElement('button')
     backButton.textContent = 'Back'
-    backButton.setAttribute('data-agrune-action', 'click')
-    backButton.setAttribute('data-agrune-name', 'Back')
+    backButton.className = 'wizard-back'
     backButton.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1306,8 +1335,7 @@ describe('page agent runtime', () => {
 
     const nextButton = document.createElement('button')
     nextButton.textContent = 'Next'
-    nextButton.setAttribute('data-agrune-action', 'click')
-    nextButton.setAttribute('data-agrune-name', 'Next')
+    nextButton.className = 'wizard-primary'
     nextButton.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1318,8 +1346,7 @@ describe('page agent runtime', () => {
 
     const closeButton = document.createElement('button')
     closeButton.textContent = 'Close'
-    closeButton.setAttribute('data-agrune-action', 'click')
-    closeButton.setAttribute('data-agrune-name', 'Close')
+    closeButton.className = 'wizard-close'
     closeButton.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1342,8 +1369,7 @@ describe('page agent runtime', () => {
 
           const createButton = document.createElement('button')
           createButton.textContent = 'Create Task'
-          createButton.setAttribute('data-agrune-action', 'click')
-          createButton.setAttribute('data-agrune-name', 'Create Task')
+          createButton.className = 'wizard-primary'
           createButton.getBoundingClientRect = () =>
             ({
               ...mockRect(),

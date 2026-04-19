@@ -69,10 +69,14 @@ describe('isSensitive — OR-only contract', () => {
     expect(isSensitive(el)).toBe(true)
   })
 
-  it('detects legacy data-agrune-sensitive=true (maintained until Phase 17)', () => {
+  it('ignores legacy data-agrune-sensitive attribute (Phase 17 REMOVE-01)', () => {
+    // Once Phase 17 removed the legacy fallback, data-agrune-sensitive alone is
+    // no longer sufficient — the element must match another heuristic
+    // (type=password, autocomplete whitelist, name/id regex, placeholder,
+    // multilingual aria-label) or the manifest must supply sensitive:true.
     document.body.innerHTML = `<input type="text" data-agrune-sensitive="true" />`
     const el = document.querySelector('input')!
-    expect(isSensitive(el)).toBe(true)
+    expect(isSensitive(el)).toBe(false)
   })
 
   it('type-level: manifestFlag: false is not allowed', () => {
@@ -305,10 +309,12 @@ describe('Phase 14 — regression (기존 계약 유지)', () => {
     expect(isSensitive(el)).toBe(true)
   })
 
-  it('element[data-agrune-sensitive="true"] → true (4번째 경로 유지)', () => {
+  it('element[data-agrune-sensitive="true"] alone → false (Phase 17 REMOVE-01)', () => {
+    // Legacy 4번째 경로는 Phase 17에서 제거됨 — 이제 heuristic 다른 경로 또는
+    // manifest sensitive:true 가 필수.
     const el = document.createElement('input')
     el.setAttribute('data-agrune-sensitive', 'true')
-    expect(isSensitive(el)).toBe(true)
+    expect(isSensitive(el)).toBe(false)
   })
 
   it('type-level: isSensitive(el, false) 는 컴파일 에러 (유지)', () => {
