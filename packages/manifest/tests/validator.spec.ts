@@ -274,6 +274,132 @@ describe('assertNoHashClass / assertNoNthChild', () => {
   })
 })
 
+describe('validateManifest — fiber selector', () => {
+  it('accepts fiber-only selector (fiber as sole field)', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click'],
+              selector: { fiber: { path: [{ componentName: 'Button', key: null, index: 0 }] } },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects fiber.path as empty array', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click'],
+              selector: { fiber: { path: [] } },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects fiber.path length > 8', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click'],
+              selector: {
+                fiber: {
+                  path: Array.from({ length: 9 }, (_, i) => ({
+                    componentName: `C${i}`,
+                    key: null,
+                    index: i,
+                  })),
+                },
+              },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects fiber.path segment with negative index', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click'],
+              selector: { fiber: { path: [{ componentName: 'Button', key: null, index: -1 }] } },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('rejects fiber.path segment with non-string componentName', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click'],
+              selector: { fiber: { path: [{ componentName: 42 as unknown as string, key: null, index: 0 }] } },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+  })
+
+  it('JSON round-trip: manifest with fiber selector re-validates after serialize/deserialize', () => {
+    const manifest = {
+      version: 3 as const,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 't',
+              actionKinds: ['click' as const],
+              selector: { fiber: { path: [{ componentName: 'Button', key: 'primary', index: 2 }] } },
+            },
+          ],
+        },
+      ],
+    }
+    const roundTripped = JSON.parse(JSON.stringify(manifest))
+    const result = validateManifest(roundTripped)
+    expect(result.ok).toBe(true)
+  })
+})
+
 describe('HASH_CLASS_PATTERN', () => {
   it('matches 8+ alphanumeric class with no hyphen suffix', () => {
     expect(HASH_CLASS_PATTERN.test('.abc12345xy')).toBe(true)

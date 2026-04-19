@@ -200,3 +200,57 @@ describe('defineManifest', () => {
     expect(manifest.macros).toBeUndefined()
   })
 })
+
+describe('defineTarget — fiber selector', () => {
+  it('accepts fiber-only selector at runtime', () => {
+    const t = defineTarget({
+      targetId: 'fiber_btn',
+      actionKinds: ['click'],
+      selector: { fiber: { path: [{ componentName: 'Button', key: null, index: 0 }] } },
+    })
+    expect(t.selector).toEqual({ fiber: { path: [{ componentName: 'Button', key: null, index: 0 }] } })
+  })
+
+  it('accepts fiber alongside role (mixed selector)', () => {
+    const t = defineTarget({
+      targetId: 'fiber_role_btn',
+      actionKinds: ['click'],
+      selector: {
+        fiber: { path: [{ componentName: 'Button', key: 'primary', index: 1 }] },
+        role: { name: 'button' },
+      },
+    })
+    expect(t.selector.fiber?.path[0].componentName).toBe('Button')
+  })
+
+  it('rejects fiber.path segment with boolean key at type level', () => {
+    defineTarget({
+      targetId: 'bad_fiber',
+      actionKinds: ['click'],
+      selector: {
+        // @ts-expect-error key must be string | null, not boolean
+        fiber: { path: [{ componentName: 'X', key: true, index: 0 }] },
+      },
+    })
+    expect(true).toBe(true)
+  })
+
+  it('existing role-only selector still works after fiber addition', () => {
+    const t = defineTarget({
+      targetId: 'role_only',
+      actionKinds: ['click'],
+      selector: { role: { name: 'button' } },
+    })
+    expect(t.selector).toEqual({ role: { name: 'button' } })
+  })
+
+  it('empty selector still rejected at type level', () => {
+    defineTarget({
+      targetId: 'x',
+      actionKinds: ['click'],
+      // @ts-expect-error SelectorLadder requires at least one field — AtLeastOne<T>
+      selector: {},
+    })
+    expect(true).toBe(true)
+  })
+})
