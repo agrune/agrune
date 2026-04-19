@@ -58,6 +58,10 @@ import {
   resolvePointerDurationMs,
   CURSOR_CLICK_PRESS_MS,
 } from './cursor-animator'
+import {
+  activateRecorderOverlay,
+  type CaptureResult as RecorderCaptureResult,
+} from './recorder-injected'
 import { getCursorMeta } from './cursors/index'
 import type { EventSequences, Coords } from './event-sequences'
 import type { ActionQueue } from './action-queue'
@@ -1643,4 +1647,41 @@ export async function handleGuide(
       targetId: input.targetId,
     })
   })
+}
+
+// ---------------------------------------------------------------------------
+// recorder_enable / recorder_disable handlers (Phase 16 RECORD-02 Task 3)
+//
+// These are thin bindings over activateRecorderOverlay. The MCP-side
+// RecorderController issues `recorder_enable` via CDP Runtime.evaluate and
+// awaits the click-driven capture. The returned cleanup handle is kept in
+// a module-scoped variable so `recorder_disable` can cancel picking without
+// a click (Esc key path).
+//
+// Security: this module never reads element values or page secrets (T-16-04);
+// see activateRecorderOverlay in recorder-injected.ts.
+// ---------------------------------------------------------------------------
+
+let recorderOverlayCleanup: (() => void) | null = null
+
+export function handleRecorderEnable(
+  onCapture: (result: RecorderCaptureResult) => void,
+): void {
+  // Enabling twice in a row: tear down the previous listener pair first so
+  // we don't accumulate handlers and double-fire capture.
+  if (recorderOverlayCleanup) {
+    recorderOverlayCleanup()
+    recorderOverlayCleanup = null
+  }
+  recorderOverlayCleanup = activateRecorderOverlay((result) => {
+    recorderOverlayCleanup = null
+    onCapture(result)
+  })
+}
+
+export function handleRecorderDisable(): void {
+  if (recorderOverlayCleanup) {
+    recorderOverlayCleanup()
+    recorderOverlayCleanup = null
+  }
 }
