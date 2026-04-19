@@ -79,6 +79,21 @@ agrune --port 47655        # DevTools 웹앱 포트 오버라이드
 agrune --no-devtools       # DevTools 웹앱 비활성화 (MCP stdio 만 사용)
 ```
 
+### Registry (v0.5 Phase 18)
+
+공개 manifest registry (`github.com/agrune/maps`) 와 연동하는 4 개 서브커맨드:
+
+```bash
+agrune maps add news.ycombinator.com                # latest 가져와 ~/.agrune/maps/ + agrune.maps.lock.json
+agrune maps add news.ycombinator.com 1.0.0          # 정확 버전 고정
+agrune maps types --out src/maps.d.ts               # lockfile 기반 host/targetId union 타입 emit
+agrune maps doctor                                  # 로컬 캐시 staleness 진단 (네트워크 호출 없음)
+agrune maps doctor --refresh --auto-disable        # incidents.json 조회 + stale 자동 비활성화
+agrune maps submit manifest-entry.json              # device flow 인증 + fork + PR 생성
+```
+
+device flow 첫 사용시 `AGRUNE_OAUTH_CLIENT_ID` 환경 변수를 OAuth App client_id 로 설정해야 합니다 (placeholder 사용 시 warning). PAT 를 이미 갖고 있으면 `AGRUNE_GITHUB_TOKEN` 으로 device flow 를 건너뛸 수 있습니다. Token 은 메모리에만 유지되며 disk 에 저장되지 않습니다 (Pitfall 2 구조적 금지).
+
 DevTools 웹 앱은 MCP 서버 실행 시 `http://localhost:PORT/devtools`에서 제공됩니다. 전체 플래그 목록은 아래 `CLI 플래그` 표와 `agrune --help` 를 참고하세요.
 
 ### CLI 플래그

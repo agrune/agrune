@@ -15,6 +15,10 @@ Usage:
   agrune [options]
   agrune manifest validate <file> [--url <url>] [--wait-selector <css>]
   agrune manifest dev <file>                # watch ~/.agrune/authoring/pending and merge captures
+  agrune maps add <host> [version]          # registry 에서 manifest fetch + 캐시/lockfile 기록
+  agrune maps types [--out <path>]          # lockfile 기반 host/targetId union .d.ts emit
+  agrune maps doctor [--refresh]            # 로컬 캐시 staleness 진단 (+ incidents.json opt-in)
+  agrune maps submit <file>                 # manifest 를 agrune/maps 에 PR 로 제출 (device flow)
 
 Options:
   --headless              Chrome 을 headless 모드로 실행 (UI 없음)
@@ -34,6 +38,13 @@ Subcommands:
                           manifest schema 검증 (+ --url 지정 시 live DOM selector 검증)
   manifest dev <file>     ~/.agrune/authoring/pending 디렉토리를 watch 하면서 recorder 가 기록한
                           capture JSON 을 <file> 에 ts-morph 머지 (사용자 confirm 후 적용)
+  maps add <host> [version]
+                          registry 에서 manifest 를 받아 ~/.agrune/maps/ 캐시 + lockfile 에 기록
+  maps types [--out <path>]
+                          lockfile 을 읽어 host / targetId union 타입 선언을 emit
+  maps doctor [--refresh] [--auto-disable]
+                          로컬 캐시 staleness 진단 (+ --refresh 시 incidents.json 조회)
+  maps submit <file>      manifest 를 agrune/maps registry 에 PR 로 제출 (device flow 인증)
 
 DevTools 웹앱: http://localhost:<port>/devtools  (기본 포트 47654)
 
@@ -51,11 +62,17 @@ DevTools 웹앱: http://localhost:<port>/devtools  (기본 포트 47654)
 
 const args = process.argv.slice(2)
 
-if (args.includes('--help') || args.includes('-h')) {
+// 서브커맨드(manifest / maps)가 온 경우에는 전역 --help / --version 을 가로채지
+// 않고 서브커맨드 자체의 help 핸들러로 흘려보낸다. 그렇지 않으면 `agrune maps
+// --help` 가 전체 HELP_TEXT 로 떨어져 서브커맨드별 도움말을 읽을 수 없다
+// (T-18-17 dispatch isolation 과 동일 취지 — 서브커맨드 surface 오염 방지).
+const isSubcommand = args[0] === 'manifest' || args[0] === 'maps'
+
+if (!isSubcommand && (args.includes('--help') || args.includes('-h'))) {
   process.stdout.write(HELP_TEXT)
   process.exit(0)
 }
-if (args.includes('--version') || args.includes('-v')) {
+if (!isSubcommand && (args.includes('--version') || args.includes('-v'))) {
   process.stdout.write(`agrune v${MCP_SERVER_VERSION}\n`)
   process.exit(0)
 }
@@ -78,6 +95,44 @@ if (args[0] === 'manifest') {
   process.stderr.write(`Unknown manifest subcommand: ${subArgs[0] ?? '(none)'}\n`)
   process.stderr.write(`Usage: agrune manifest validate <file> [--url <url>]\n`)
   process.stderr.write(`       agrune manifest dev <file>\n`)
+  process.exit(1)
+}
+
+// ── maps 서브커맨드 분기 (Phase 18 REGISTRY) ──────────────────────────────────
+// 기존 manifest 블록과 동일한 dynamic-import + process.exit 패턴. CdpDriver /
+// createMcpServer 를 전혀 건드리지 않는다 (T-18-17 guard).
+if (args[0] === 'maps') {
+  const subArgs = args.slice(1)
+  const sub = subArgs[0]
+  if (sub === '--help' || sub === '-h' || sub === undefined) {
+    process.stdout.write(
+      `Usage: agrune maps <command>\n\n` +
+        `Commands:\n` +
+        `  add <host> [version]  registry 에서 manifest 를 받아 ~/.agrune/maps/ 캐시 + lockfile 에 기록\n` +
+        `  types [--out <path>]  lockfile 을 읽어 host / targetId union 타입 선언을 emit\n` +
+        `  doctor [--refresh]    로컬 캐시 staleness 진단 (+ --refresh 시 incidents.json 조회)\n` +
+        `  submit <file>         manifest 를 agrune/maps registry 에 PR 로 제출 (device flow 인증)\n`,
+    )
+    process.exit(sub === undefined ? 1 : 0)
+  }
+  if (sub === 'add') {
+    const { runAddCli } = await import('@agrune/registry/cli/add')
+    process.exit(await runAddCli(subArgs.slice(1)))
+  }
+  if (sub === 'types') {
+    const { runTypesCli } = await import('@agrune/registry/cli/types')
+    process.exit(await runTypesCli(subArgs.slice(1)))
+  }
+  if (sub === 'doctor') {
+    const { runDoctorCli } = await import('@agrune/registry/cli/doctor')
+    process.exit(await runDoctorCli(subArgs.slice(1)))
+  }
+  if (sub === 'submit') {
+    const { runSubmitCli } = await import('@agrune/registry/cli/submit')
+    process.exit(await runSubmitCli(subArgs.slice(1)))
+  }
+  process.stderr.write(`Unknown maps subcommand: ${sub}\n`)
+  process.stderr.write(`Usage: agrune maps {add,types,doctor,submit}\n`)
   process.exit(1)
 }
 // ── 서브커맨드 분기 끝 ─────────────────────────────────────────────────────────

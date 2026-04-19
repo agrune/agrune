@@ -41,6 +41,10 @@ SDK reference:
 - `agrune --no-devtools` — DevTools 웹앱 비활성화 (MCP stdio 만 사용)
 - `agrune manifest validate <file> [--url <URL>]` — manifest 검증 (shape + live DOM)
 - `agrune manifest dev <file>` — recorder → ts-morph merge watcher 기동
+- `agrune maps add <host> [version]` — registry 에서 manifest 가져오기 + `~/.agrune/maps/` 캐시 + `agrune.maps.lock.json` 기록
+- `agrune maps types [--out <path>]` — lockfile 기반 `AgruneMapsHost` / per-host `targetId` union 타입 선언 emit
+- `agrune maps doctor [--refresh] [--auto-disable]` — 로컬 캐시 staleness 진단 + 자동 비활성화 (기본 offline, `--refresh` 시 incidents.json 조회)
+- `agrune maps submit <file>` — manifest 를 `agrune/maps` 공개 registry 에 PR 로 제출 (device flow 인증, `.json` 만 지원; TS 는 v0.6+)
 
 ## 테스트 시 체크리스트
 
@@ -51,6 +55,7 @@ SDK reference:
 5. `agrune` 수동 실행 → Chrome 상단에 "Chrome is being controlled by automated test software" 디버깅 툴바가 떠야 정상
 6. `http://localhost:47654/devtools` 를 열어 command log / HITL toolbar / sessions panel / failure diagnostics / recorder 가 동작하는지 확인
 7. manifest 작성 후 `agrune manifest validate src/manifest.ts --url <target-url>` 로 live DOM 매칭 확인
+8. `agrune maps --help` 로 4 서브커맨드 (add / types / doctor / submit) 가 노출되는지 확인 (Phase 18 REGISTRY)
 
 ## 역사적 참고
 

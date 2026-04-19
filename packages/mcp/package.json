@@ -37,6 +37,7 @@
     "@agrune/browser": "workspace:*",
     "@agrune/core": "workspace:*",
     "@agrune/manifest": "workspace:*",
+    "@agrune/registry": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@playwright/test": "^1.48.0",
     "chokidar": "5.0.0",

@@ -150,6 +150,9 @@ importers:
       '@agrune/manifest':
         specifier: workspace:*
         version: link:../manifest
+      '@agrune/registry':
+        specifier: workspace:*
+        version: link:../registry
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.27.1(zod@4.3.6)
