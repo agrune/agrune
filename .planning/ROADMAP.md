@@ -53,7 +53,12 @@
   3. Runtime이 수동 주입한 manifest로 부팅하면, CSS fallback selector(priority: role > text > testId > stable attr > CSS; 해시 class/`:nth-child` 금지)로 외부 사이트 target을 resolve한다.
   4. Runtime은 더 이상 `data-agrune-*` 부트스트랩 게이트를 요구하지 않는다 — manifest 유무와 무관하게 항상 부팅하고 manifest 없으면 idle 상태에 머문다.
   5. Schema level에서 `sensitive:true` flag가 존재하며, `sensitive:false` 로 runtime heuristic을 override할 수 없다는 계약(OR-only)이 스키마·타입·validate CLI 에러 메시지로 확정돼 있다.
-**Plans**: TBD
+**Plans**: 5 plans
+- [ ] 11-01-PLAN.md — @agrune/manifest SDK (v3 schema + defineManifest/Target/Repeat/Macro + zod validator)
+- [ ] 11-02-PLAN.md — TargetResolver CSS ladder (role>text>testId>attr>css) + isSensitive OR-only
+- [ ] 11-03-PLAN.md — @agrune/core v3 re-export + runtime descriptor 경로 v3 이식
+- [ ] 11-04-PLAN.md — bootstrap 게이트 제거 + idle boot + Playwright E2E
+- [ ] 11-05-PLAN.md — agrune manifest validate CLI + live DOM matching
 **UI hint**: no
 
 ### Phase 12: INJECT
@@ -158,7 +163,7 @@
 | 8. DevTools Webapp | v1.1 | 2/2 | Complete | 2026-04-18 |
 | 9. Quality Infrastructure | v1.1 | 3/3 | Complete | 2026-04-18 |
 | 10. Docs & Distribution | v1.1 | 5/5 | Complete | 2026-04-18 |
-| 11. MANIFEST | v0.5 | 0/? | Not started | — |
+| 11. MANIFEST | v0.5 | 0/5 | Not started | — |
 | 12. INJECT | v0.5 | 0/? | Not started | — |
 | 13. REACT | v0.5 | 0/? | Not started | — |
 | 14. MACRO | v0.5 | 0/? | Not started | — |
