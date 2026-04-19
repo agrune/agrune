@@ -17,7 +17,10 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:react17": "vitest run --pool forks",
+    "test:react18": "vitest run",
+    "test:react19": "vitest run"
   },
   "publishConfig": { "access": "public" },
   "license": "MIT",
