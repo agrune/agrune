@@ -73,10 +73,13 @@ export async function runDoctorCli(
 
   // Optional incidents.json fetch. Only runs with `--refresh` to avoid
   // the every-run rate-limit foot-gun (T-18-15).
-  let revokedHosts = new Set<string>()
+  //
+  // WR-02 (review 18): revocation is keyed by (host, version). A version of
+  // `'*'` means "all versions of this host are revoked".
+  let revokedVersions = new Map<string, Set<string>>()
   if (parsed.flags['refresh']) {
     try {
-      revokedHosts = await fetchRevokedHosts(
+      revokedVersions = await fetchRevokedHosts(
         parsed.options['registry-base-url'],
         deps.fetchImpl,
       )
@@ -94,7 +97,12 @@ export async function runDoctorCli(
 
   for (const entry of lock.entries) {
     // Revocation takes precedence over staleness classification.
-    if (revokedHosts.has(entry.host)) {
+    // WR-02 (review 18): honor `version` field in incidents.json — only
+    // mark as revoked if this entry's version is listed, or a wildcard `*`
+    // revokes all versions of the host.
+    const versions = revokedVersions.get(entry.host)
+    const isRevoked = !!versions && (versions.has('*') || versions.has(entry.version))
+    if (isRevoked) {
       const next: LockfileEntry = {
         ...entry,
         disabled: entry.disabled ?? {
@@ -178,10 +186,19 @@ export async function runDoctorCli(
   return 0
 }
 
+/**
+ * Fetch revoked (host, version) pairs from `<baseUrl>/incidents.json`.
+ *
+ * WR-02 (review 18): the original implementation returned a `Set<string>`
+ * of hosts, discarding the `version` field. That over-revoked — an
+ * `incidents.json` entry of `{host, version: '0.9.0'}` would revoke
+ * `1.0.0` too. Now returns `Map<host, Set<version>>` where a version of
+ * `'*'` means "revoke all versions of this host".
+ */
 async function fetchRevokedHosts(
   baseUrlOverride: string | undefined,
   fetchImpl: typeof globalThis.fetch = globalThis.fetch,
-): Promise<Set<string>> {
+): Promise<Map<string, Set<string>>> {
   if (typeof fetchImpl !== 'function') {
     throw new RegistryError(
       'REGISTRY_FETCH_FAILED',
@@ -207,14 +224,18 @@ async function fetchRevokedHosts(
     throw new RegistryError('REGISTRY_FETCH_FAILED', `${url} returned HTTP ${res.status}`)
   }
   const body = (await res.json()) as unknown
+  const out = new Map<string, Set<string>>()
   if (!Array.isArray(body)) {
     // Plan 03 seeded incidents.json as []; future entries are {host,...}.
     // Tolerate both shapes defensively.
-    return new Set<string>()
+    return out
   }
-  const hosts = new Set<string>()
   for (const item of body as IncidentEntry[]) {
-    if (item && typeof item.host === 'string') hosts.add(item.host)
+    if (!item || typeof item.host !== 'string') continue
+    const versionKey = typeof item.version === 'string' && item.version.length > 0 ? item.version : '*'
+    const set = out.get(item.host) ?? new Set<string>()
+    set.add(versionKey)
+    out.set(item.host, set)
   }
-  return hosts
+  return out
 }
