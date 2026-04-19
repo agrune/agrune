@@ -39,11 +39,15 @@
     "@agrune/manifest": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@playwright/test": "^1.48.0",
+    "chokidar": "5.0.0",
+    "diff": "8.0.2",
+    "ts-morph": "28.0.0",
     "tsx": "^4.0.0",
     "ws": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/diff": "8.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
     "tsup": "^8.0.0",
