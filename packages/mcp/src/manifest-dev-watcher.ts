@@ -63,6 +63,12 @@ export class ManifestDevWatcher {
   private readonly log: ManifestDevWatcherLog
   private readonly watcherFactory: (root: string) => FSWatcher
   private readonly pendingRoot: string
+  // WR-01: chokidar 가 짧은 간격으로 여러 add 를 fire 할 때
+  // processPending 이 병렬로 돌면 먼저 만든 sourceText snapshot 이 뒤이은
+  // writeFile 에 의해 덮어써져서 첫 번째 merge 결과가 말없이 유실된다.
+  // 모든 add 이벤트 처리를 하나의 Promise chain 으로 직렬화해서 항상
+  // 가장 최신 manifest.ts 를 base 로 merge 하게 한다.
+  private pendingQueue: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly manifestPath: string,
@@ -94,11 +100,17 @@ export class ManifestDevWatcher {
       // Only react to JSON under the pending root — defence-in-depth if the
       // injected factory returns a watcher whose scope ever drifts.
       if (extname(filePath) !== '.json') return
-      void this.processPending(filePath).catch((err) => {
-        this.log.error(
-          `[manifest dev] process error: ${err instanceof Error ? err.message : String(err)}`,
-        )
-      })
+      // WR-01: chain into pendingQueue 로 직렬화. 앞선 processPending 의
+      // writeFile 이 끝난 뒤 다음 이벤트가 sourceText 를 다시 읽어야
+      // stale-source race 가 방지된다. 각 단계의 에러는 그 자체로 log 후
+      // swallow 하여 체인이 끊기지 않도록 한다.
+      this.pendingQueue = this.pendingQueue
+        .then(() => this.processPending(filePath))
+        .catch((err) => {
+          this.log.error(
+            `[manifest dev] process error: ${err instanceof Error ? err.message : String(err)}`,
+          )
+        })
     })
     this.log.info(
       `[manifest dev] watching ${this.pendingRoot} → ${this.manifestPath}`,
