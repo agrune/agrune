@@ -9,7 +9,7 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### MANIFEST — Schema + SDK
 
-- [ ] **MANIFEST-01**: `@agrune/manifest` 패키지가 `defineManifest`/`defineTarget`을 제공해 타입 안전 target 선언(`targetId` union + `actionKinds` + selector ladder) 가능
+- [x] **MANIFEST-01**: `@agrune/manifest` 패키지가 `defineManifest`/`defineTarget`을 제공해 타입 안전 target 선언(`targetId` union + `actionKinds` + selector ladder) 가능
 - [ ] **MANIFEST-02**: `defineRepeat` 스키마가 template/keyFrom/nameFrom/strategy(dom|virtualized) 필드 지원
 - [ ] **MANIFEST-03**: `defineMacro` 스키마가 id/params/steps/precondition/postcondition/circuit breaker 지원
 - [ ] **MANIFEST-04**: `sensitive:true` flag + 런타임 DOM heuristic이 flag를 OR-only로 결합(override 불가) 설계 락
@@ -121,7 +121,7 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MANIFEST-01 | Phase 11 | Pending |
+| MANIFEST-01 | Phase 11 | Complete |
 | MANIFEST-02 | Phase 11 | Pending |
 | MANIFEST-03 | Phase 11 | Pending |
 | MANIFEST-04 | Phase 11 | Pending |

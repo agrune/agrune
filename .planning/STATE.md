@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
-status: ready_to_plan
-stopped_at: roadmap created
-last_updated: "2026-04-19T00:00:00.000Z"
-last_activity: 2026-04-19 -- v0.5 roadmap created (phases 11-18), 37/37 requirements mapped
+status: executing
+stopped_at: Completed 11-03-PLAN.md
+last_updated: "2026-04-19T07:19:43.008Z"
+last_activity: 2026-04-19
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Phase 11 (MANIFEST) 계획 준비 — `@agrune/manifest` SDK + v3 schema + CSS-only runtime resolver.
+**Current focus:** Phase 11 — MANIFEST
 
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 11. MANIFEST (not started)
-Plan: —
-Status: Ready to plan Phase 11
-Last activity: 2026-04-19 -- Roadmap created (Phases 11-18), all 37 v0.5 requirements mapped
+Phase: 11 (MANIFEST) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-19
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
@@ -51,6 +51,8 @@ Recent decisions carrying forward:
 - 2026-04-19: `bippy` 를 React fiber 접근 단일 신규 의존성으로 확정 (React 17/18/19 matrix)
 - 2026-04-19: Cross-cutting Pitfall 3(prod root-import) primary owner = Phase 13 REACT, secondary = Phase 18 REGISTRY
 - 2026-04-19: Cross-cutting Pitfall 4(sensitive 우회) split = Phase 14 MACRO(runtime heuristic OR-override) + Phase 18 REGISTRY(PR bot)
+- [Phase 11-manifest]: ActionKind forward-reference: index.ts 상단에 명시적 import type 추가로 해결
+- [Phase 11-manifest]: captureTarget.selector: JSON.stringify(ladder) 임시 직렬화 — Phase 12에서 PageSnapshot v3로 교체 예정
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ Recent decisions carrying forward:
 
 ## Session Continuity
 
-Last session: 2026-04-19 (v0.5 roadmapping — requirements → roadmap)
-Stopped at: roadmap created
+Last session: 2026-04-19T07:19:43.004Z
+Stopped at: Completed 11-03-PLAN.md
 Resume file: None
