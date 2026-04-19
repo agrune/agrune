@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-test:
-    name: build + typecheck + unit + lint:annotations
+    name: build + typecheck + unit + lint:no-legacy
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,8 +36,8 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: Annotation lint
-        run: pnpm lint:annotations
+      - name: Legacy data-agrune regression guard
+        run: pnpm lint:no-legacy
 
   e2e:
     name: playwright e2e
