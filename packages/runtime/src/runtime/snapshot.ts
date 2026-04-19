@@ -4,7 +4,6 @@ import {
   type PageSnapshot,
   type PageTarget,
   type PageTargetReason,
-  type ViewportTransform,
 } from '@agrune/core'
 import type {
   ActionKind,
@@ -14,7 +13,6 @@ import type {
   SelectorLadder,
 } from '../types'
 import {
-  buildLiveSelector,
   isElementInViewport,
   isEnabled,
   isFillableElement,
@@ -22,7 +20,6 @@ import {
   isSensitive,
   isTopmostInteractable,
   isVisible,
-  viewportToCanvas,
 } from './dom-utils'
 import { RepeatExpander } from './repeat-expander'
 import { resolveByLadder } from './target-resolver'
@@ -90,25 +87,12 @@ export interface TargetState {
 
 export const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 export const ACT_COMPATIBLE_KINDS = new Set(['click', 'dblclick', 'contextmenu', 'hover', 'longpress'])
-export const LIVE_SCAN_ACTION_SELECTOR = '[data-agrune-action]'
-export const LIVE_SCAN_GROUP_SELECTOR = '[data-agrune-group]'
-export const LIVE_SCAN_DEFAULT_GROUP_ID = 'default'
-export const LIVE_SCAN_DEFAULT_GROUP_NAME = 'Default'
 export const DOM_SETTLE_TIMEOUT_MS = 320
 export const DOM_SETTLE_QUIET_WINDOW_MS = 48
 export const DOM_SETTLE_STABLE_FRAMES = 2
 export const SNAPSHOT_RELEVANT_ATTRIBUTES = [
   'aria-modal',
   'class',
-  'data-agrune-action',
-  'data-agrune-canvas',
-  'data-agrune-desc',
-  'data-agrune-group',
-  'data-agrune-group-desc',
-  'data-agrune-group-name',
-  'data-agrune-key',
-  'data-agrune-meta',
-  'data-agrune-name',
   'disabled',
   'hidden',
   'role',
@@ -198,89 +182,6 @@ function _expandRepeat(repeat: ManifestRepeat): { instances: ReturnType<RepeatEx
     return { instances: result.instances, logicalSize: result.logicalSize }
   }
   return { instances: _repeatExpander.expand(repeat, containerEl), logicalSize: null }
-}
-
-export function collectLiveDescriptors(): TargetDescriptor[] {
-  const result: TargetDescriptor[] = []
-  const elements = document.querySelectorAll<HTMLElement>(LIVE_SCAN_ACTION_SELECTOR)
-
-  elements.forEach((element, index) => {
-    const rawAction = element.getAttribute('data-agrune-action') ?? ''
-    const kinds = [...new Set(
-      rawAction.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a as ActionKind))
-    )] as ActionKind[]
-    if (kinds.length === 0) return
-
-    const key = element.getAttribute('data-agrune-key')?.trim()
-    const groupEl = element.closest<HTMLElement>(LIVE_SCAN_GROUP_SELECTOR)
-    const groupId = groupEl?.getAttribute('data-agrune-group')?.trim() || LIVE_SCAN_DEFAULT_GROUP_ID
-
-    result.push({
-      actionKinds: kinds,
-      groupId,
-      groupName: groupEl?.getAttribute('data-agrune-group-name') || (
-        groupId === LIVE_SCAN_DEFAULT_GROUP_ID ? LIVE_SCAN_DEFAULT_GROUP_NAME : groupId
-      ),
-      groupDesc: groupEl?.getAttribute('data-agrune-group-desc') || undefined,
-      target: {
-        targetId: key || `agrune_${index}`,
-        name: element.getAttribute('data-agrune-name') ?? undefined,
-        desc: element.getAttribute('data-agrune-desc') ?? undefined,
-        actionKinds: kinds,
-        // Legacy live scan wraps CSS selector in SelectorLadder — Phase 17에서 제거 예정
-        selector: { css: buildLiveSelector(element) } as SelectorLadder,
-        sourceFile: '',
-        sourceLine: 0,
-        sourceColumn: 0,
-      },
-    })
-  })
-
-  return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
-}
-
-export function mergeDescriptors(
-  manifestDescriptors: TargetDescriptor[],
-  liveDescriptors: TargetDescriptor[],
-): TargetDescriptor[] {
-  if (liveDescriptors.length === 0) {
-    return manifestDescriptors
-  }
-
-  const merged = new Map(
-    manifestDescriptors.map(descriptor => [descriptor.target.targetId, descriptor] as const),
-  )
-  let changed = false
-
-  for (const descriptor of liveDescriptors) {
-    const existing = merged.get(descriptor.target.targetId)
-    if (!existing) {
-      merged.set(descriptor.target.targetId, descriptor)
-      changed = true
-      continue
-    }
-
-    merged.set(descriptor.target.targetId, {
-      actionKinds: descriptor.actionKinds,
-      groupId: descriptor.groupId,
-      groupName: descriptor.groupName,
-      groupDesc: descriptor.groupDesc,
-      target: {
-        ...existing.target,
-        name: descriptor.target.name ?? existing.target.name,
-        desc: descriptor.target.desc ?? existing.target.desc,
-        selector: descriptor.target.selector,
-      },
-    })
-    changed = true
-  }
-
-  if (!changed) {
-    return manifestDescriptors
-  }
-
-  return Array.from(merged.values())
-    .sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
 }
 
 // ---------------------------------------------------------------------------
@@ -510,17 +411,15 @@ export function captureTarget(
   descriptor: TargetDescriptor,
   element: HTMLElement,
   targetId: string,
-  viewportTransform?: ViewportTransform,
 ): PageTarget {
-  const isCanvasGroup = viewportTransform !== undefined
-  const state = captureTargetState(descriptor.actionKinds, element, isCanvasGroup)
+  const state = captureTargetState(descriptor.actionKinds, element, false)
   const textContent = element.textContent?.trim() ?? ''
   const valuePreview =
     isFillableElement(element) && !state.sensitive ? element.value : null
 
-  // 동적 속성(name/desc)이 null이면 DOM에서 읽는다
-  const name = descriptor.target.name ?? element.getAttribute('data-agrune-name') ?? textContent
-  const description = descriptor.target.desc ?? element.getAttribute('data-agrune-desc') ?? ''
+  // Manifest는 단일 source of truth — legacy DOM attribute fallback 없음.
+  const name = descriptor.target.name ?? textContent
+  const description = descriptor.target.desc ?? ''
 
   let center: PageTarget['center']
   let size: PageTarget['size']
@@ -530,20 +429,9 @@ export function captureTarget(
     const domRect = element.getBoundingClientRect()
     const cx = domRect.left + domRect.width / 2
     const cy = domRect.top + domRect.height / 2
-
-    if (viewportTransform) {
-      const canvasCenter = viewportToCanvas(cx, cy, viewportTransform)
-      center = canvasCenter
-      size = {
-        w: Math.round(domRect.width / viewportTransform.scale),
-        h: Math.round(domRect.height / viewportTransform.scale),
-      }
-      coordSpace = 'canvas'
-    } else {
-      center = { x: Math.round(cx), y: Math.round(cy) }
-      size = { w: Math.round(domRect.width), h: Math.round(domRect.height) }
-      coordSpace = 'viewport'
-    }
+    center = { x: Math.round(cx), y: Math.round(cy) }
+    size = { w: Math.round(domRect.width), h: Math.round(domRect.height) }
+    coordSpace = 'viewport'
   }
 
   return {
@@ -580,57 +468,14 @@ export function captureTarget(
 // Snapshot construction
 // ---------------------------------------------------------------------------
 
-function callMetaFunction(groupEl: HTMLElement): unknown | null {
-  const fnName = groupEl.getAttribute('data-agrune-meta')?.trim()
-  if (!fnName) return null
-
-  const fn = (window as unknown as Record<string, unknown>)[fnName]
-  if (typeof fn !== 'function') {
-    console.warn(`[agrune] meta function not found: ${fnName}`)
-    return null
-  }
-
-  try {
-    const result = fn()
-    JSON.stringify(result)  // verify serializable
-    return result
-  } catch (e) {
-    console.error(`[agrune] meta function error: ${fnName}`, e)
-    return null
-  }
-}
-
 export function makeSnapshot(
   descriptors: TargetDescriptor[],
   store: MutableSnapshotStore,
 ): PageSnapshot {
-  const canvasSelectors = new Map<string, string>()
-  for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-agrune-canvas]'))) {
-    const groupId = el.getAttribute('data-agrune-group')?.trim()
-    const selector = el.getAttribute('data-agrune-canvas')?.trim()
-    if (groupId && selector) canvasSelectors.set(groupId, selector)
-  }
-
-  function parseViewportTransform(groupId: string): ViewportTransform | undefined {
-    const selector = canvasSelectors.get(groupId)
-    if (!selector) return undefined
-    const groupEl = document.querySelector<HTMLElement>(`[data-agrune-group="${groupId}"]`)
-    const transformEl = groupEl?.querySelector<HTMLElement>(selector)
-    if (!transformEl) return undefined
-    const rect = transformEl.getBoundingClientRect()
-    const style = window.getComputedStyle(transformEl)
-    if (!style.transform || style.transform === 'none') return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: 1 }
-    const m = new DOMMatrix(style.transform)
-    return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: Math.round(m.a * 1000) / 1000 }
-  }
-
   // Phase 15-02: repeat 유래 descriptor는 _instanceEl을 직접 사용
   // non-repeat descriptor는 기존 findElements → resolveByLadder 경로
   const targets = descriptors.flatMap(descriptor => {
     const elements = findElements(descriptor)
-    const transform = canvasSelectors.has(descriptor.groupId)
-      ? parseViewportTransform(descriptor.groupId)
-      : undefined
 
     if (descriptor.repeatInstance) {
       // Repeat 유래: instanceEl 1개, stable key 기반 targetId
@@ -642,7 +487,6 @@ export function makeSnapshot(
             repeatId: descriptor.repeatInstance!.repeatId,
             key: descriptor.repeatInstance!.key,
           }),
-          transform,
         ),
       )
     }
@@ -653,7 +497,6 @@ export function makeSnapshot(
         descriptor,
         element,
         toRuntimeTargetId(descriptor.target.targetId, index, elements.length),
-        transform,
       ),
     )
   })
@@ -699,8 +542,6 @@ export function makeSnapshot(
     groupName?: string
     groupDesc?: string
     targetIds: string[]
-    viewportTransform?: ViewportTransform
-    meta?: unknown
     repeats?: Array<{ repeatId: string; strategy: 'dom' | 'virtualized'; instanceCount: number; logicalSize: number | null }>
   }>()
 
@@ -711,18 +552,11 @@ export function makeSnapshot(
       continue
     }
 
-    const groupEl = document.querySelector<HTMLElement>(
-      `[data-agrune-group="${target.groupId}"]`
-    )
-    const meta = groupEl ? callMetaFunction(groupEl) : null
-
     groups.set(target.groupId, {
       groupId: target.groupId,
       groupName: target.groupName,
       groupDesc: target.groupDesc,
       targetIds: [target.targetId],
-      viewportTransform: parseViewportTransform(target.groupId),
-      ...(meta !== null ? { meta } : {}),
     })
   }
 
@@ -790,8 +624,6 @@ export function makeSnapshot(
       groupName: group.groupName,
       groupDesc: group.groupDesc,
       targetIds: group.targetIds.sort(),
-      ...(group.viewportTransform ? { viewportTransform: group.viewportTransform } : {}),
-      ...(group.meta !== undefined ? { meta: group.meta } : {}),
       ...(group.repeats && group.repeats.length > 0 ? { repeats: group.repeats } : {}),
     })),
     targets,
