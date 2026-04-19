@@ -260,24 +260,29 @@ describe('getPathByDom (Phase 16 RECORD-01)', () => {
 
   it('test A: indexFiber로 등록한 element를 getPathByDom에 전달하면 해당 FiberIdentityPath가 반환된다', () => {
     const dom = makeDiv()
+    document.body.appendChild(dom)
     makeIndexedFiber(dom, 'LoginButton')
 
     const path = index.getPathByDom(dom)
     expect(path).not.toBeNull()
     expect(path).toEqual([{ componentName: 'LoginButton', key: null, index: 0 }])
+    document.body.removeChild(dom)
   })
 
   it('test B: 등록되지 않은 element에 getPathByDom 호출 시 null 반환 (throw 금지)', () => {
     const dom = makeDiv()
+    document.body.appendChild(dom)
     // indexFiber 없이 바로 getPathByDom 호출
     expect(() => {
       const result = index.getPathByDom(dom)
       expect(result).toBeNull()
     }).not.toThrow()
+    document.body.removeChild(dom)
   })
 
   it('test C: indexFiber → deindexFiber 후 getPathByDom은 null 반환', () => {
     const dom = makeDiv()
+    document.body.appendChild(dom)
     const compType = makeComponentType('FormInput')
     const compositeFiber = makeMockFiber({ tag: FUNCTION_COMPONENT, type: compType })
     const hostFiber = makeMockFiber({
@@ -292,10 +297,12 @@ describe('getPathByDom (Phase 16 RECORD-01)', () => {
 
     index.deindexFiber(hostFiber as unknown as Fiber)
     expect(index.getPathByDom(dom)).toBeNull()
+    document.body.removeChild(dom)
   })
 
   it('test D: 반환된 path가 내부 저장 path와 독립 (caller가 mutate해도 index 영향 없음)', () => {
     const dom = makeDiv()
+    document.body.appendChild(dom)
     makeIndexedFiber(dom, 'Card')
 
     const path1 = index.getPathByDom(dom)
@@ -308,6 +315,7 @@ describe('getPathByDom (Phase 16 RECORD-01)', () => {
     const path2 = index.getPathByDom(dom)
     expect(path2).not.toBeNull()
     expect(path2![0].componentName).toBe('Card')
+    document.body.removeChild(dom)
   })
 
   it('test E: HTMLElement가 아닌 값 전달 시 null 반환 (방어적)', () => {
@@ -317,5 +325,19 @@ describe('getPathByDom (Phase 16 RECORD-01)', () => {
     expect(index.getPathByDom(null as any)).toBeNull()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect(index.getPathByDom(undefined as any)).toBeNull()
+  })
+
+  it('test F (WR-06): indexFiber 등록 후 element를 DOM에서 remove 하면 getPathByDom 이 null 반환 (stale detach 방어)', () => {
+    const dom = makeDiv()
+    document.body.appendChild(dom)
+    makeIndexedFiber(dom, 'StaleCard')
+
+    // 등록 직후에는 path 반환
+    expect(index.getPathByDom(dom)).not.toBeNull()
+
+    // DOM 에서 떼어내면 isConnected === false → null 반환
+    document.body.removeChild(dom)
+    expect(dom.isConnected).toBe(false)
+    expect(index.getPathByDom(dom)).toBeNull()
   })
 })

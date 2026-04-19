@@ -49,6 +49,10 @@ export class FiberIdentityIndex {
 
   getPathByDom(el: HTMLElement): FiberIdentityPath | null {
     if (!(el instanceof HTMLElement)) return null
+    // WR-06: stale DOM 방어 — fiber 가 unmount 된 직후에도 외부에서 element 참조를
+    // 붙들고 있으면 WeakMap 엔트리는 살아있으므로, recorder 가 "이미 detach 된"
+    // element 로 selector 를 만들지 않도록 isConnected 체크를 선행한다.
+    if (!el.isConnected) return null
     const stored = this.domToPath.get(el)
     if (!stored) return null
     // caller가 반환값을 변형해도 내부 WeakMap 안전하도록 얕은 segment 복제
