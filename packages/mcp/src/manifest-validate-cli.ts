@@ -41,7 +41,12 @@ export async function runValidateCli(args: string[]): Promise<number> {
   }
 
   // 3. Live DOM validation (--url provided)
-  return await runLiveCheck(manifest, urlArg, waitSelector)
+  try {
+    return await runLiveCheck(manifest, urlArg, waitSelector)
+  } catch (err) {
+    process.stderr.write(`Live DOM check failed: ${(err as Error).message}\n`)
+    return 1
+  }
 }
 
 function computeSummary(manifest: AgruneManifest): { targets: number; macros: number; repeats: number } {

@@ -85,6 +85,9 @@ importers:
       '@agrune/devtools':
         specifier: workspace:*
         version: link:../devtools
+      '@agrune/manifest':
+        specifier: workspace:*
+        version: link:../manifest
       '@agrune/mcp':
         specifier: workspace:*
         version: link:../mcp

@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "groups": [
+    {
+      "groupId": "login",
+      "targets": [
+        { "targetId": "password", "actionKinds": ["fill"], "selector": { "css": "input[type=\"password\"]" }, "sensitive": false }
+      ]
+    }
+  ]
+}
