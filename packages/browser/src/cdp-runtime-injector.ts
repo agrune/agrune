@@ -40,19 +40,11 @@ function buildBootstrapSource(): string {
   const bindingName = 'agrune_send';
   const debounceMs = 50;
   const snapshotIntervalMs = 800;
-  const selectors = [
-    '[data-agrune-action]',
-    '[data-agrune-group]',
-    '[data-agrune-canvas]',
-    '[data-agrune-meta]',
-  ];
 
   if (
     !runtimeApi ||
     typeof runtimeApi.installPageAgentRuntime !== 'function' ||
-    typeof runtimeApi.scanAnnotations !== 'function' ||
-    typeof runtimeApi.scanGroups !== 'function' ||
-    typeof runtimeApi.buildManifest !== 'function'
+    typeof runtimeApi.buildEmptyManifest !== 'function'
   ) {
     throw new Error('Agrune runtime exports are not available in CDP quick mode.');
   }
@@ -64,19 +56,13 @@ function buildBootstrapSource(): string {
     }
   };
 
-  const hasAnnotations = () => selectors.some(selector => document.querySelector(selector) !== null);
-
   const getRuntime = () => window.agruneDom ?? null;
 
   const isRuntimeBusy = () => {
     const runtime = getRuntime();
     if (!runtime) return false;
-    if (typeof runtime.isBusy === 'function') {
-      return runtime.isBusy();
-    }
-    if (typeof runtime.isActive === 'function') {
-      return runtime.isActive();
-    }
+    if (typeof runtime.isBusy === 'function') return runtime.isBusy();
+    if (typeof runtime.isActive === 'function') return runtime.isActive();
     return false;
   };
 
@@ -91,15 +77,30 @@ function buildBootstrapSource(): string {
     }
   };
 
+  const resolveManifest = () => {
+    // Priority: owned-app injected > CDP preload > legacy inline scan > empty (idle)
+    if (window.__agrune_manifest__) return { manifest: window.__agrune_manifest__, hasManifest: true, source: 'window' };
+    if (window.__agrune_preload_manifest__) return { manifest: window.__agrune_preload_manifest__, hasManifest: true, source: 'preload' };
+    // Legacy inline-scan path — maintained until Phase 17 (REMOVE-01).
+    if (typeof runtimeApi.scanAnnotations === 'function' &&
+        typeof runtimeApi.scanGroups === 'function' &&
+        typeof runtimeApi.buildManifest === 'function') {
+      try {
+        const legacyManifest = runtimeApi.buildManifest(
+          runtimeApi.scanAnnotations(document),
+          runtimeApi.scanGroups(document),
+        );
+        if (legacyManifest && Array.isArray(legacyManifest.groups) && legacyManifest.groups.some(g => g.targets && g.targets.length > 0)) {
+          return { manifest: legacyManifest, hasManifest: true, source: 'inline' };
+        }
+      } catch (e) { /* fall through to idle */ }
+    }
+    return { manifest: runtimeApi.buildEmptyManifest(), hasManifest: false, source: 'idle' };
+  };
+
   const installRuntime = () => {
-    if (!hasAnnotations()) return;
-
-    const manifest = runtimeApi.buildManifest(
-      runtimeApi.scanAnnotations(document),
-      runtimeApi.scanGroups(document),
-    );
-
-    runtimeApi.installPageAgentRuntime(manifest, {
+    const resolved = resolveManifest();
+    runtimeApi.installPageAgentRuntime(resolved.manifest, {
       cdpPostMessage: (type, data) => post(type, data),
     });
 
@@ -107,8 +108,20 @@ function buildBootstrapSource(): string {
       window.agruneDom.applyConfig(currentConfig);
     }
 
-    post('runtime_ready', {});
-    dispatchSnapshot();
+    post('runtime_ready', { hasManifest: resolved.hasManifest, source: resolved.source });
+
+    // Expose runtime state for test visibility (Playwright page.evaluate).
+    // tamper-proof: writable:false. configurable:true allows reload to redefine.
+    try {
+      Object.defineProperty(window, '__agrune_runtime_state__', {
+        value: { hasManifest: resolved.hasManifest, source: resolved.source },
+        writable: false,
+        configurable: true,
+        enumerable: true,
+      });
+    } catch (e) { /* defensive: don't crash bootstrap on sealed globals */ }
+
+    if (resolved.hasManifest) dispatchSnapshot();
   };
 
   const flushInstall = () => {
@@ -138,30 +151,6 @@ function buildBootstrapSource(): string {
     }, debounceMs);
   };
 
-  const mutationTouchesAnnotations = (mutation) => {
-    if (mutation.type === 'attributes') {
-      return typeof mutation.attributeName === 'string' && mutation.attributeName.startsWith('data-agrune-');
-    }
-
-    if (mutation.type !== 'childList') return false;
-
-    const matchesAnnotatedTree = (node) => {
-      if (!(node instanceof Element)) return false;
-      if (selectors.some(selector => node.matches(selector))) return true;
-      return selectors.some(selector => node.querySelector(selector) !== null);
-    };
-
-    for (const node of mutation.addedNodes) {
-      if (matchesAnnotatedTree(node)) return true;
-    }
-
-    for (const node of mutation.removedNodes) {
-      if (matchesAnnotatedTree(node)) return true;
-    }
-
-    return false;
-  };
-
   for (const type of [
     'mousedown', 'mousemove', 'mouseup',
     'pointerdown', 'pointermove', 'pointerup',
@@ -174,103 +163,91 @@ function buildBootstrapSource(): string {
     }, { capture: true });
   }
 
-  const bootstrap = () => {
-    if (!window[apiKey]) {
-      const installObserver = new MutationObserver((mutations) => {
-        if (mutations.some(mutation => mutationTouchesAnnotations(mutation))) {
-          scheduleInstall();
-        }
-      });
-      const root = document.documentElement ?? document;
-      installObserver.observe(root, {
-        attributes: true,
-        childList: true,
-        subtree: true,
-      });
+  // General snapshot observer — fires on ANY DOM change. Previously this also
+  // triggered installer retries (annotation-specific). Post-Phase-11 the
+  // runtime boots once on DOMContentLoaded; manifest changes arrive via
+  // window.__agrune_manifest__ reassignment (Phase 12+) and trigger
+  // reloadRuntime() explicitly.
+  const snapshotObserver = new MutationObserver(() => {
+    if (getRuntime()) scheduleSnapshot();
+  });
+  snapshotObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    characterData: true,
+  });
 
-      setInterval(() => {
-        dispatchSnapshot();
-      }, snapshotIntervalMs);
+  setInterval(() => {
+    if (getRuntime()) dispatchSnapshot();
+  }, snapshotIntervalMs);
 
-      const wrapHistoryMethod = (name) => {
-        const original = history[name];
-        if (typeof original !== 'function') return;
-        history[name] = function(...args) {
-          const result = original.apply(this, args);
-          scheduleInstall();
-          scheduleSnapshot();
-          return result;
-        };
-      };
-
-      wrapHistoryMethod('pushState');
-      wrapHistoryMethod('replaceState');
-
-      window.addEventListener('popstate', () => {
-        scheduleInstall();
-        scheduleSnapshot();
-      });
-      window.addEventListener('hashchange', () => {
-        scheduleInstall();
-        scheduleSnapshot();
-      });
-    }
-
-    window[apiKey] = {
-      handleCommand: async (kind, input) => {
-        if (!window.agruneDom) {
-          installRuntime();
-        }
-        const runtime = window.agruneDom;
-        if (!runtime) {
-          throw new Error('Agrune runtime is not installed on this page.');
-        }
-        const fn = runtime[kind];
-        if (typeof fn !== 'function') {
-          throw new Error('Unknown command: ' + kind);
-        }
-        const result = await fn.call(runtime, input ?? {});
-        scheduleSnapshot();
-        return result;
-      },
-      getSnapshot: () => {
-        if (!window.agruneDom) {
-          installRuntime();
-        }
-        return window.agruneDom ? window.agruneDom.getSnapshot() : null;
-      },
-      applyConfig: (config) => {
-        currentConfig = { ...currentConfig, ...(config ?? {}) };
-        if (!window.agruneDom) {
-          installRuntime();
-        }
-        if (window.agruneDom && typeof window.agruneDom.applyConfig === 'function') {
-          window.agruneDom.applyConfig(currentConfig);
-        }
-      },
-      setAgentActivity: (active) => {
-        if (!window.agruneDom) {
-          installRuntime();
-        }
-        if (!window.agruneDom) return;
-        if (active) {
-          window.agruneDom.beginAgentActivity?.();
-        } else {
-          window.agruneDom.endAgentActivity?.();
-        }
-      },
-      dispatchCdpMessage: (detail) => {
-        window.dispatchEvent(new CustomEvent('agrune:cdp', { detail }));
-      },
+  const wrapHistoryMethod = (name) => {
+    const original = history[name];
+    if (typeof original !== 'function') return;
+    history[name] = function(...args) {
+      const result = original.apply(this, args);
+      scheduleSnapshot();
+      return result;
     };
-
-    installRuntime();
   };
 
+  wrapHistoryMethod('pushState');
+  wrapHistoryMethod('replaceState');
+
+  window.addEventListener('popstate', scheduleSnapshot);
+  window.addEventListener('hashchange', scheduleSnapshot);
+
+  window[apiKey] = {
+    handleCommand: async (kind, input) => {
+      const runtime = window.agruneDom;
+      if (!runtime) {
+        throw new Error('Agrune runtime is not installed on this page.');
+      }
+      const fn = runtime[kind];
+      if (typeof fn !== 'function') {
+        throw new Error('Unknown command: ' + kind);
+      }
+      const result = await fn.call(runtime, input ?? {});
+      scheduleSnapshot();
+      return result;
+    },
+    getSnapshot: () => {
+      return window.agruneDom ? window.agruneDom.getSnapshot() : null;
+    },
+    applyConfig: (config) => {
+      currentConfig = { ...currentConfig, ...(config ?? {}) };
+      if (window.agruneDom && typeof window.agruneDom.applyConfig === 'function') {
+        window.agruneDom.applyConfig(currentConfig);
+      }
+    },
+    setAgentActivity: (active) => {
+      if (!window.agruneDom) return;
+      if (active) {
+        window.agruneDom.beginAgentActivity?.();
+      } else {
+        window.agruneDom.endAgentActivity?.();
+      }
+    },
+    dispatchCdpMessage: (detail) => {
+      window.dispatchEvent(new CustomEvent('agrune:cdp', { detail }));
+    },
+    // Expose reload hook for Phase 12 manifest injection.
+    // Calling reloadRuntime() after setting window.__agrune_manifest__ will
+    // re-resolve the manifest and reinstall the runtime.
+    reloadRuntime: () => {
+      installRuntime();
+    },
+    getManifestSource: () => {
+      return resolveManifest().source;
+    },
+  };
+
+  // Bootstrap — always, regardless of annotation presence (RESOLVE-04)
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
+    document.addEventListener('DOMContentLoaded', installRuntime, { once: true });
   } else {
-    bootstrap();
+    installRuntime();
   }
 })();
 `
