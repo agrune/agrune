@@ -19,6 +19,7 @@ export const COMMAND_ERROR_CODES = [
   'MACRO_CIRCUIT_OPEN',           // Phase 14-03
   'MACRO_PRECONDITION_FAILED',    // Phase 14-03
   'MACRO_POSTCONDITION_FAILED',   // Phase 14-03
+  'REPEAT_INDEX_OUT_OF_RANGE',    // Phase 15-01 (REPEAT-02)
   'CANVAS_PAN_FAILED',
   'CONNECTION_LOST',
   'CHROME_CRASHED',
@@ -74,6 +75,14 @@ export interface PageSnapshotGroup {
   targetIds: string[]
   viewportTransform?: ViewportTransform
   meta?: unknown
+  /** Phase 15-01 (REPEAT-03): Repeat summary — instanceCount는 snapshot에 포함된 가시 인스턴스 수,
+   *  logicalSize는 aria-rowcount 기반 (null=unknown). */
+  repeats?: Array<{
+    repeatId: string
+    strategy: 'dom' | 'virtualized'
+    instanceCount: number
+    logicalSize: number | null
+  }>
 }
 
 export interface PageTarget {
@@ -101,6 +110,12 @@ export interface PageTarget {
   sourceFile: string
   sourceLine: number
   sourceColumn: number
+  /** Phase 15-01 (REPEAT-03): Repeat instance context — defined only for targets from ManifestRepeat expansion. */
+  repeatInstance?: {
+    repeatId: string
+    index: number
+    key: string
+  }
 }
 
 export interface PageSnapshot {
