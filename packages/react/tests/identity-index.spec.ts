@@ -238,3 +238,84 @@ describe('FiberIdentityIndex', () => {
     expect(index.getByPath(path)).toBe(dom)
   })
 })
+
+describe('getPathByDom (Phase 16 RECORD-01)', () => {
+  let index: FiberIdentityIndex
+
+  beforeEach(() => {
+    index = new FiberIdentityIndex()
+  })
+
+  function makeIndexedFiber(dom: HTMLElement, componentName: string): void {
+    const compType = makeComponentType(componentName)
+    const compositeFiber = makeMockFiber({ tag: FUNCTION_COMPONENT, type: compType })
+    const hostFiber = makeMockFiber({
+      tag: HOST_COMPONENT,
+      type: 'div',
+      stateNode: dom,
+      return: compositeFiber,
+    })
+    index.indexFiber(hostFiber as unknown as Fiber)
+  }
+
+  it('test A: indexFiber로 등록한 element를 getPathByDom에 전달하면 해당 FiberIdentityPath가 반환된다', () => {
+    const dom = makeDiv()
+    makeIndexedFiber(dom, 'LoginButton')
+
+    const path = index.getPathByDom(dom)
+    expect(path).not.toBeNull()
+    expect(path).toEqual([{ componentName: 'LoginButton', key: null, index: 0 }])
+  })
+
+  it('test B: 등록되지 않은 element에 getPathByDom 호출 시 null 반환 (throw 금지)', () => {
+    const dom = makeDiv()
+    // indexFiber 없이 바로 getPathByDom 호출
+    expect(() => {
+      const result = index.getPathByDom(dom)
+      expect(result).toBeNull()
+    }).not.toThrow()
+  })
+
+  it('test C: indexFiber → deindexFiber 후 getPathByDom은 null 반환', () => {
+    const dom = makeDiv()
+    const compType = makeComponentType('FormInput')
+    const compositeFiber = makeMockFiber({ tag: FUNCTION_COMPONENT, type: compType })
+    const hostFiber = makeMockFiber({
+      tag: HOST_COMPONENT,
+      type: 'input',
+      stateNode: dom,
+      return: compositeFiber,
+    })
+
+    index.indexFiber(hostFiber as unknown as Fiber)
+    expect(index.getPathByDom(dom)).not.toBeNull()
+
+    index.deindexFiber(hostFiber as unknown as Fiber)
+    expect(index.getPathByDom(dom)).toBeNull()
+  })
+
+  it('test D: 반환된 path가 내부 저장 path와 독립 (caller가 mutate해도 index 영향 없음)', () => {
+    const dom = makeDiv()
+    makeIndexedFiber(dom, 'Card')
+
+    const path1 = index.getPathByDom(dom)
+    expect(path1).not.toBeNull()
+
+    // 반환된 path를 변형
+    path1![0].componentName = 'MUTATED'
+
+    // 다시 조회하면 원본 값이 유지되어야 함
+    const path2 = index.getPathByDom(dom)
+    expect(path2).not.toBeNull()
+    expect(path2![0].componentName).toBe('Card')
+  })
+
+  it('test E: HTMLElement가 아닌 값 전달 시 null 반환 (방어적)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(index.getPathByDom('not-an-element' as any)).toBeNull()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(index.getPathByDom(null as any)).toBeNull()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(index.getPathByDom(undefined as any)).toBeNull()
+  })
+})

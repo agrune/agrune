@@ -47,6 +47,14 @@ export class FiberIdentityIndex {
     return ref?.deref() ?? null
   }
 
+  getPathByDom(el: HTMLElement): FiberIdentityPath | null {
+    if (!(el instanceof HTMLElement)) return null
+    const stored = this.domToPath.get(el)
+    if (!stored) return null
+    // caller가 반환값을 변형해도 내부 WeakMap 안전하도록 얕은 segment 복제
+    return stored.map(seg => ({ componentName: seg.componentName, key: seg.key, index: seg.index }))
+  }
+
   private buildPath(stack: Fiber[]): FiberIdentityPath {
     return stack
       .filter(isCompositeFiber)
