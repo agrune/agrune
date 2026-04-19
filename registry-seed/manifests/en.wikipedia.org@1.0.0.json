@@ -1,0 +1,54 @@
+{
+  "registry": {
+    "host": "en.wikipedia.org",
+    "version": "1.0.0",
+    "tier": "verified",
+    "author": "agrune-maintainers",
+    "submittedAt": "2026-04-20T00:00:00.000Z",
+    "reviewedBy": ["agrune-maintainers"],
+    "allowedEnvironments": ["dev", "prod"],
+    "seedUrl": "https://en.wikipedia.org"
+  },
+  "manifest": {
+    "version": 3,
+    "groups": [
+      {
+        "groupId": "article",
+        "name": "Article search",
+        "targets": [
+          {
+            "targetId": "searchBox",
+            "name": "Search input",
+            "actionKinds": ["fill"],
+            "selector": {
+              "role": { "name": "searchbox" }
+            }
+          },
+          {
+            "targetId": "firstSearchResult",
+            "name": "First search result link",
+            "actionKinds": ["click"],
+            "selector": {
+              "role": { "name": "link" }
+            }
+          }
+        ]
+      },
+      {
+        "groupId": "nav",
+        "name": "Sidebar navigation",
+        "targets": [
+          {
+            "targetId": "mainPageLink",
+            "name": "Main page nav link",
+            "actionKinds": ["click"],
+            "selector": {
+              "role": { "name": "link" },
+              "text": "Main page"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

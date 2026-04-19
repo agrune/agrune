@@ -1,0 +1,54 @@
+{
+  "registry": {
+    "host": "news.ycombinator.com",
+    "version": "1.0.0",
+    "tier": "verified",
+    "author": "agrune-maintainers",
+    "submittedAt": "2026-04-20T00:00:00.000Z",
+    "reviewedBy": ["agrune-maintainers"],
+    "allowedEnvironments": ["dev", "prod"],
+    "seedUrl": "https://news.ycombinator.com"
+  },
+  "manifest": {
+    "version": 3,
+    "groups": [
+      {
+        "groupId": "front-page",
+        "name": "Front page story list",
+        "targets": [
+          {
+            "targetId": "storyLink",
+            "name": "Story headline link",
+            "actionKinds": ["click"],
+            "selector": {
+              "role": { "name": "link" }
+            }
+          },
+          {
+            "targetId": "upVoteButton",
+            "name": "Upvote arrow",
+            "actionKinds": ["click"],
+            "selector": {
+              "css": "a.clicky"
+            }
+          }
+        ]
+      },
+      {
+        "groupId": "nav",
+        "name": "Top navigation",
+        "targets": [
+          {
+            "targetId": "newLink",
+            "name": "New stories nav link",
+            "actionKinds": ["click"],
+            "selector": {
+              "role": { "name": "link" },
+              "text": "new"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

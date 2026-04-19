@@ -1,0 +1,54 @@
+{
+  "registry": {
+    "host": "arxiv.org",
+    "version": "1.0.0",
+    "tier": "verified",
+    "author": "agrune-maintainers",
+    "submittedAt": "2026-04-20T00:00:00.000Z",
+    "reviewedBy": ["agrune-maintainers"],
+    "allowedEnvironments": ["dev", "prod"],
+    "seedUrl": "https://arxiv.org"
+  },
+  "manifest": {
+    "version": 3,
+    "groups": [
+      {
+        "groupId": "search",
+        "name": "Preprint search",
+        "targets": [
+          {
+            "targetId": "searchInput",
+            "name": "Search term input",
+            "actionKinds": ["fill"],
+            "selector": {
+              "role": { "name": "searchbox" }
+            }
+          },
+          {
+            "targetId": "searchTypeSelect",
+            "name": "Search field type selector",
+            "actionKinds": ["click"],
+            "selector": {
+              "css": "select[name=\"searchtype\"]"
+            }
+          }
+        ]
+      },
+      {
+        "groupId": "browse",
+        "name": "Browse new listings",
+        "targets": [
+          {
+            "targetId": "newListingsLink",
+            "name": "New submissions listing link",
+            "actionKinds": ["click"],
+            "selector": {
+              "role": { "name": "link" },
+              "text": "new"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
