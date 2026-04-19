@@ -1,40 +1,21 @@
 import type { ScannedTarget, ScannedGroup } from './dom-scanner.js'
 import type {
-  AgruneGroupEntry,
+  ActionKind,
   AgruneManifest,
-  AgruneSupportedAction,
-  AgruneTargetEntry,
-  AgruneToolEntry,
+  ManifestGroup,
+  SelectorLadder,
 } from '@agrune/core'
 
 const DEFAULT_GROUP_ID = 'default'
 const DEFAULT_GROUP_NAME = 'Default'
-
-function toTargetEntry(target: ScannedTarget): AgruneTargetEntry {
-  return {
-    targetId: target.targetId,
-    name: target.name || null,
-    desc: target.description || null,
-    selector: target.selector,
-    sourceFile: '',
-    sourceLine: 0,
-    sourceColumn: 0,
-  }
-}
-
-function toToolEntry(target: ScannedTarget): AgruneToolEntry {
-  return {
-    toolName: target.name || target.targetId,
-    toolDesc: target.description || '',
-    action: target.actionKinds.join(',') as AgruneSupportedAction,
-    status: 'active',
-    targets: [toTargetEntry(target)],
-  }
-}
+const VALID_ACTION_KINDS: Set<string> = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 
 /**
- * Converts scanned DOM targets and groups into the runtime manifest used by
+ * Converts scanned DOM targets and groups into a v3 AgruneManifest used by
  * installPageAgentRuntime().
+ *
+ * Legacy inline scan (data-agrune-*) wraps CSS selector in SelectorLadder { css: "..." }.
+ * Phase 17에서 전체 inline scan 경로 제거 예정.
  */
 export function buildManifest(
   targets: ScannedTarget[],
@@ -42,9 +23,7 @@ export function buildManifest(
 ): AgruneManifest {
   if (targets.length === 0) {
     return {
-      version: 2,
-      generatedAt: new Date().toISOString(),
-      exposureMode: 'per-element',
+      version: 3,
       groups: [],
     }
   }
@@ -55,33 +34,36 @@ export function buildManifest(
   }
 
   // Group targets by groupId
-  const toolsByGroup = new Map<string, AgruneToolEntry[]>()
+  const targetsByGroup = new Map<string, ManifestGroup>()
+
   for (const target of targets) {
     const gid = target.groupId ?? DEFAULT_GROUP_ID
-    let tools = toolsByGroup.get(gid)
-    if (!tools) {
-      tools = []
-      toolsByGroup.set(gid, tools)
+    let group = targetsByGroup.get(gid)
+    if (!group) {
+      const scannedGroup = groupMap.get(gid)
+      group = {
+        groupId: gid,
+        name: scannedGroup?.name || (gid === DEFAULT_GROUP_ID ? DEFAULT_GROUP_NAME : gid),
+        desc: scannedGroup?.description || undefined,
+        targets: [],
+      }
+      targetsByGroup.set(gid, group)
     }
-    tools.push(toToolEntry(target))
-  }
 
-  // Build group entries
-  const groupEntries: AgruneGroupEntry[] = []
-  for (const [gid, tools] of toolsByGroup) {
-    const scannedGroup = groupMap.get(gid)
-    groupEntries.push({
-      groupId: gid,
-      groupName: scannedGroup?.name || (gid === DEFAULT_GROUP_ID ? DEFAULT_GROUP_NAME : gid),
-      groupDesc: scannedGroup?.description || null,
-      tools,
+    const kinds = target.actionKinds.filter((k) => VALID_ACTION_KINDS.has(k)) as ActionKind[]
+
+    group.targets.push({
+      targetId: target.targetId,
+      name: target.name || undefined,
+      desc: target.description || undefined,
+      actionKinds: kinds,
+      // Legacy CSS selector wrapped in SelectorLadder — Phase 17에서 전체 제거 예정
+      selector: { css: target.selector } as SelectorLadder,
     })
   }
 
   return {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    exposureMode: 'per-element',
-    groups: groupEntries,
+    version: 3,
+    groups: Array.from(targetsByGroup.values()),
   }
 }

@@ -7,8 +7,10 @@ import {
   type ViewportTransform,
 } from '@agrune/core'
 import type {
+  ActionKind,
   AgruneManifest,
-  AgruneTargetEntry,
+  ManifestTarget,
+  SelectorLadder,
 } from '../types'
 import {
   buildLiveSelector,
@@ -21,19 +23,23 @@ import {
   isVisible,
   viewportToCanvas,
 } from './dom-utils'
+import { resolveByLadder } from './target-resolver'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
 
 export interface TargetDescriptor {
   actionKinds: ActionKind[]
   groupId: string
   groupName?: string
   groupDesc?: string
-  target: AgruneTargetEntry
+  target: ManifestTarget & {
+    // source info kept for tooling (live scan emits '', 0, 0)
+    sourceFile?: string
+    sourceLine?: number
+    sourceColumn?: number
+  }
 }
 
 export interface RuntimeTargetMatch {
@@ -100,18 +106,26 @@ export function collectDescriptors(manifest: AgruneManifest): TargetDescriptor[]
   const result: TargetDescriptor[] = []
 
   for (const group of manifest.groups) {
-    for (const tool of group.tools) {
-      if (tool.status !== 'active') continue
-      const actionKinds = [...new Set(
-        tool.action.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a))
-      )] as ActionKind[]
-      if (actionKinds.length === 0) continue
-      for (const target of tool.targets) {
+    for (const target of group.targets) {
+      const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k))
+      if (kinds.length === 0) continue
+      result.push({
+        actionKinds: [...new Set(kinds)] as ActionKind[],
+        groupId: group.groupId,
+        groupName: group.name,
+        groupDesc: group.desc,
+        target,
+      })
+    }
+    for (const repeat of group.repeats ?? []) {
+      for (const target of repeat.targets) {
+        const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k))
+        if (kinds.length === 0) continue
         result.push({
-          actionKinds,
+          actionKinds: [...new Set(kinds)] as ActionKind[],
           groupId: group.groupId,
-          groupName: group.groupName ?? undefined,
-          groupDesc: group.groupDesc ?? undefined,
+          groupName: group.name,
+          groupDesc: group.desc,
           target,
         })
       }
@@ -127,17 +141,17 @@ export function collectLiveDescriptors(): TargetDescriptor[] {
 
   elements.forEach((element, index) => {
     const rawAction = element.getAttribute('data-agrune-action') ?? ''
-    const actionKinds = [...new Set(
-      rawAction.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a))
+    const kinds = [...new Set(
+      rawAction.split(',').map(a => a.trim()).filter(a => VALID_ACTIONS.has(a as ActionKind))
     )] as ActionKind[]
-    if (actionKinds.length === 0) return
+    if (kinds.length === 0) return
 
     const key = element.getAttribute('data-agrune-key')?.trim()
     const groupEl = element.closest<HTMLElement>(LIVE_SCAN_GROUP_SELECTOR)
     const groupId = groupEl?.getAttribute('data-agrune-group')?.trim() || LIVE_SCAN_DEFAULT_GROUP_ID
 
     result.push({
-      actionKinds,
+      actionKinds: kinds,
       groupId,
       groupName: groupEl?.getAttribute('data-agrune-group-name') || (
         groupId === LIVE_SCAN_DEFAULT_GROUP_ID ? LIVE_SCAN_DEFAULT_GROUP_NAME : groupId
@@ -145,9 +159,11 @@ export function collectLiveDescriptors(): TargetDescriptor[] {
       groupDesc: groupEl?.getAttribute('data-agrune-group-desc') || undefined,
       target: {
         targetId: key || `agrune_${index}`,
-        name: element.getAttribute('data-agrune-name'),
-        desc: element.getAttribute('data-agrune-desc'),
-        selector: buildLiveSelector(element),
+        name: element.getAttribute('data-agrune-name') ?? undefined,
+        desc: element.getAttribute('data-agrune-desc') ?? undefined,
+        actionKinds: kinds,
+        // Legacy live scan wraps CSS selector in SelectorLadder — Phase 17에서 제거 예정
+        selector: { css: buildLiveSelector(element) } as SelectorLadder,
         sourceFile: '',
         sourceLine: 0,
         sourceColumn: 0,
@@ -207,7 +223,7 @@ export function mergeDescriptors(
 // ---------------------------------------------------------------------------
 
 export function findElements(descriptor: TargetDescriptor): HTMLElement[] {
-  return Array.from(document.querySelectorAll<HTMLElement>(descriptor.target.selector))
+  return resolveByLadder(descriptor.target.selector as SelectorLadder)
 }
 
 export function toRuntimeTargetId(baseTargetId: string, index: number, total: number): string {
@@ -386,7 +402,8 @@ export function captureTarget(
     groupDesc: descriptor.groupDesc,
     name,
     reason: state.reason,
-    selector: descriptor.target.selector,
+    // Phase 12에서 PageSnapshot v3 shape으로 교체 예정 — 현재는 JSON.stringify로 serialize
+    selector: JSON.stringify(descriptor.target.selector),
     sensitive: state.sensitive,
     targetId,
     visible: state.visible,
@@ -399,9 +416,9 @@ export function captureTarget(
     center,
     size,
     coordSpace,
-    sourceFile: descriptor.target.sourceFile,
-    sourceLine: descriptor.target.sourceLine,
-    sourceColumn: descriptor.target.sourceColumn,
+    sourceFile: descriptor.target.sourceFile ?? '',
+    sourceLine: descriptor.target.sourceLine ?? 0,
+    sourceColumn: descriptor.target.sourceColumn ?? 0,
   }
 }
 

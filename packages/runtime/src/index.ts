@@ -1,12 +1,12 @@
 export type {
-  AgruneExposureMode,
-  AgruneSupportedAction,
-  AgruneGroupEntry,
   AgruneManifest,
   AgruneRuntimeOptions,
-  AgruneToolEntry,
-  AgruneToolStatus,
-  AgruneTargetEntry,
+  ManifestTarget,
+  ManifestGroup,
+  ManifestRepeat,
+  ManifestMacro,
+  SelectorLadder,
+  ActionKind,
 } from './types'
 
 export {

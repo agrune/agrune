@@ -40,48 +40,26 @@ function mockRect() {
 
 function makeManifest(): AgruneManifest {
   return {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    exposureMode: 'grouped',
+    version: 3,
     groups: [
       {
-        groupDesc: '인증 작업',
+        desc: '인증 작업',
         groupId: 'auth',
-        groupName: 'Auth',
-        tools: [
+        name: 'Auth',
+        targets: [
           {
-            action: 'click',
-            status: 'active',
-            targets: [
-              {
-                desc: '로그인 버튼',
-                name: '로그인',
-                selector: '[data-agrune-key="login"]',
-                sourceColumn: 1,
-                sourceFile: 'App.tsx',
-                sourceLine: 1,
-                targetId: 'login',
-              },
-            ],
-            toolDesc: '클릭',
-            toolName: 'auth_click',
+            desc: '로그인 버튼',
+            name: '로그인',
+            selector: { css: '[data-agrune-key="login"]' },
+            actionKinds: ['click'],
+            targetId: 'login',
           },
           {
-            action: 'fill',
-            status: 'active',
-            targets: [
-              {
-                desc: '이메일 입력',
-                name: '이메일',
-                selector: '[data-agrune-key="email"]',
-                sourceColumn: 1,
-                sourceFile: 'App.tsx',
-                sourceLine: 2,
-                targetId: 'email',
-              },
-            ],
-            toolDesc: '입력',
-            toolName: 'auth_fill',
+            desc: '이메일 입력',
+            name: '이메일',
+            selector: { css: '[data-agrune-key="email"]' },
+            actionKinds: ['fill'],
+            targetId: 'email',
           },
         ],
       },
@@ -91,30 +69,16 @@ function makeManifest(): AgruneManifest {
 
 function makeRepeatedTargetManifest(): AgruneManifest {
   return {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    exposureMode: 'grouped',
+    version: 3,
     groups: [
       {
         groupId: 'assignee-options',
-        groupName: '담당자 옵션',
-        tools: [
+        name: '담당자 옵션',
+        targets: [
           {
-            action: 'click',
-            status: 'active',
-            toolDesc: '담당자 선택',
-            toolName: 'assignee_click',
-            targets: [
-              {
-                desc: null,
-                name: null,
-                selector: '[data-agrune-key="assignee-option"]',
-                sourceColumn: 1,
-                sourceFile: 'TaskWizard.tsx',
-                sourceLine: 1,
-                targetId: 'assignee-option',
-              },
-            ],
+            actionKinds: ['click'],
+            selector: { css: '[data-agrune-key="assignee-option"]' },
+            targetId: 'assignee-option',
           },
         ],
       },
@@ -124,72 +88,40 @@ function makeRepeatedTargetManifest(): AgruneManifest {
 
 function makeOverlayFlowManifest(): AgruneManifest {
   return {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    exposureMode: 'grouped',
+    version: 3,
     groups: [
       {
-        groupDesc: '배경 인증 작업',
+        desc: '배경 인증 작업',
         groupId: 'auth',
-        groupName: 'Auth',
-        tools: [
+        name: 'Auth',
+        targets: [
           {
-            action: 'click',
-            status: 'active',
-            targets: [
-              {
-                desc: '배경 로그인 버튼',
-                name: '로그인',
-                selector: '[data-agrune-key="login"]',
-                sourceColumn: 1,
-                sourceFile: 'Overlay.tsx',
-                sourceLine: 1,
-                targetId: 'login',
-              },
-            ],
-            toolDesc: '클릭',
-            toolName: 'auth_click',
+            desc: '배경 로그인 버튼',
+            name: '로그인',
+            selector: { css: '[data-agrune-key="login"]' },
+            actionKinds: ['click'],
+            targetId: 'login',
           },
           {
-            action: 'fill',
-            status: 'active',
-            targets: [
-              {
-                desc: '배경 이메일 입력',
-                name: '이메일',
-                selector: '[data-agrune-key="email"]',
-                sourceColumn: 1,
-                sourceFile: 'Overlay.tsx',
-                sourceLine: 2,
-                targetId: 'email',
-              },
-            ],
-            toolDesc: '입력',
-            toolName: 'auth_fill',
+            desc: '배경 이메일 입력',
+            name: '이메일',
+            selector: { css: '[data-agrune-key="email"]' },
+            actionKinds: ['fill'],
+            targetId: 'email',
           },
         ],
       },
       {
-        groupDesc: '활성 모달 액션',
+        desc: '활성 모달 액션',
         groupId: 'modal',
-        groupName: 'Modal',
-        tools: [
+        name: 'Modal',
+        targets: [
           {
-            action: 'click',
-            status: 'active',
-            targets: [
-              {
-                desc: '모달 확인 버튼',
-                name: '확인',
-                selector: '[data-agrune-key="confirm"]',
-                sourceColumn: 1,
-                sourceFile: 'Overlay.tsx',
-                sourceLine: 3,
-                targetId: 'confirm',
-              },
-            ],
-            toolDesc: '확인',
-            toolName: 'modal_click',
+            desc: '모달 확인 버튼',
+            name: '확인',
+            selector: { css: '[data-agrune-key="confirm"]' },
+            actionKinds: ['click'],
+            targetId: 'confirm',
           },
         ],
       },
@@ -1317,48 +1249,29 @@ describe('page agent runtime', () => {
 
   it('동일 targetId가 step 전환으로 다른 selector를 가리켜도 live descriptor를 우선 반영한다', async () => {
     const manifest: AgruneManifest = {
-      version: 2,
-      generatedAt: new Date().toISOString(),
-      exposureMode: 'grouped',
+      version: 3,
       groups: [
         {
           groupId: 'wizard',
-          groupName: 'Wizard',
-          tools: [
+          name: 'Wizard',
+          targets: [
             {
-              action: 'click',
-              status: 'active',
-              toolDesc: 'wizard actions',
-              toolName: 'wizard_actions',
-              targets: [
-                {
-                  targetId: 'agrune_0',
-                  name: 'Back',
-                  desc: null,
-                  selector: '[data-agrune-name="Back"]',
-                  sourceColumn: 1,
-                  sourceFile: 'TaskWizard.tsx',
-                  sourceLine: 1,
-                },
-                {
-                  targetId: 'agrune_1',
-                  name: 'Next',
-                  desc: null,
-                  selector: '[data-agrune-name="Next"]',
-                  sourceColumn: 1,
-                  sourceFile: 'TaskWizard.tsx',
-                  sourceLine: 2,
-                },
-                {
-                  targetId: 'agrune_2',
-                  name: 'Close',
-                  desc: null,
-                  selector: '[data-agrune-name="Close"]',
-                  sourceColumn: 1,
-                  sourceFile: 'TaskWizard.tsx',
-                  sourceLine: 3,
-                },
-              ],
+              targetId: 'agrune_0',
+              name: 'Back',
+              selector: { css: '[data-agrune-name="Back"]' },
+              actionKinds: ['click'],
+            },
+            {
+              targetId: 'agrune_1',
+              name: 'Next',
+              selector: { css: '[data-agrune-name="Next"]' },
+              actionKinds: ['click'],
+            },
+            {
+              targetId: 'agrune_2',
+              name: 'Close',
+              selector: { css: '[data-agrune-name="Close"]' },
+              actionKinds: ['click'],
             },
           ],
         },
@@ -1601,39 +1514,25 @@ describe('page agent runtime', () => {
     )
 
     const runtime = makeTestRuntime({
-      version: 2,
-      generatedAt: new Date().toISOString(),
-      exposureMode: 'grouped',
+      version: 3,
       groups: [
         {
           groupId: 'board',
-          groupName: 'Board',
-          tools: [
+          name: 'Board',
+          targets: [
             {
-              action: 'click',
-              status: 'active',
-              toolDesc: 'board click',
-              toolName: 'board_click',
-              targets: [
-                {
-                  desc: '첫 번째 카드',
-                  name: 'card-1',
-                  selector: '[data-agrune-key="card-1"]',
-                  sourceColumn: 1,
-                  sourceFile: 'Board.tsx',
-                  sourceLine: 1,
-                  targetId: 'card-1',
-                },
-                {
-                  desc: 'Done 컬럼',
-                  name: 'column-done',
-                  selector: '[data-agrune-key="column-done"]',
-                  sourceColumn: 1,
-                  sourceFile: 'Board.tsx',
-                  sourceLine: 2,
-                  targetId: 'column-done',
-                },
-              ],
+              desc: '첫 번째 카드',
+              name: 'card-1',
+              selector: { css: '[data-agrune-key="card-1"]' },
+              actionKinds: ['click'],
+              targetId: 'card-1',
+            },
+            {
+              desc: 'Done 컬럼',
+              name: 'column-done',
+              selector: { css: '[data-agrune-key="column-done"]' },
+              actionKinds: ['click'],
+              targetId: 'column-done',
             },
           ],
         },
@@ -1698,39 +1597,25 @@ describe('page agent runtime', () => {
 
     try {
       const runtime = createPageAgentRuntime({
-        version: 2,
-        generatedAt: new Date().toISOString(),
-        exposureMode: 'grouped',
+        version: 3,
         groups: [
           {
             groupId: 'board',
-            groupName: 'Board',
-            tools: [
+            name: 'Board',
+            targets: [
               {
-                action: 'click',
-                status: 'active',
-                toolDesc: 'board click',
-                toolName: 'board_click',
-                targets: [
-                  {
-                    desc: '첫 번째 카드',
-                    name: 'card-1',
-                    selector: '[data-agrune-key="card-1"]',
-                    sourceColumn: 1,
-                    sourceFile: 'Board.tsx',
-                    sourceLine: 1,
-                    targetId: 'card-1',
-                  },
-                  {
-                    desc: 'Done 컬럼',
-                    name: 'column-done',
-                    selector: '[data-agrune-key="column-done"]',
-                    sourceColumn: 1,
-                    sourceFile: 'Board.tsx',
-                    sourceLine: 2,
-                    targetId: 'column-done',
-                  },
-                ],
+                desc: '첫 번째 카드',
+                name: 'card-1',
+                selector: { css: '[data-agrune-key="card-1"]' },
+                actionKinds: ['click'],
+                targetId: 'card-1',
+              },
+              {
+                desc: 'Done 컬럼',
+                name: 'column-done',
+                selector: { css: '[data-agrune-key="column-done"]' },
+                actionKinds: ['click'],
+                targetId: 'column-done',
               },
             ],
           },
@@ -1794,39 +1679,25 @@ describe('page agent runtime', () => {
     )
 
     const runtime = makeTestRuntime({
-      version: 2,
-      generatedAt: new Date().toISOString(),
-      exposureMode: 'grouped',
+      version: 3,
       groups: [
         {
           groupId: 'board',
-          groupName: 'Board',
-          tools: [
+          name: 'Board',
+          targets: [
             {
-              action: 'click',
-              status: 'active',
-              toolDesc: 'board click',
-              toolName: 'board_click',
-              targets: [
-                {
-                  desc: '첫 번째 카드',
-                  name: 'card-1',
-                  selector: '[data-agrune-key="card-1"]',
-                  sourceColumn: 1,
-                  sourceFile: 'Board.tsx',
-                  sourceLine: 1,
-                  targetId: 'card-1',
-                },
-                {
-                  desc: 'Done 컬럼',
-                  name: 'column-done',
-                  selector: '[data-agrune-key="column-done"]',
-                  sourceColumn: 1,
-                  sourceFile: 'Board.tsx',
-                  sourceLine: 2,
-                  targetId: 'column-done',
-                },
-              ],
+              desc: '첫 번째 카드',
+              name: 'card-1',
+              selector: { css: '[data-agrune-key="card-1"]' },
+              actionKinds: ['click'],
+              targetId: 'card-1',
+            },
+            {
+              desc: 'Done 컬럼',
+              name: 'column-done',
+              selector: { css: '[data-agrune-key="column-done"]' },
+              actionKinds: ['click'],
+              targetId: 'column-done',
             },
           ],
         },

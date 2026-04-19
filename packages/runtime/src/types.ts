@@ -1,12 +1,12 @@
-// Re-export manifest types from core (moved there for shared access)
+// Re-export v3 manifest types from @agrune/core (which re-exports from @agrune/manifest)
 export type {
-  AgruneExposureMode,
-  AgruneSupportedAction,
-  AgruneToolStatus,
-  AgruneTargetEntry,
-  AgruneToolEntry,
-  AgruneGroupEntry,
   AgruneManifest,
+  ManifestTarget,
+  ManifestGroup,
+  ManifestRepeat,
+  ManifestMacro,
+  SelectorLadder,
+  ActionKind,
 } from '@agrune/core'
 
 // Runtime-specific types

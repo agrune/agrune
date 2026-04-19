@@ -7,7 +7,7 @@ import {
   DEFAULT_RUNTIME_CONFIG,
   mergeRuntimeConfig,
 } from '@agrune/core'
-import type { AgruneRuntimeOptions } from '../types'
+import type { ActionKind, AgruneRuntimeOptions } from '../types'
 import {
   type PointerCoords,
   autoPanToCanvasPoint,
@@ -28,7 +28,6 @@ import {
   viewportToCanvas,
 } from './dom-utils'
 import {
-  type ActionKind,
   type MutableSnapshotStore,
   type TargetDescriptor,
   ACT_COMPATIBLE_KINDS,

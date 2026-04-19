@@ -31,30 +31,16 @@ function mockRect(): DOMRect {
 
 function makeFillManifest(targetId: string, selector: string): AgruneManifest {
   return {
-    version: 2,
-    generatedAt: new Date().toISOString(),
-    exposureMode: 'grouped',
+    version: 3,
     groups: [
       {
         groupId: 'forms',
-        groupName: 'Forms',
-        tools: [
+        name: 'Forms',
+        targets: [
           {
-            action: 'fill',
-            status: 'active',
-            targets: [
-              {
-                desc: null,
-                name: null,
-                selector,
-                sourceColumn: 1,
-                sourceFile: 'Form.tsx',
-                sourceLine: 1,
-                targetId,
-              },
-            ],
-            toolDesc: '입력',
-            toolName: 'form_fill',
+            actionKinds: ['fill'],
+            selector: { css: selector },
+            targetId,
           },
         ],
       },
