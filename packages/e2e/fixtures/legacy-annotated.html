@@ -57,6 +57,11 @@
       function install() {
         var resolved = resolveManifest();
         runtimeApi.installPageAgentRuntime(resolved.manifest, { cdpPostMessage: function () {} });
+        // Parity with idle-boot.html (Phase 17 REVIEW WR-03):
+        // writable:false = catches accidental runtime self-overwrite.
+        // configurable:true = intentional, lets Playwright re-install on page
+        // reload without a TypeError. Fixtures are repo-controlled so an
+        // attacker-delete-and-redefine is out of scope.
         Object.defineProperty(window, '__agrune_runtime_state__', {
           value: {
             hasManifest: resolved.hasManifest,

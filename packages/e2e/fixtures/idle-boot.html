@@ -46,6 +46,13 @@
       function install() {
         var resolved = resolveManifest();
         runtimeApi.installPageAgentRuntime(resolved.manifest, { cdpPostMessage: function () {} });
+        // writable:false guards against accidental reassignment (tested by
+        // bootstrap-idle.spec.ts `resists direct reassignment`).
+        // configurable:true is intentional (Phase 17 REVIEW WR-03): Playwright
+        // re-runs a spec against a reloaded page might re-execute this install
+        // block; making the property non-configurable would crash the fixture
+        // on the second install with TypeError. The v1 threat model treats the
+        // fixtures as repo-controlled, so delete+redefine is not a concern.
         Object.defineProperty(window, '__agrune_runtime_state__', {
           value: {
             hasManifest: resolved.hasManifest,

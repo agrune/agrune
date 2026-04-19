@@ -53,7 +53,24 @@ test.describe('RESOLVE-04 — bootstrap always runs, idle when no manifest', () 
     expect(legacyDomPresent.groups).toBeGreaterThan(0)
   })
 
-  test('__agrune_runtime_state__ is tamper-proof (writable:false)', async ({ page }) => {
+  test('__agrune_runtime_state__ resists direct reassignment (writable:false)', async ({ page }) => {
+    // Scope note (Phase 17 REVIEW WR-03): this test verifies ONLY that the
+    // property is non-writable — i.e. a direct `window.__agrune_runtime_state__ = ...`
+    // reassignment does not mutate the published snapshot. It intentionally does
+    // NOT claim full tamper-proofness:
+    //   - The property is defined with `configurable: true` (see idle-boot.html
+    //     and legacy-annotated.html); a determined script could `delete` and
+    //     redefine it. That is acceptable for the v1 threat model where the
+    //     fixtures are under repo control and we only care about catching
+    //     accidental runtime self-overwrite.
+    //   - The reassignment below runs in a Playwright page.evaluate() context,
+    //     which is sloppy mode by default. Sloppy writes to non-writable
+    //     properties are silently ignored rather than throwing — the test would
+    //     still pass even if the underlying assignment is a no-op for a reason
+    //     other than `writable: false`. The meaningful regression this guards
+    //     against is a future runtime change that drops the `Object.defineProperty`
+    //     wrapper entirely (making the property plainly writable), in which case
+    //     `afterSource` would become `'window'` and the assertion fails.
     await page.goto('http://127.0.0.1:5555/idle-boot.html')
     await page.waitForFunction(() => window.__agrune_runtime_state__ !== undefined, null, { timeout: 10000 })
     const tamperResult = await page.evaluate(() => {
