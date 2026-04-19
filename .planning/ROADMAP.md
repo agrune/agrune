@@ -37,7 +37,7 @@
 - [x] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
 - [x] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [x] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
-- [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite
+- [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite (1/4 plans)
 - [ ] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
 - [ ] **Phase 18: REGISTRY** — `github.com/agrune/maps` 공개 + `agrune maps` CLI + governance(tier + velocity limit + PR bot)
 
@@ -134,7 +134,7 @@
   4. Recorder가 capture 시점에 sensitive heuristic을 자동 적용해 적절한 target에 `sensitive:true` flag를 부여하고, AI authoring skill(manifest 버전)이 100+ 실제 로그인/결제 폼 corpus에서 precision ≥ 90%, recall ≥ 95% 를 CI 회귀 테스트로 달성한다.
   5. 소스 접근 가능한 React 프로젝트에서 AI authoring skill이 ~80-90% target을 자동 생성하는 것이 demo 페이지 시연으로 검증된다.
 **Plans**: 4 plans
-- [ ] 16-01-PLAN.md — AgruneIdentityBridge v2 (DOM→path 역방향 조회) + FiberIdentityIndex.getPathByDom
+- [x] 16-01-PLAN.md — AgruneIdentityBridge v2 (DOM→path 역방향 조회) + FiberIdentityIndex.getPathByDom
 - [ ] 16-02-PLAN.md — RecorderView + recorder_* WS 프로토콜 + PendingStore + page-context capture (fiber/role/css + isSensitive 자동)
 - [ ] 16-03-PLAN.md — agrune manifest dev CLI + ts-morph watcher (사용자 confirm 후 manifest.ts 머지, 주석·포매팅 보존)
 - [ ] 16-04-PLAN.md — .agents/skills/manifest/ AI skill 재작성 + 100+ corpus precision/recall CI (≥0.90/≥0.95) + TodoMVC demo fixture
@@ -184,7 +184,7 @@
 | 13. REACT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 14. MACRO | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 16. RECORD | v0.5 | 0/4 | Not started | — |
+| 16. RECORD | v0.5 | 1/4 | In progress | — |
 | 17. REMOVE | v0.5 | 0/? | Not started | — |
 | 18. REGISTRY | v0.5 | 0/? | Not started | — |
 
