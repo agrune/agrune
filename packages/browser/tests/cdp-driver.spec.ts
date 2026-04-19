@@ -376,3 +376,132 @@ describe('CdpDriver.listSessions reflects active flag', () => {
     expect(inactive?.active).toBe(false)
   })
 })
+
+// ─── injectManifest ──────────────────────────────────────────────────────────
+
+import type { AgruneManifest } from '@agrune/core'
+
+function makeManifest(groupId = 'g1'): AgruneManifest {
+  return {
+    version: 3,
+    groups: [{ groupId, targets: [{ targetId: 't1', actionKinds: ['click'], selector: { css: '#btn' } }] }],
+  }
+}
+
+describe('CdpDriver.injectManifest', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('Case A: 유효한 tabId + manifest → Runtime.evaluate 호출에 __agrune_manifest__ + reloadRuntime 포함', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(null as never)
+
+    const manifest = makeManifest()
+    await driver.injectManifest(1, manifest)
+
+    // Runtime.evaluate 경로 호출 확인
+    expect(evaluateInSession).toHaveBeenCalled()
+    const expression = evaluateInSession.mock.calls[0][1] as string
+    expect(expression).toContain('__agrune_manifest__')
+    expect(expression).toContain('reloadRuntime')
+  })
+
+  it('Case A-2: expression에 JSON.parse wrapper로 manifest 값이 embed됨', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(null as never)
+
+    const manifest = makeManifest('my-special-group')
+    await driver.injectManifest(1, manifest)
+
+    const expression = evaluateInSession.mock.calls[0][1] as string
+    expect(expression).toContain('JSON.parse(')
+    expect(expression).toContain('my-special-group')
+  })
+
+  it('Case B: 존재하지 않는 tabId → TAB_NOT_FOUND 에러 throw', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue(undefined)
+
+    const manifest = makeManifest()
+    await expect(driver.injectManifest(999, manifest)).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('Case B-2: sessionId가 없는 target → TAB_NOT_FOUND 에러 throw', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: undefined,
+    })
+
+    const manifest = makeManifest()
+    await expect(driver.injectManifest(1, manifest)).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('Case C: U+2028 포함 manifest → expression에 \\u2028 이스케이프됨', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(null as never)
+
+    const manifest = makeManifest('g\u2028ls')
+    await driver.injectManifest(1, manifest)
+
+    const expression = evaluateInSession.mock.calls[0][1] as string
+    expect(expression).not.toContain('\u2028')
+    expect(expression).toContain('\\u2028')
+  })
+
+  it('Case D: 호출 후 refreshSnapshot이 트리거됨 (evaluateInSession으로 getSnapshot 호출)', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(null as never)
+
+    const manifest = makeManifest()
+    await driver.injectManifest(1, manifest)
+
+    // refreshSnapshot은 getSnapshot expression을 포함한 evaluateInSession 호출
+    const allExpressions = evaluateInSession.mock.calls.map(c => c[1] as string)
+    const hasSnapshot = allExpressions.some(e => e.includes('getSnapshot'))
+    expect(hasSnapshot).toBe(true)
+  })
+})
