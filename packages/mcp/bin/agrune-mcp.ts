@@ -9,6 +9,7 @@ const HELP_TEXT = `agrune — AI 에이전트용 CDP 기반 브라우저 자동�
 Usage:
   agrune [options]
   agrune manifest validate <file> [--url <url>] [--wait-selector <css>]
+  agrune manifest dev <file>                # watch ~/.agrune/authoring/pending and merge captures
 
 Options:
   --headless              Chrome 을 headless 모드로 실행 (UI 없음)
@@ -26,6 +27,8 @@ Options:
 Subcommands:
   manifest validate <file> [--url <url>] [--wait-selector <css>]
                           manifest schema 검증 (+ --url 지정 시 live DOM selector 검증)
+  manifest dev <file>     ~/.agrune/authoring/pending 디렉토리를 watch 하면서 recorder 가 기록한
+                          capture JSON 을 <file> 에 ts-morph 머지 (사용자 confirm 후 적용)
 
 DevTools 웹앱: http://localhost:<port>/devtools  (기본 포트 47654)
 
@@ -62,8 +65,14 @@ if (args[0] === 'manifest') {
     const code = await runValidateCli(subArgs.slice(1))
     process.exit(code)
   }
+  if (subArgs[0] === 'dev') {
+    const { runManifestDevCli } = await import('../src/manifest-dev-watcher.js')
+    const code = await runManifestDevCli(subArgs.slice(1))
+    process.exit(code)
+  }
   process.stderr.write(`Unknown manifest subcommand: ${subArgs[0] ?? '(none)'}\n`)
   process.stderr.write(`Usage: agrune manifest validate <file> [--url <url>]\n`)
+  process.stderr.write(`       agrune manifest dev <file>\n`)
   process.exit(1)
 }
 // ── 서브커맨드 분기 끝 ─────────────────────────────────────────────────────────
