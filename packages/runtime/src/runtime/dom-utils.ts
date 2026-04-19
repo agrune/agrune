@@ -305,8 +305,52 @@ export function getEventTargetAtPoint(
 // Element property checks
 // ---------------------------------------------------------------------------
 
-export function isSensitive(element: HTMLElement): boolean {
-  return element.getAttribute('data-agrune-sensitive') === 'true'
+/**
+ * Sensitive detection — OR-only.
+ *
+ * Sensitive = manifest-flag OR DOM-heuristic. Once any source reports
+ * sensitive, the field is sensitive. A manifest cannot force `sensitive:false`
+ * to override a heuristic — the parameter type is `true | undefined`, not
+ * `boolean`, and the schema (@agrune/manifest) rejects `sensitive: false`.
+ *
+ * MANIFEST-04. Phase 14 extends the DOM heuristic with word-boundary regex
+ * on name/id/placeholder/aria-label and multilingual ARIA scanning. This
+ * phase establishes the shape and the OR-only contract skeleton.
+ */
+const AUTOCOMPLETE_SENSITIVE = new Set([
+  'current-password',
+  'new-password',
+  'one-time-code',
+  'cc-number',
+  'cc-csc',
+  'cc-exp',
+  'cc-exp-month',
+  'cc-exp-year',
+])
+
+export function isSensitive(
+  element: HTMLElement,
+  manifestFlag?: true | undefined,
+): boolean {
+  // 1. Manifest flag — OR-only. `false` is not a valid argument.
+  if (manifestFlag === true) return true
+
+  // 2. DOM heuristic — input type=password
+  if (element instanceof HTMLInputElement && element.type === 'password') {
+    return true
+  }
+
+  // 3. DOM heuristic — autocomplete whitelist
+  const autocomplete = element.getAttribute('autocomplete')
+  if (autocomplete) {
+    const normalized = autocomplete.toLowerCase().trim()
+    if (AUTOCOMPLETE_SENSITIVE.has(normalized)) return true
+  }
+
+  // 4. Legacy inline annotation — maintained until Phase 17 REMOVE
+  if (element.getAttribute('data-agrune-sensitive') === 'true') return true
+
+  return false
 }
 
 export function isOverlayElement(element: HTMLElement): boolean {
