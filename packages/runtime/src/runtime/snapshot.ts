@@ -9,6 +9,7 @@ import {
 import type {
   ActionKind,
   AgruneManifest,
+  ManifestRepeat,
   ManifestTarget,
   SelectorLadder,
 } from '../types'
@@ -23,6 +24,7 @@ import {
   isVisible,
   viewportToCanvas,
 } from './dom-utils'
+import { RepeatExpander } from './repeat-expander'
 import { resolveByLadder } from './target-resolver'
 
 // ---------------------------------------------------------------------------
@@ -40,6 +42,23 @@ export interface TargetDescriptor {
     sourceLine?: number
     sourceColumn?: number
   }
+  /** Phase 15-02 (REPEAT-03): Repeat 확장 시에만 존재. */
+  repeatInstance?: { repeatId: string; index: number; key: string }
+  /**
+   * @internal Phase 15-02 — repeat 확장 시 collectDescriptors가 pre-resolve한 row element.
+   * JSON.stringify 대상 아님 (T-15-11 mitigate). findElements/captureTarget에서 _instanceEl 우선 사용.
+   */
+  _instanceEl?: HTMLElement
+  /**
+   * @internal Phase 15-02 — repeat.strategy를 makeSnapshot groups.repeats 집계용으로 보존.
+   * 직렬화 대상 아님.
+   */
+  _repeatStrategy?: 'dom' | 'virtualized'
+  /**
+   * @internal Phase 15-02 — expandVirtualized의 logicalSize를 makeSnapshot groups.repeats 집계용으로 보존.
+   * 직렬화 대상 아님.
+   */
+  _repeatLogicalSize?: number | null
 }
 
 export interface RuntimeTargetMatch {
@@ -96,16 +115,31 @@ export const SNAPSHOT_RELEVANT_ATTRIBUTES = [
   'style',
 ]
 
+/** 기존 index 기반 delimiter — Phase 15-02 이전 경로에서 계속 사용 */
 export const REPEATED_TARGET_ID_DELIMITER = '__agrune_idx_'
+
+/**
+ * Phase 15-02 (REPEAT-03): stable key 기반 targetId delimiter.
+ * 형식: `{repeatId}__agrune_repeatKey_{key}.{baseTargetId}`
+ * repeat 유래 descriptor에서만 사용 — index 기반보다 reorder-safe.
+ */
+export const REPEATED_TARGET_KEY_DELIMITER = '__agrune_repeatKey_'
 
 // ---------------------------------------------------------------------------
 // Descriptor collection
 // ---------------------------------------------------------------------------
 
+/**
+ * RepeatExpander 싱글턴 — collectDescriptors 호출마다 재생성 방지.
+ * module scope에 두어 tree shaking 시 번들에 포함되도록 한다.
+ */
+const _repeatExpander = new RepeatExpander()
+
 export function collectDescriptors(manifest: AgruneManifest): TargetDescriptor[] {
   const result: TargetDescriptor[] = []
 
   for (const group of manifest.groups) {
+    // --- 일반 targets (기존 경로) ---
     for (const target of group.targets) {
       const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k))
       if (kinds.length === 0) continue
@@ -117,22 +151,53 @@ export function collectDescriptors(manifest: AgruneManifest): TargetDescriptor[]
         target,
       })
     }
+
+    // --- repeat targets (Phase 15-02: RepeatExpander 경유) ---
     for (const repeat of group.repeats ?? []) {
-      for (const target of repeat.targets) {
-        const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k))
-        if (kinds.length === 0) continue
-        result.push({
-          actionKinds: [...new Set(kinds)] as ActionKind[],
-          groupId: group.groupId,
-          groupName: group.name,
-          groupDesc: group.desc,
-          target,
-        })
+      const { instances, logicalSize } = _expandRepeat(repeat)
+      for (const instance of instances) {
+        for (const target of repeat.targets) {
+          const kinds = target.actionKinds.filter((k) => VALID_ACTIONS.has(k))
+          if (kinds.length === 0) continue
+          result.push({
+            actionKinds: [...new Set(kinds)] as ActionKind[],
+            groupId: group.groupId,
+            groupName: group.name,
+            groupDesc: group.desc,
+            target,
+            repeatInstance: {
+              repeatId: repeat.repeatId,
+              index: instance.index,
+              key: instance.key,
+            },
+            _instanceEl: instance.el,
+            _repeatStrategy: repeat.strategy,
+            _repeatLogicalSize: logicalSize,
+          })
+        }
       }
     }
   }
 
   return result.sort((left, right) => left.target.targetId.localeCompare(right.target.targetId))
+}
+
+/**
+ * ManifestRepeat → RepeatExpander 확장.
+ * containerSelector가 있으면 resolveByLadder로 컨테이너 element 해석.
+ * 항상 { instances, logicalSize } 형태로 반환 (DOM strategy는 logicalSize=null).
+ */
+function _expandRepeat(repeat: ManifestRepeat): { instances: ReturnType<RepeatExpander['expand']>; logicalSize: number | null } {
+  // containerSelector가 있으면 해당 element를 scope으로 사용
+  const containerEl = repeat.containerSelector
+    ? (resolveByLadder(repeat.containerSelector as SelectorLadder)[0] ?? undefined)
+    : undefined
+
+  if (repeat.strategy === 'virtualized') {
+    const result = _repeatExpander.expandVirtualized(repeat, containerEl)
+    return { instances: result.instances, logicalSize: result.logicalSize }
+  }
+  return { instances: _repeatExpander.expand(repeat, containerEl), logicalSize: null }
 }
 
 export function collectLiveDescriptors(): TargetDescriptor[] {
@@ -222,12 +287,47 @@ export function mergeDescriptors(
 // Element / target-id helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * descriptor → DOM element 목록 반환.
+ *
+ * Phase 15-02: repeat 확장 descriptor라면 _instanceEl(pre-resolved row element)을 직접 반환.
+ * row 내부에서 target selector로 세부 element 탐색 가능 (css 있으면 scoped querySelector).
+ * _instanceEl 없으면 기존 resolveByLadder 경로 (회귀 없음).
+ */
 export function findElements(descriptor: TargetDescriptor): HTMLElement[] {
+  if (descriptor._instanceEl) {
+    const rowEl = descriptor._instanceEl
+    const ladder = descriptor.target.selector as SelectorLadder
+    if (ladder.css) {
+      const scoped = Array.from(rowEl.querySelectorAll<HTMLElement>(ladder.css))
+      if (scoped.length > 0) return scoped
+    }
+    // row 자체를 element로 반환 (selector가 row와 동일한 경우)
+    return [rowEl]
+  }
   return resolveByLadder(descriptor.target.selector as SelectorLadder)
 }
 
-export function toRuntimeTargetId(baseTargetId: string, index: number, total: number): string {
-  if (total <= 1) {
+/**
+ * runtime targetId 생성.
+ *
+ * - repeat key 기반 (REPEAT-03): `{repeatId}__agrune_repeatKey_{key}.{baseTargetId}`
+ * - index 기반 (기존): `{baseTargetId}__agrune_idx_{index}` (total > 1인 경우)
+ * - 단순 targetId: total <= 1 (기존)
+ */
+export function toRuntimeTargetId(
+  baseTargetId: string,
+  indexOrRepeat: number | { repeatId: string; key: string },
+  total?: number,
+): string {
+  if (typeof indexOrRepeat === 'object') {
+    // Phase 15-02: stable key 기반 targetId (reorder-safe)
+    return `${indexOrRepeat.repeatId}${REPEATED_TARGET_KEY_DELIMITER}${indexOrRepeat.key}.${baseTargetId}`
+  }
+  // 기존 index 기반 경로
+  const index = indexOrRepeat
+  const resolvedTotal = total ?? 1
+  if (resolvedTotal <= 1) {
     return baseTargetId
   }
   return `${baseTargetId}${REPEATED_TARGET_ID_DELIMITER}${index}`
@@ -418,6 +518,8 @@ export function captureTarget(
     sourceFile: descriptor.target.sourceFile ?? '',
     sourceLine: descriptor.target.sourceLine ?? 0,
     sourceColumn: descriptor.target.sourceColumn ?? 0,
+    // Phase 15-02 (REPEAT-03): repeatInstance passthrough (T-15-11: _instanceEl은 제외)
+    ...(descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}),
   }
 }
 
@@ -469,12 +571,30 @@ export function makeSnapshot(
     return { translateX: Math.round(rect.left), translateY: Math.round(rect.top), scale: Math.round(m.a * 1000) / 1000 }
   }
 
+  // Phase 15-02: repeat 유래 descriptor는 _instanceEl을 직접 사용
+  // non-repeat descriptor는 기존 findElements → resolveByLadder 경로
   const targets = descriptors.flatMap(descriptor => {
     const elements = findElements(descriptor)
-    // Read transform FRESH for each group's targets to avoid stale values after zoom
     const transform = canvasSelectors.has(descriptor.groupId)
       ? parseViewportTransform(descriptor.groupId)
       : undefined
+
+    if (descriptor.repeatInstance) {
+      // Repeat 유래: instanceEl 1개, stable key 기반 targetId
+      return elements.map((element) =>
+        captureTarget(
+          descriptor,
+          element,
+          toRuntimeTargetId(descriptor.target.targetId, {
+            repeatId: descriptor.repeatInstance!.repeatId,
+            key: descriptor.repeatInstance!.key,
+          }),
+          transform,
+        ),
+      )
+    }
+
+    // 기존 경로 (회귀 없음)
     return elements.map((element, index) =>
       captureTarget(
         descriptor,
@@ -485,7 +605,52 @@ export function makeSnapshot(
     )
   })
 
-  const groups = new Map<string, { groupId: string; groupName?: string; groupDesc?: string; targetIds: string[]; viewportTransform?: ViewportTransform; meta?: unknown }>()
+  // Phase 15-02: group별 repeat 집계 (PageSnapshotGroup.repeats 필드)
+  // repeatId → { strategy, instanceCount, logicalSize }
+  const groupRepeatsAgg = new Map<string, Map<string, {
+    strategy: 'dom' | 'virtualized'
+    instanceCount: number
+    logicalSize: number | null
+  }>>()
+
+  for (const descriptor of descriptors) {
+    if (!descriptor.repeatInstance) continue
+    const { repeatId } = descriptor.repeatInstance
+    if (!groupRepeatsAgg.has(descriptor.groupId)) {
+      groupRepeatsAgg.set(descriptor.groupId, new Map())
+    }
+    const groupMap = groupRepeatsAgg.get(descriptor.groupId)!
+    if (!groupMap.has(repeatId)) {
+      groupMap.set(repeatId, {
+        strategy: 'dom', // default — 아래에서 manifest에서 읽어올 수 없으므로 추적 필요
+        instanceCount: 0,
+        logicalSize: null,
+      })
+    }
+    groupMap.get(repeatId)!.instanceCount += 1
+  }
+
+  // strategy/logicalSize를 descriptor에서 추적하기 위해 별도 Map
+  // collectDescriptors가 repeatInstance에 strategy를 넣지 않으므로,
+  // descriptor에 _repeatStrategy/_logicalSize를 추가하는 대신
+  // 첫 descriptor의 _instanceEl로부터 container aria를 다시 읽는 것보다
+  // collectDescriptors에서 메타를 보존하는 방식이 더 명확하다.
+  // Phase 15-02 실용 결정: repeatMeta Map을 collectDescriptors에서 주입하는 대신
+  // descriptor에 _repeatMeta 필드를 추가한다.
+  // 현재 구현에서는 RepeatExpander.expandVirtualized가 logicalSize를 반환하므로
+  // collectDescriptors가 이를 보존해야 한다 — 추가 필드 _repeatLogicalSize, _repeatStrategy.
+  // 이 값들은 groupRepeatsAgg 집계에서 첫 번째 descriptor 기준으로 읽는다.
+
+  const groups = new Map<string, {
+    groupId: string
+    groupName?: string
+    groupDesc?: string
+    targetIds: string[]
+    viewportTransform?: ViewportTransform
+    meta?: unknown
+    repeats?: Array<{ repeatId: string; strategy: 'dom' | 'virtualized'; instanceCount: number; logicalSize: number | null }>
+  }>()
+
   for (const target of targets) {
     const group = groups.get(target.groupId)
     if (group) {
@@ -508,6 +673,37 @@ export function makeSnapshot(
     })
   }
 
+  // Phase 15-02: groups에 repeats 필드 추가
+  // descriptors에서 _repeatStrategy/_repeatLogicalSize를 첫 descriptor 기준으로 추출
+  const repeatMetaByKey = new Map<string, { strategy: 'dom' | 'virtualized'; logicalSize: number | null }>()
+  for (const descriptor of descriptors) {
+    if (!descriptor.repeatInstance) continue
+    const metaKey = `${descriptor.groupId}::${descriptor.repeatInstance.repeatId}`
+    if (!repeatMetaByKey.has(metaKey)) {
+      repeatMetaByKey.set(metaKey, {
+        strategy: descriptor._repeatStrategy ?? 'dom',
+        logicalSize: descriptor._repeatLogicalSize ?? null,
+      })
+    }
+  }
+
+  for (const [groupId, repeatMap] of groupRepeatsAgg) {
+    const group = groups.get(groupId)
+    if (!group) continue
+    const repeatsArr = Array.from(repeatMap.entries()).map(([repeatId, agg]) => {
+      const meta = repeatMetaByKey.get(`${groupId}::${repeatId}`)
+      return {
+        repeatId,
+        strategy: meta?.strategy ?? agg.strategy,
+        instanceCount: agg.instanceCount,
+        logicalSize: meta?.logicalSize ?? agg.logicalSize,
+      }
+    })
+    if (repeatsArr.length > 0) {
+      group.repeats = repeatsArr
+    }
+  }
+
   const signature = JSON.stringify({
     targets: targets.map(target => ({
       actionKinds: target.actionKinds,
@@ -521,6 +717,8 @@ export function makeSnapshot(
       textContent: target.textContent,
       valuePreview: target.valuePreview,
       visible: target.visible,
+      // Phase 15-02: signature에 repeatInstance.key 포함 → row reorder 시 version 증가
+      repeatInstance: target.repeatInstance,
     })),
     title: document.title,
     url: window.location.href,
@@ -541,6 +739,7 @@ export function makeSnapshot(
       targetIds: group.targetIds.sort(),
       ...(group.viewportTransform ? { viewportTransform: group.viewportTransform } : {}),
       ...(group.meta !== undefined ? { meta: group.meta } : {}),
+      ...(group.repeats && group.repeats.length > 0 ? { repeats: group.repeats } : {}),
     })),
     targets,
     title: document.title,

@@ -25,7 +25,12 @@ describe('v3 manifest → descriptor → findElements', () => {
     expect(descriptors[0].actionKinds).toEqual(['fill'])
   })
 
-  it('collects descriptors from repeats[].targets[]', () => {
+  it('collects descriptors from repeats[].targets[] — per-instance (Phase 15-02)', () => {
+    // Phase 15-02: RepeatExpander가 실제 DOM element를 열거하므로 DOM 설정 필요
+    document.body.innerHTML = `
+      <article data-post-id="post-0">Post 0</article>
+      <article data-post-id="post-1">Post 1</article>
+    `
     const manifest: AgruneManifest = {
       version: 3,
       groups: [{
@@ -43,8 +48,11 @@ describe('v3 manifest → descriptor → findElements', () => {
       }],
     }
     const descriptors = collectDescriptors(manifest)
-    expect(descriptors).toHaveLength(1)
+    // 2개 article element → 2 per-instance descriptor
+    expect(descriptors).toHaveLength(2)
     expect(descriptors[0].target.targetId).toBe('post_click')
+    expect(descriptors[0].repeatInstance?.key).toBe('post-0')
+    expect(descriptors[1].repeatInstance?.key).toBe('post-1')
   })
 
   it('findElements delegates to resolveByLadder with SelectorLadder', () => {
