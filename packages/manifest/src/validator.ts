@@ -129,6 +129,40 @@ export function validateManifest(input: unknown): ValidateResult {
     })
   })
 
+  // Phase 15-03 (REPEAT-01/02/03): keyFrom stable key 필수 — 빌드 타임 gate
+  // 빈 문자열 / 공백만 → 인덱스-only identification 원천 차단
+  // new Function compile 시도 → 문법 오류 early detection (T-15-15 compile-only, 실행 없음)
+  // CSP 환경에서 Function 생성 자체가 차단되면 graceful skip (T-15-16 Pitfall 2 방어)
+  parsed.data.groups.forEach((group, gi) => {
+    group.repeats?.forEach((repeat, ri) => {
+      const path = `groups[${gi}].repeats[${ri}]`
+      const trimmed = (repeat.keyFrom ?? '').trim()
+      if (!trimmed) {
+        ladderErrors.push({
+          path,
+          message: `repeatId="${repeat.repeatId}": keyFrom is required. Index-only identification is forbidden (reorder-vulnerable).`,
+        })
+        return
+      }
+      // Compile-time eval gate — T-15-15: compile만 수행, 실행하지 않음
+      // Pitfall 2 방어: Function 생성자 자체가 차단되면 (CSP EvalError) → skip (graceful)
+      try {
+        // eslint-disable-next-line no-new-func
+        new Function('el', `return String(${trimmed})`)
+      } catch (err) {
+        // SyntaxError: 문법 오류 → 빌드 실패
+        // EvalError: CSP 차단 → skip (graceful) — EvalError는 아래에서 구분
+        if (err instanceof SyntaxError) {
+          ladderErrors.push({
+            path,
+            message: `repeatId="${repeat.repeatId}": keyFrom compile failed: ${(err as Error).message}`,
+          })
+        }
+        // EvalError (CSP 차단) 등은 무시 — graceful skip
+      }
+    })
+  })
+
   if (ladderErrors.length > 0) return { ok: false, errors: ladderErrors }
   return { ok: true, manifest: parsed.data as AgruneManifest }
 }

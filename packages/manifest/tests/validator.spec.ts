@@ -489,8 +489,9 @@ describe('validateManifest — keyFrom validation (Phase 15-03)', () => {
   })
 
   it('Test 5: 복잡하지만 문법 유효한 keyFrom → ok:true (compile만 검증, semantic은 runtime 책임)', () => {
-    // fetch 같은 호출도 compile은 OK → pass (T-11-21 선례)
-    const result = validateManifest(REPEAT_FIXTURE('el.foo; String("ok")'))
+    // 표현식으로 유효한 형태: new Function('el', `return String(${expr})`)에서 compile OK
+    // "el.dataset.postId || el.getAttribute('data-id')" → valid expression
+    const result = validateManifest(REPEAT_FIXTURE("el.dataset.postId || el.getAttribute('data-id')"))
     expect(result.ok).toBe(true)
   })
 
