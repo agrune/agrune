@@ -1,3 +1,6 @@
+import type { ActionKind } from './manifest.js'
+export type { ActionKind } from './manifest.js'
+
 export const COMMAND_ERROR_CODES = [
   'STALE_SNAPSHOT',
   'TARGET_NOT_FOUND',
@@ -18,7 +21,6 @@ export const COMMAND_ERROR_CODES = [
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
 
-export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide' | 'read' | 'pointer'
