@@ -1,34 +1,53 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.5
-milestone_name: Manifest Pivot
-status: milestone_ready_for_audit
-stopped_at: Completed 18-04-PLAN.md (PR bot + weekly health check + CODEOWNERS + external-sync-instructions + Phase 18 close)
-last_updated: "2026-04-20T00:00:00Z"
-last_activity: 2026-04-20 -- Phase 18 complete (REGISTRY wave 3 closed; v0.5 Manifest Pivot 8/8 phases 29/29 plans)
+milestone: null
+milestone_name: null
+status: between_milestones
+stopped_at: "v0.5 Manifest Pivot shipped 2026-04-20 — awaiting v0.6 kickoff (/gsd-new-milestone)"
+last_updated: "2026-04-20T05:45:00Z"
+last_activity: "2026-04-20 -- v0.5 Manifest Pivot milestone archived (8/8 phases, 29 plans, 37/37 requirements, audit pass_with_tech_debt)"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 29
-  completed_plans: 29
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
+See: `.planning/PROJECT.md` (updated 2026-04-20 after v0.5 milestone)
 
-**Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** v0.5 Manifest Pivot — COMPLETE (8/8 phases, 29/29 plans). audit-milestone 대기.
+**Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(manifest 기반 target mapping + React fiber 기반 component-identity selector)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
+**Current focus:** Planning next milestone (v0.6) — `/gsd-new-milestone` 대기.
 
 ## Current Position
 
-Milestone: v0.5 Manifest Pivot — READY FOR AUDIT (completion 2026-04-20)
-Phase: 18 (REGISTRY) — COMPLETE (4/4 plans)
-Status: Phase 18 전체 완료. `@agrune/registry` library + `agrune maps` CLI + registry-seed 10 seed + governance + PR bot + weekly health check + external-sync-instructions 착지. `github.com/agrune/maps` 공개 는 사용자 수동 push 대기 (external-sync-instructions.md § 1-3).
-Last activity: 2026-04-20 -- Phase 18 Plan 04 complete (pr-bot.yml + health-check.yml + validate-schema.yml + 4 Node scripts with inline schema + CODEOWNERS + pull_request_template + external-sync-instructions.md 338 lines + Phase 18 ceremony)
+Milestone: v0.5 Manifest Pivot — SHIPPED 2026-04-20 (archived to `milestones/v0.5-ROADMAP.md` + `milestones/v0.5-REQUIREMENTS.md` + `milestones/v0.5-MILESTONE-AUDIT.md`)
+Status: Between milestones. Next: `/gsd-new-milestone v0.6` — 블로커 1건은 `@agrune/registry` npm publish 후 registry-seed inline schema 축소 (v0.6 kickoff 시 carry forward).
+Last activity: 2026-04-20 -- v0.5 milestone close ceremony (archive + git tag local `v0.5` + ROADMAP.md collapse + PROJECT.md Validated 이관 + MILESTONES.md 엔트리)
+
+## Deferred Items
+
+Items acknowledged and deferred at v0.5 milestone close on 2026-04-20:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 12 12-VERIFICATION.md | human_needed (real-Chrome manifest_inject E2E, by design) |
+| verification | Phase 16 16-VERIFICATION.md | human_needed (RecorderView e2e / `manifest dev` tty / AI skill TodoMVC acceptance, by design) |
+| external-sync | 외부 `.github/profile/README.md` push | pending user manual push (2 commits ahead) |
+| external-sync | 외부 `skills/annotate/` 폐기 | pending user manual (+ pre-existing workspace resolve) |
+| external-sync | `github.com/agrune/maps` public repo 생성 + 초기 push + branch protection | pending user manual (18-04 external-sync-instructions §1-2) |
+| external-sync | OAuth App (agrune-maps-submit) 등록 + AGRUNE_OAUTH_CLIENT_ID 주입 | pending user manual (§3) |
+| external-sync | Post-push smoke test 6A-F | pending user manual (§6) |
+| tech-debt | RUNTIME-FLAKY-1 overlay target test order-dependent flake | deferred to v0.6+ |
+| tech-debt | E2E-USER-FLOW-5 pre-existing 5 failures | deferred to v0.6+ (fixture-level inline manifest injection) |
+| tech-debt | CORPUS-KNOWN-GAPS 2 intentional (CJK concatenated, cvc) | deferred to v0.6+ (substring mode + 1-char allow-list) |
+| tech-debt | REGISTRY-SCHEMA-DRIFT registry-seed inline _schema.mjs byte-copy | v0.6 blocker — @agrune/registry npm publish 후 re-import 한 줄로 축소 |
+| tech-debt | REQ-DOC-SYNC RECORD-01/02 REQUIREMENTS.md 체크박스 lag | resolved at archive (milestones/v0.5-REQUIREMENTS.md traceability 'Complete (code) / human-gate (e2e)') |
+| tech-debt | REQ-TRACE-STALE-PHASE11 Phase 11 VERIFICATION.md historical | resolved — REQUIREMENTS.md 는 37/37 [x] 정렬 완료 |
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) + Plan 02 (CLI) + Plan 03 (seed + governance) + Plan 04 (PR bot + external-sync) 완료로 v0.5 Manifest Pivot 의 모든 코드/문서 surface 가 완성됨.
 

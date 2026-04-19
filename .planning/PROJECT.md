@@ -2,13 +2,16 @@
 
 ## Current State
 
-🚧 **Active: v0.5 Manifest Pivot** (kicked off 2026-04-19, branch `feat/v0.5-manifest`)
+✅ **Shipped: v0.5 Manifest Pivot** (2026-04-20, branch `feat/v0.5-manifest`)
 
-v1.1 Browser Completion (shipped 2026-04-18)까지 inline `data-agrune-*` 어노테이션 기반 아키텍처로 브라우저 본체 완성. v0.5부터 **manifest 기반 외부 매핑 + root-import 프레임워크 통합**으로 아키텍처 피봇. macOS AX 확장은 다음 milestone(v0.6+)으로 연기.
+v0.5 Manifest Pivot이 8/8 phases (29 plans, 37/37 requirements) 로 출하됐다. Inline `data-agrune-*` 어노테이션 경로가 runtime/문서에서 완전 제거되고, manifest + root-import가 유일한 authoring 경로가 됐다. 외부 사이트(YouTube 등)와 owned React 앱이 같은 manifest 메커니즘으로 자동화되며, `github.com/agrune/maps` 공개 Registry foundation(10 verified seed + governance + PR bot)까지 확정됐다.
 
-내부 milestone 번호는 semver와 정렬을 위해 v0.5부터 재시작 (실제 npm 버전 0.4.1 기준). v1.x 명명은 공식 출시 전까지 사용하지 않음.
+다음 milestone 설계 대기 — `/gsd-new-milestone v0.6` 로 kickoff. v0.6 블로커 1건: `@agrune/registry` npm publish 후 `registry-seed/.github/scripts/_schema.mjs` inline schema 한 줄 re-import로 축소.
 
-## Current Milestone: v0.5 Manifest Pivot
+<details>
+<summary>Previous Current State (v0.5 kickoff, 2026-04-19)</summary>
+
+## Current Milestone: v0.5 Manifest Pivot [ARCHIVED]
 
 **Goal:** inline `data-agrune-*` 어노테이션을 완전 폐기하고, 외부 manifest + root-import 기반 프레임워크 통합으로 아키텍처 피봇. 외부 유명 사이트 자동화와 내부 타팀 코드에 대한 비침습 자동화를 같은 메커니즘으로 제공.
 
@@ -30,13 +33,15 @@ v1.1 Browser Completion (shipped 2026-04-18)까지 inline `data-agrune-*` 어노
 - **용어 전환** — "annotation" → "target mapping" 중심. 기존 "annotation" 문서/코드는 정리
 - **브랜치** `feat/v0.5-manifest` — 폐기 가능성 대비 main 격리 (acceptable to scrap and restart)
 
+</details>
+
 ## What This Is
 
 agrune는 AI 에이전트가 어노테이션된 웹 앱을 **CDP(Chrome DevTools Protocol)** 로 직접 조작할 수 있게 해주는 로컬 우선 브라우저 자동화 플랫폼이다. 핵심 배포물은 `@agrune/mcp` 서버이며, Claude Code·Codex 같은 MCP 하네스가 stdio로 실행해 사용한다. 단일 진입 경로: `agrune` CLI가 Chrome을 launch/attach/headless로 띄우고, 사람용 devtools UI는 MCP 서버가 함께 띄우는 standalone 웹앱(`http://localhost:PORT/devtools`)으로 제공된다.
 
 ## Core Value
 
-AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 어노테이션 기반 target/group/canvas/meta)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
+AI 에이전트가 의미를 이해할 수 있는 제어 표면(manifest 기반 target mapping + React fiber 기반 component-identity selector)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다. 외부 사이트(소스 접근 불가)와 owned 앱(per-element 수정 불가) 모두 같은 manifest 메커니즘.
 
 ## Requirements
 
@@ -59,25 +64,32 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 - ✓ DevTools 웹앱: 명령 로그·HITL pause/resume/step/skip·실패 진단·세션 선택 UX — v1.1 (DEVT-01..04, SESS-04)
 - ✓ 품질 인프라: Playwright E2E + annotation build-linter가 CI에서 블록 조건 — v1.1 (QUAL-01..03)
 - ✓ 문서·배포 정리: README·AGENTS·CLI `--help`·automation profile UX·조직 프로필 재작성 — v1.1 (DOCS-01..04, DOCS-02는 외부 repo push 대기)
+- ✓ Manifest SDK + v3 schema: `@agrune/manifest` 타입 안전 빌더 + zod validator + `sensitive:false` OR-only — v0.5 (MANIFEST-01..05)
+- ✓ Runtime target resolution: CSS ladder (role > text > testId > attr > css), hash class / `:nth-child` 금지, manifest loader, PageSnapshot v3, idle boot — v0.5 (RESOLVE-01..04)
+- ✓ CDP + MCP 주입: `preloadManifest` zero-RTT embed + `agrune_manifest_load` — v0.5 (INJECT-01, INJECT-02)
+- ✓ React root-import: `@agrune/react` + `bippy` + `FiberIdentityIndex` + tamper-proof bridge + 2단계 prod guard + SSR barrier + 17/18/19 matrix CI — v0.5 (REACT-01..05)
+- ✓ Macro + sensitive mask: `MacroRunner` + `agrune_macro_run` + word-boundary regex + 다국어 ARIA label + circuit breaker — v0.5 (MACRO-01..04)
+- ✓ Dynamic list repeat: `defineRepeat` + `RepeatExpander` (DOM/virtualized) + dot-bracket `targetId` 파서 — v0.5 (REPEAT-01..03)
+- ✓ Authoring UX: DevTools RecorderView + `recorder_*` WS 프로토콜 + `agrune manifest dev` ts-morph watcher + AI authoring skill + sensitive corpus CI (precision 1.000 / recall 1.000) — v0.5 (RECORD-01..05, e2e 5건 by-design human-gate)
+- ✓ Inline 제거 + 문서 재작성: `dom-scanner.ts` / `manifest-builder.ts` 물리 삭제 + 7 product-surface 문서 manifest 용어 + regression guard CI — v0.5 (REMOVE-01..03, 외부 `.github/profile` push 대기)
+- ✓ Registry foundation: `@agrune/registry` + `agrune maps {add,types,doctor,submit}` + 10 verified seed + governance + PR bot + weekly health check — v0.5 (REGISTRY-01..06, public push 대기)
 
 ### Active
 
-(v0.5 milestone — details in REQUIREMENTS.md after definition)
-
-- Manifest 포맷 표준화 + `@agrune/manifest` SDK (`defineManifest`/`defineTarget`/`defineRepeat`/`defineMacro`)
-- `@agrune/react` root-import 패키지 (component-identity selector via React fiber)
-- Runtime manifest loader + dual selector resolution (fiber/CSS) + repeat/macro/sensitive
-- AI authoring skill 재작성 (manifest 버전 + in-app recorder)
-- CLI `agrune manifest {dev,validate,submit}` + `agrune maps {add,types}`
-- Registry 초기 세팅 (`github.com/agrune/maps`)
-- DevTools 웹앱 recorder 오버레이
+(Next milestone — v0.6 TBD via `/gsd-new-milestone`)
 
 ### Carrying forward (v0.6+)
 
+- **v0.6 블로커**: `@agrune/registry` npm publish → `registry-seed/.github/scripts/_schema.mjs` inline schema 제거 (re-import 한 줄로 축소)
 - macOS AX-first hybrid 데스크톱 확장 프로토타입 (v1.0 GO 권고, v1.1·v0.5에서 연기)
 - `docs/superpowers/specs/` 미실행 스펙 (capture/draw/system-interaction/qa-test-sheet)
 - Live-browser relaunch-and-reconnect E2E 실제 시나리오
 - Masked-input heuristic 확대
+- `packages/runtime/tests/runtime.spec.ts` overlay target 테스트 격리 (module-level mock order-dependent flake)
+- Pre-existing E2E user flow 5건 (fill-real ×3, act-overlay ×1, manifest-inject ×1) — fixture-level inline manifest injection 필요
+- sensitive-corpus gap 2건 (`パスワードの確認` CJK concatenated, `name=cvc`) — substring mode + cvc 1-char allow-list 검토
+- Phase 16 수동 검증 (RecorderView e2e, `manifest dev` tty, AI skill TodoMVC acceptance)
+- 외부 repo push (`.github/profile`, `skills/annotate/` 폐기, `github.com/agrune/maps` 초기 push + OAuth App + CODEOWNERS handle 교체)
 
 ### Out of Scope
 
@@ -144,6 +156,15 @@ AI 에이전트가 의미를 이해할 수 있는 제어 표면(`data-agrune-*` 
 | **Inline `data-agrune-*` 어노테이션 완전 폐기, manifest + root-import 기반으로 피봇** | (1) 외부 사이트(YouTube 등)는 소스 접근 불가라 inline 불가능, (2) 내부 타팀 코드에 inline 어노테이션 요청은 PR 검토 비용이 큼, (3) manifest 단일 소스로 통일하면 external·internal 같은 멘탈 모델. Root-import 1줄이 per-element 수정을 대체 (React fiber component-identity selector) | 2026-04-19 — v0.5 킥오프 |
 | **Milestone 번호를 semver와 정렬해 v0.5.x로 재시작, v1.x 명명 금지** | 실제 npm 패키지 버전은 0.4.1로 0점대 유지 중. 내부 milestone이 v1.1까지 갔지만 공식 출시 전까지 semver와 맞춰야 배포 혼동 방지 | 2026-04-19 — v0.5 킥오프 |
 | **v0.5 브랜치를 main에서 격리 (`feat/v0.5-manifest`)** | 대규모 아키텍처 피봇이라 중간에 폐기·재시작 가능성 열어둠. v1.1 이전 브라우저 코드를 main에서 안정적으로 유지하면서 v0.5 실험 진행 | 2026-04-19 — 브랜치 생성 |
+| **PageSnapshot v2 → v3 breaking bump (adapter 없음)** | `PageTarget.selector: string → SelectorLadder` 객체 교체와 `schemaVersion: 3` 리터럴 추가. 실 사용자 없음 + backward-compat adapter 유지 비용 대비 이득 없음 | 2026-04-19 — ✓ v0.5 RESOLVE-03 출하 |
+| **`sensitive:true` OR-only contract (schema + 타입 + runtime heuristic)** | `sensitive:false`로 manifest 가 runtime heuristic을 override할 수 있다면 악성 manifest가 민감 필드 마스킹 우회 가능. OR-only는 schema lit-true + validate CLI 에러 + runtime DOM heuristic 3층에서 강제 | 2026-04-19 — ✓ v0.5 MANIFEST-04 출하 (word-boundary regex + 한/일/중/프/독/스 ARIA) |
+| **React root-import prod 동작은 2단계 guard** | `AGRUNE_PROD_ENABLED` 빌드 env + `localStorage['agrune.prod.consent']` 런타임 token 동시 통과해야 bridge 활성. 빌드 env만으로는 cross-site script 노출 위험, 둘 중 하나만으로는 실수 방지 불가 | 2026-04-19 — ✓ v0.5 REACT-04 출하 |
+| **`bippy` 기반 path descriptor 기반 FiberIdentityIndex** | fiber 참조를 직접 WeakMap 키로 쓰면 re-render 시 새 fiber로 교체돼 selector 깨짐. displayName + key props + index 기반 path descriptor로 저장하면 refactor(컴포넌트 이동, className 변경, CSS-in-JS 해시 변경)에도 selector 안정 | 2026-04-19 — ✓ v0.5 REACT-01 출하 |
+| **`MacroRunner`는 페이지 런타임 내부 실행, CDP는 orchestrate만** | step별 CDP round-trip은 토큰 + latency 비용 과다. `new Function('params', expr)` sandboxed eval + CommandHandlerDeps 재사용으로 handleAct/handleFill 직접 호출 | 2026-04-19 — ✓ v0.5 MACRO-01 출하 |
+| **`defineRepeat`에 stable key 누락 시 build 실패** | index-only key는 reorder / filter / CRUD에 취약해 AI가 잘못된 인스턴스 조작. `keyFrom` 없으면 validate CLI 빌드 실패, dot-bracket `targetId`로 `login.items[postId=abc123]` 경로 | 2026-04-19 — ✓ v0.5 REPEAT-01 출하 |
+| **Recorder는 소스 파일에 절대 직접 쓰지 않는다 (pending-only)** | MCP 서버는 `~/.agrune/authoring/pending/<uuid>/<ts>.json` 에만 기록, 사용자 소스는 `agrune manifest dev` CLI + ts-morph 머저가 유일한 수정 주체. diff preview + exact `y` 확인 후 적용 | 2026-04-19 — ✓ v0.5 RECORD-02/03 출하 |
+| **Registry governance: verified / community / unlisted tier + 30일 velocity holddown + maintainer 부재 기본 disable-all** | 공개 전에 확정해야 트래픽 붙은 후 governance 변경 비용 회피. `sensitive:false` 변경 자동 라벨 + weekly selector health check로 stale manifest 관리 | 2026-04-20 — ✓ v0.5 REGISTRY-04/05 출하 |
+| **registry-seed `_schema.mjs`는 byte-for-byte 복제 (DO NOT EDIT 헤더 + sync checklist)** | external repo가 `workspace:*` 를 해결할 수 없어 v0.5 MVP 구조적 compromise. v0.6 블로커: `@agrune/registry` npm publish 후 re-import 한 줄로 축소 | 2026-04-20 — ⚠️ Revisit v0.6 |
 
 ## Evolution
 
@@ -163,4 +184,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-19 — v0.5 Manifest Pivot kickoff (branch `feat/v0.5-manifest`)*
+*Last updated: 2026-04-20 after v0.5 Manifest Pivot milestone (8 phases, 29 plans, 37/37 requirements, audit `pass_with_tech_debt`)*

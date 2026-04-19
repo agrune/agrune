@@ -1,5 +1,43 @@
 # Milestones
 
+## v0.5 Manifest Pivot (Shipped: 2026-04-20)
+
+**Phases completed:** 8 phases (11-18), 29 plans
+**Branch:** `feat/v0.5-manifest`
+**Audit verdict:** `pass_with_tech_debt` (no blockers) — see `milestones/v0.5-MILESTONE-AUDIT.md`
+**Git range:** `95cd3f0` (docs: start milestone v0.5) → `8b0f585` (fix(18): WR-06 disable persist-credentials) — 174 commits over ~38h
+**LOC:** ~33,731 lines TS/TSX/MJS across `packages/` (manifest + react + runtime + browser + mcp + devtools + registry + e2e)
+
+**Key accomplishments:**
+
+- `@agrune/manifest` SDK + v3 schema — 타입 안전 `defineManifest/defineTarget/defineRepeat/defineMacro` + zod validator + `sensitive:false` OR-only 차단 + hash class / `:nth-child` 금지. `@agrune/core` v2 manifest 제거 후 v3 re-export로 통일 (Phase 11)
+- CDP manifest 주입 경로 완성 — `PageSnapshot` v2→v3 breaking bump (`SelectorLadder` 객체, `schemaVersion: 3`), `CdpRuntimeInjector.prepareSession({ preloadManifest })` zero-RTT embed + `safeJsonEmbed` U+2028/U+2029 방어, `agrune_manifest_load` MCP 도구 3파일 동기화 (Phase 12)
+- `@agrune/react 0.4.1` root-import — `bippy` 기반 `FiberIdentityIndex` path descriptor + `Object.defineProperty(configurable:false)` tamper-proof `window.__agrune_identity__` + 2단계 prod guard + SSR hydration barrier + React 17/18/19 matrix CI (memo/forwardRef/portal/Suspense/compound 엣지케이스) (Phase 13)
+- `MacroRunner` + `agrune_macro_run` — 페이지 런타임 내부 실행으로 step-level CDP round-trip 제거 + 4개 에러 코드 (`MACRO_NOT_FOUND`/`CIRCUIT_OPEN`/`PRECONDITION_FAILED`/`POSTCONDITION_FAILED`) + word-boundary regex + 한/일/중/프/독/스 ARIA Set으로 `sensitive:false` manifest 우회 차단 (Phase 14)
+- `defineRepeat` runtime expander — `RepeatExpander` (DOM + virtualized strategy, `REPEAT_MAX_INSTANCES=1000` DoS cap) + dot-bracket `targetId` 파서 (AI usability, regex-free linear scan, ReDoS 방어) + validate CLI keyFrom 강화 (Phase 15)
+- authoring UX 완결 — DevTools `RecorderView` + `recorder_*` WS 프로토콜 (pending-only write) + `agrune manifest dev` ts-morph watcher (diff preview + exact `y` 확인) + AI authoring skill + 116 form fixture sensitive corpus (KO/EN/JA, 실측 precision 1.000 / recall 1.000 vs 임계 0.90/0.95) (Phase 16)
+- 단일 authoring 경로 구조 확정 — `dom-scanner.ts` / `manifest-builder.ts` 물리 삭제 + 9 call-site group 제거 + 7 product-surface 문서 manifest 용어 재작성 + regression guard CI 배선 (`lint:no-legacy`) + 외부 `.github/profile/README.md` 로컬 커밋 (Phase 17)
+- `@agrune/registry` + `agrune maps` CLI + `github.com/agrune/maps` foundation — sha256 content-hash / 0o700·0o600 / atomic lockfile / 4-state staleness + 4 CLI subcommand (`add/types/doctor/submit` with device flow) + 10 verified seed manifest + 113줄 `REGISTRY_GOVERNANCE.md` + GitHub Actions 3 workflow (sensitive-diff / tier-escalation / schema-fail / velocity / weekly drift) + CODEOWNERS + PR template + 338줄 external-sync-instructions (Phase 18)
+
+**Known deferred items at close (all by-design, no blockers):**
+
+- Phase 12 SC5: `manifest_inject.spec.ts` 실 Chrome + fixture server 실행 (2 skipped, `PLAYWRIGHT_SKIP_E2E` 필요)
+- Phase 16 SC1/SC3/SC5: RecorderView e2e picking flow, `agrune manifest dev` tty loop, AI skill TodoMVC acceptance (AI 비결정성)
+- 외부 `.github` profile repo push (v1.1 DOCS-02 + Phase 17-04, 2 commits ahead) — `17-remove/external-sync-instructions.md`
+- 외부 `skills/annotate/` 디렉터리 폐기 — 같은 문서
+- `github.com/agrune/maps` public repo 생성 + 초기 push + branch protection + CODEOWNERS handle 교체 — `18-registry/external-sync-instructions.md §1-2`
+- OAuth App(`agrune-maps-submit`) 등록 + `AGRUNE_OAUTH_CLIENT_ID` 주입 — §3
+- Post-push smoke 6A-F (add / types / doctor / doctor --refresh / submit --dry-run / 첫 PR workflow) — §6
+
+**Tech debt carried forward:**
+
+- `RUNTIME-FLAKY-1`: `packages/runtime/tests/runtime.spec.ts` overlay target 테스트 module-level mock order-dependent flake (격리 시 262/262 PASS)
+- `E2E-USER-FLOW-5`: Pre-existing E2E 5건 (fill-real ×3, act-overlay ×1, manifest-inject ×1) — fixture-level inline manifest injection 필요
+- `CORPUS-KNOWN-GAPS`: sensitive-corpus 의도된 gap 2건 (`パスワードの確認`, `name=cvc`)
+- `REGISTRY-SCHEMA-DRIFT`: `registry-seed/.github/scripts/_schema.mjs`가 `ManifestSchema`/`RegistryEntrySchema` byte-for-byte 복제 — v0.6 블로커 (`@agrune/registry` npm publish 후 export re-import 한 줄로 축소)
+
+---
+
 ## v1.1 Browser Completion (Shipped: 2026-04-18)
 
 **Phases completed:** 6 phases, 19 plans
