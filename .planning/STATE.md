@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
-status: defining_requirements
-stopped_at: requirements definition
+status: ready_to_plan
+stopped_at: roadmap created
 last_updated: "2026-04-19T00:00:00.000Z"
-last_activity: 2026-04-19 -- v0.5 milestone kicked off on branch feat/v0.5-manifest
+last_activity: 2026-04-19 -- v0.5 roadmap created (phases 11-18), 37/37 requirements mapped
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,19 +21,19 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Defining requirements for v0.5 Manifest Pivot.
+**Current focus:** Phase 11 (MANIFEST) 계획 준비 — `@agrune/manifest` SDK + v3 schema + CSS-only runtime resolver.
 
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: Not started (defining requirements)
+Phase: 11. MANIFEST (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-04-19 -- v0.5 milestone started on branch `feat/v0.5-manifest`
+Status: Ready to plan Phase 11
+Last activity: 2026-04-19 -- Roadmap created (Phases 11-18), all 37 v0.5 requirements mapped
 
-브랜치 `feat/v0.5-manifest`에서 진행. 대규모 아키텍처 피봇(inline annotation 폐기 → manifest + root-import)이라 main에서 격리.
+브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
-다음 단계: `/gsd-plan-phase [N]` (roadmap 생성 후).
+다음 단계: `/gsd-plan-phase 11` 으로 MANIFEST phase의 plans 분해.
 
 ## Accumulated Context
 
@@ -47,19 +47,33 @@ Recent decisions carrying forward:
 - 2026-04-18: v1.1 브라우저 본체 완성 완료 — Fill CDP 통일, self-healing, active session, devtools webapp, E2E+lint CI, docs
 - 2026-04-19: Inline `data-agrune-*` 완전 폐기 결정, manifest + root-import으로 피봇 (v0.5)
 - 2026-04-19: Milestone 번호 semver 정렬 (v0.5.x), v1.x 명명 금지
+- 2026-04-19: PageSnapshot v2↔v3 backward-compat adapter 없이 breaking change 직행 (실 사용자 없음)
+- 2026-04-19: `bippy` 를 React fiber 접근 단일 신규 의존성으로 확정 (React 17/18/19 matrix)
+- 2026-04-19: Cross-cutting Pitfall 3(prod root-import) primary owner = Phase 13 REACT, secondary = Phase 18 REGISTRY
+- 2026-04-19: Cross-cutting Pitfall 4(sensitive 우회) split = Phase 14 MACRO(runtime heuristic OR-override) + Phase 18 REGISTRY(PR bot)
 
 ### Pending Todos
 
 - 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치, v1.1 잔여)
-- v0.5 REQUIREMENTS.md 정의
-- v0.5 ROADMAP.md 생성
-- "annotation" → "target mapping" 용어 전환 (PROJECT.md 다음 update 때)
+- Phase 11 계획 분해 (`/gsd-plan-phase 11`)
+- "annotation" → "target mapping" 용어 전환 (Phase 17에서 실행)
+- Registry seed manifest 선정 기준 확정 (Phase 18 research-phase 후보)
 
 ### Blockers/Concerns
 
 - GitHub branch-protection required-check 토글 — 레포 외부 설정 (사용자 수동)
-- Registry 거버넌스 부담 — 혼자 시작하되 검증 관리자 채용 시점/기준 미정
-- 외부 사이트 selector 안정성은 root-import 불가라 CSS selector 의존, drift 위험
+- Registry 거버넌스 임계값(solo → multi-reviewer 전환 PR/주 수) — 업계 공개 수치 없어 `review backlog > 2주`·`동일 저자 다중 PR 감지` 를 정량 트리거로 Phase 18 governance doc에 명시 예정
+- React 20 호환 — `bippy` 가 17–19 확정, 20 major 대비 `fiber-adapter-v20.ts` 자리만 Phase 13에서 마련
+- 외부 사이트 selector 안정성 — CSS fallback만 가능해 selector drift 위험. Phase 18 weekly health check bot로 완화
+
+### Cross-Cutting Ownership
+
+| Concern | Primary Phase | Secondary Phase |
+|---|---|---|
+| Pitfall 3 (prod root-import abuse) | Phase 13 REACT (2단계 guard) | Phase 18 REGISTRY (manifest `production.allow=false` 기본값) |
+| Pitfall 4 (sensitive:false 우회) | Phase 14 MACRO (runtime DOM heuristic OR-override) | Phase 18 REGISTRY (PR bot sensitive 변경 하이라이트) |
+| PageSnapshot v3 breaking bump | Phase 12 INJECT (protocol landing) | Phase 11 MANIFEST (schema 필드) |
+| MANIFEST-04 sensitive OR-only lock | Phase 11 MANIFEST (schema) | Phase 14 MACRO (runtime 강제) |
 
 ### Resolved (historical)
 
@@ -71,9 +85,11 @@ Recent decisions carrying forward:
 - ~~단위 테스트만 존재~~ — Playwright E2E + annotation build-linter CI 배선
 - ~~README/AGENTS/docs extension mode 잔재~~ — Phase 10에서 제거
 - ~~v0.5(v1.2) milestone 스코프 결정~~ — Manifest Pivot으로 확정 (2026-04-19)
+- ~~v0.5 REQUIREMENTS.md 정의~~ — 37 requirements, 9 categories (2026-04-19)
+- ~~v0.5 ROADMAP.md 생성~~ — Phases 11-18, 100% coverage (2026-04-19)
 
 ## Session Continuity
 
-Last session: 2026-04-19 (v0.5 milestone kickoff — discuss → new-milestone)
-Stopped at: requirements definition
+Last session: 2026-04-19 (v0.5 roadmapping — requirements → roadmap)
+Stopped at: roadmap created
 Resume file: None

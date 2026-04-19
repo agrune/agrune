@@ -117,53 +117,64 @@ Deferred to future release. 연구에서 식별된 항목만 기록 (상세는 `
 
 ## Traceability
 
-Roadmap 생성 후 roadmapper agent가 채움.
+Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에 매핑됨.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MANIFEST-01 | — | Pending |
-| MANIFEST-02 | — | Pending |
-| MANIFEST-03 | — | Pending |
-| MANIFEST-04 | — | Pending |
-| MANIFEST-05 | — | Pending |
-| RESOLVE-01 | — | Pending |
-| RESOLVE-02 | — | Pending |
-| RESOLVE-03 | — | Pending |
-| RESOLVE-04 | — | Pending |
-| INJECT-01 | — | Pending |
-| INJECT-02 | — | Pending |
-| REACT-01 | — | Pending |
-| REACT-02 | — | Pending |
-| REACT-03 | — | Pending |
-| REACT-04 | — | Pending |
-| REACT-05 | — | Pending |
-| MACRO-01 | — | Pending |
-| MACRO-02 | — | Pending |
-| MACRO-03 | — | Pending |
-| MACRO-04 | — | Pending |
-| REPEAT-01 | — | Pending |
-| REPEAT-02 | — | Pending |
-| REPEAT-03 | — | Pending |
-| RECORD-01 | — | Pending |
-| RECORD-02 | — | Pending |
-| RECORD-03 | — | Pending |
-| RECORD-04 | — | Pending |
-| RECORD-05 | — | Pending |
-| REMOVE-01 | — | Pending |
-| REMOVE-02 | — | Pending |
-| REMOVE-03 | — | Pending |
-| REGISTRY-01 | — | Pending |
-| REGISTRY-02 | — | Pending |
-| REGISTRY-03 | — | Pending |
-| REGISTRY-04 | — | Pending |
-| REGISTRY-05 | — | Pending |
-| REGISTRY-06 | — | Pending |
+| MANIFEST-01 | Phase 11 | Pending |
+| MANIFEST-02 | Phase 11 | Pending |
+| MANIFEST-03 | Phase 11 | Pending |
+| MANIFEST-04 | Phase 11 | Pending |
+| MANIFEST-05 | Phase 11 | Pending |
+| RESOLVE-01 | Phase 12 | Pending |
+| RESOLVE-02 | Phase 11 | Pending |
+| RESOLVE-03 | Phase 12 | Pending |
+| RESOLVE-04 | Phase 11 | Pending |
+| INJECT-01 | Phase 12 | Pending |
+| INJECT-02 | Phase 12 | Pending |
+| REACT-01 | Phase 13 | Pending |
+| REACT-02 | Phase 13 | Pending |
+| REACT-03 | Phase 13 | Pending |
+| REACT-04 | Phase 13 | Pending |
+| REACT-05 | Phase 13 | Pending |
+| MACRO-01 | Phase 14 | Pending |
+| MACRO-02 | Phase 14 | Pending |
+| MACRO-03 | Phase 14 | Pending |
+| MACRO-04 | Phase 14 | Pending |
+| REPEAT-01 | Phase 15 | Pending |
+| REPEAT-02 | Phase 15 | Pending |
+| REPEAT-03 | Phase 15 | Pending |
+| RECORD-01 | Phase 16 | Pending |
+| RECORD-02 | Phase 16 | Pending |
+| RECORD-03 | Phase 16 | Pending |
+| RECORD-04 | Phase 16 | Pending |
+| RECORD-05 | Phase 16 | Pending |
+| REMOVE-01 | Phase 17 | Pending |
+| REMOVE-02 | Phase 17 | Pending |
+| REMOVE-03 | Phase 17 | Pending |
+| REGISTRY-01 | Phase 18 | Pending |
+| REGISTRY-02 | Phase 18 | Pending |
+| REGISTRY-03 | Phase 18 | Pending |
+| REGISTRY-04 | Phase 18 | Pending |
+| REGISTRY-05 | Phase 18 | Pending |
+| REGISTRY-06 | Phase 18 | Pending |
 
 **Coverage:**
 - v0.5 requirements: 37 total
-- Mapped to phases: 0 (roadmapper 실행 대기)
-- Unmapped: 37 ⚠️
+- Mapped to phases: 37 ✓
+- Unmapped: 0 ✓
+
+**Per-phase counts:**
+- Phase 11 (MANIFEST): 7 requirements
+- Phase 12 (INJECT): 4 requirements
+- Phase 13 (REACT): 5 requirements
+- Phase 14 (MACRO): 4 requirements
+- Phase 15 (REPEAT): 3 requirements
+- Phase 16 (RECORD): 5 requirements
+- Phase 17 (REMOVE): 3 requirements
+- Phase 18 (REGISTRY): 6 requirements
+- **Total: 37 ✓**
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-04-19 after v0.5 initial definition*
+*Last updated: 2026-04-19 after roadmap creation — traceability table populated, 100% coverage*
