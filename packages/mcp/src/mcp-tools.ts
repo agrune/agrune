@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { AgentTargetIdParseError, normalizeAgentTargetId } from './target-id-normalizer'
 
 export interface ToolHandlerResult {
   text: string
@@ -15,6 +16,41 @@ export function toMcpToolResult(result: ToolHandlerResult) {
   return {
     content: [{ type: 'text' as const, text: result.text }],
     ...(result.isError ? { isError: true } : {}),
+  }
+}
+
+/**
+ * Phase 15-03 (REPEAT-03): targetId normalize 헬퍼.
+ *
+ * AI-facing dot-bracket targetId를 runtime delimiter 형식으로 변환.
+ * 파싱 실패 시 INVALID_TARGET error result 반환.
+ *
+ * @returns normalized string (성공) | ToolHandlerResult (에러)
+ */
+function tryNormalizeTargetId(
+  targetId: string,
+): { ok: true; normalized: string } | { ok: false; result: ReturnType<typeof toMcpToolResult> } {
+  try {
+    return { ok: true, normalized: normalizeAgentTargetId(targetId) }
+  } catch (err) {
+    if (err instanceof AgentTargetIdParseError) {
+      return {
+        ok: false,
+        result: toMcpToolResult({
+          ok: false,
+          text: JSON.stringify({
+            ok: false,
+            error: {
+              code: 'INVALID_TARGET',
+              message: err.message,
+              details: { input: err.input },
+            },
+          }),
+          isError: true,
+        } as ToolHandlerResult),
+      }
+    }
+    throw err
   }
 }
 
@@ -51,7 +87,12 @@ export function registerAgruneTools(
       action: z.enum(['click', 'dblclick', 'contextmenu', 'hover', 'longpress']).optional().describe('Interaction type (default: click)'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_act', args)),
+    async (args) => {
+      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
+      const n = tryNormalizeTargetId(args.targetId as string)
+      if (!n.ok) return n.result
+      return toMcpToolResult(await handleToolCall('agrune_act', { ...args, targetId: n.normalized }))
+    },
   )
 
   mcp.tool(
@@ -69,7 +110,12 @@ export function registerAgruneTools(
         ),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_fill', args)),
+    async (args) => {
+      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
+      const n = tryNormalizeTargetId(args.targetId as string)
+      if (!n.ok) return n.result
+      return toMcpToolResult(await handleToolCall('agrune_fill', { ...args, targetId: n.normalized }))
+    },
   )
 
   mcp.tool(
@@ -92,7 +138,18 @@ export function registerAgruneTools(
       placement: z.enum(['before', 'inside', 'after']).optional().describe('Drop placement (only with destinationTargetId)'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_drag', args)),
+    async (args) => {
+      // Phase 15-03: normalize sourceTargetId + destinationTargetId (both may be dot-bracket)
+      const ns = tryNormalizeTargetId(args.sourceTargetId as string)
+      if (!ns.ok) return ns.result
+      const normalizedArgs: Record<string, unknown> = { ...args, sourceTargetId: ns.normalized }
+      if (typeof args.destinationTargetId === 'string') {
+        const nd = tryNormalizeTargetId(args.destinationTargetId)
+        if (!nd.ok) return nd.result
+        normalizedArgs.destinationTargetId = nd.normalized
+      }
+      return toMcpToolResult(await handleToolCall('agrune_drag', normalizedArgs))
+    },
   )
 
   mcp.tool(
@@ -137,7 +194,15 @@ export function registerAgruneTools(
       ])).describe('Ordered sequence of pointer/wheel events'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_pointer', args)),
+    async (args) => {
+      // Phase 15-03: normalize targetId (optional for pointer)
+      if (typeof args.targetId === 'string') {
+        const n = tryNormalizeTargetId(args.targetId)
+        if (!n.ok) return n.result
+        return toMcpToolResult(await handleToolCall('agrune_pointer', { ...args, targetId: n.normalized }))
+      }
+      return toMcpToolResult(await handleToolCall('agrune_pointer', args))
+    },
   )
 
   mcp.tool(
@@ -149,7 +214,12 @@ export function registerAgruneTools(
       timeoutMs: z.number().optional().describe('Timeout ms (default: 10000)'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_wait', args)),
+    async (args) => {
+      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
+      const n = tryNormalizeTargetId(args.targetId as string)
+      if (!n.ok) return n.result
+      return toMcpToolResult(await handleToolCall('agrune_wait', { ...args, targetId: n.normalized }))
+    },
   )
 
   mcp.tool(
@@ -159,7 +229,12 @@ export function registerAgruneTools(
       targetId: z.string().describe('Target ID'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_guide', args)),
+    async (args) => {
+      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
+      const n = tryNormalizeTargetId(args.targetId as string)
+      if (!n.ok) return n.result
+      return toMcpToolResult(await handleToolCall('agrune_guide', { ...args, targetId: n.normalized }))
+    },
   )
 
   mcp.tool(
