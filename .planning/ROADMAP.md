@@ -102,7 +102,10 @@
   2. Runtime DOM heuristic(`type=password`, `autocomplete=current-password|new-password|cc-*|one-time-code`, 단어 경계 regex `/\b(password|pwd|cvv|ssn)\b/i`, 한/영/일 ARIA label) 이 manifest `sensitive` 플래그와 OR로 결합되어, 악성 manifest가 `sensitive:false` 로 설정해도 runtime이 override해 해당 필드의 `valuePreview`/로그/스냅샷이 자동 마스킹된다.
   3. Macro precondition(예: `login-form visible`) 실패 시 step 실행 전에 중단되고 "already-in-target-state" 신호가 반환된다. Postcondition 실패 또는 연속 실패 시 circuit breaker가 발동해 partial execution account-lockout을 방지한다.
   4. MacroRunner가 기존 `CommandBroker`/`HitlController`/`action-queue` 를 재사용해 devtools 웹앱 command log에 step별 progress가 스트리밍되고, `sensitive:true` step은 HITL gate를 강제한다.
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 14-01-PLAN.md — isSensitive 확장 (word-boundary regex + 다국어 ARIA label) for MACRO-03
+- [ ] 14-02-PLAN.md — MacroRunner + circuit breaker + PageAgentRuntime.runMacro for MACRO-01/MACRO-04
+- [ ] 14-03-PLAN.md — agrune_macro_run MCP tool (3파일 동기화) + 4개 에러 코드 + CdpDriver.runMacro for MACRO-02
 **UI hint**: no
 
 ### Phase 15: REPEAT
@@ -172,7 +175,7 @@
 | 11. MANIFEST | v0.5 | 5/5 | Complete | 2026-04-19 |
 | 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 13. REACT | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 14. MACRO | v0.5 | 0/? | Not started | — |
+| 14. MACRO | v0.5 | 0/3 | Planned | — |
 | 15. REPEAT | v0.5 | 0/? | Not started | — |
 | 16. RECORD | v0.5 | 0/? | Not started | — |
 | 17. REMOVE | v0.5 | 0/? | Not started | — |
