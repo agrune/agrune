@@ -17,15 +17,15 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### RESOLVE — Runtime Target Resolution
 
-- [ ] **RESOLVE-01**: `ManifestLoader`가 `window.__agrune_manifest__` 또는 CDP preload JSON에서 manifest를 로드
+- [x] **RESOLVE-01**: `ManifestLoader`가 `window.__agrune_manifest__` 또는 CDP preload JSON에서 manifest를 로드
 - [x] **RESOLVE-02**: `TargetResolver`가 CSS fallback selector(priority: role > text > testId > stable attr > CSS, 해시 class / `:nth-child` 금지) 해석
-- [ ] **RESOLVE-03**: `PageSnapshot`을 v3로 breaking 교체 (MCP 도구 출력 shape 변경, backward-compat adapter 없음)
+- [x] **RESOLVE-03**: `PageSnapshot`을 v3로 breaking 교체 (MCP 도구 출력 shape 변경, backward-compat adapter 없음)
 - [x] **RESOLVE-04**: Runtime bootstrap 게이트 제거 — `dom-scanner` 없이 항상 부팅
 
 ### INJECT — CDP + MCP 확장
 
-- [ ] **INJECT-01**: `CdpRuntimeInjector.prepareSession({ preloadManifest })`이 외부 사이트용 `__agrune_preload_manifest__` JSON을 source에 embed
-- [ ] **INJECT-02**: MCP tool `agrune_manifest_load`가 CLI에서 로드한 manifest를 활성 세션에 주입
+- [x] **INJECT-01**: `CdpRuntimeInjector.prepareSession({ preloadManifest })`이 외부 사이트용 `__agrune_preload_manifest__` JSON을 source에 embed
+- [x] **INJECT-02**: MCP tool `agrune_manifest_load`가 CLI에서 로드한 manifest를 활성 세션에 주입
 
 ### REACT — `@agrune/react` Root-Import
 
@@ -126,12 +126,12 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | MANIFEST-03 | Phase 11 | Complete |
 | MANIFEST-04 | Phase 11 | Complete |
 | MANIFEST-05 | Phase 11 | Complete |
-| RESOLVE-01 | Phase 12 | Pending |
+| RESOLVE-01 | Phase 12 | Complete |
 | RESOLVE-02 | Phase 11 | Complete |
-| RESOLVE-03 | Phase 12 | Pending |
+| RESOLVE-03 | Phase 12 | Complete |
 | RESOLVE-04 | Phase 11 | Complete |
-| INJECT-01 | Phase 12 | Pending |
-| INJECT-02 | Phase 12 | Pending |
+| INJECT-01 | Phase 12 | Complete |
+| INJECT-02 | Phase 12 | Complete |
 | REACT-01 | Phase 13 | Pending |
 | REACT-02 | Phase 13 | Pending |
 | REACT-03 | Phase 13 | Pending |

@@ -33,7 +33,7 @@
 ### v0.5 Manifest Pivot (Phases 11-18)
 
 - [x] **Phase 11: MANIFEST** — `@agrune/manifest` SDK + v3 schema + CSS-only runtime resolver
-- [ ] **Phase 12: INJECT** — CDP manifest preload + `agrune_manifest_load` MCP tool + PageSnapshot v3 landing
+- [x] **Phase 12: INJECT** — CDP manifest preload + `agrune_manifest_load` MCP tool + PageSnapshot v3 landing
 - [ ] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
 - [ ] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [ ] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
@@ -72,9 +72,9 @@
   4. `PageSnapshot.version` 이 2→3으로 breaking bump되고, 기존 v2 adapter 없이 MCP 도구 출력 shape 자체가 변경된다 (외부 소비자에게 breaking change로 선언).
   5. E2E 시나리오: `agrune_manifest_load` → YouTube 페이지 열기 → `agrune_snapshot` → target 1개 이상 resolve → `agrune_act` 가 성공 응답을 반환한다.
 **Plans**: 3 plans
-- [ ] 12-01-PLAN.md — PageSnapshot v3 breaking bump (PageTarget.selector → SelectorLadder + schemaVersion: 3)
-- [ ] 12-02-PLAN.md — CdpRuntimeInjector preloadManifest embed + BrowserDriver.injectManifest + reloadRuntime debounce
-- [ ] 12-03-PLAN.md — agrune_manifest_load MCP tool (세 파일 동기화) + E2E smoke (local fixture)
+- [x] 12-01-PLAN.md — PageSnapshot v3 breaking bump (PageTarget.selector → SelectorLadder + schemaVersion: 3)
+- [x] 12-02-PLAN.md — CdpRuntimeInjector preloadManifest embed + BrowserDriver.injectManifest + reloadRuntime debounce
+- [x] 12-03-PLAN.md — agrune_manifest_load MCP tool (세 파일 동기화) + E2E smoke (local fixture)
 **UI hint**: no
 
 ### Phase 13: REACT
@@ -167,7 +167,7 @@
 | 9. Quality Infrastructure | v1.1 | 3/3 | Complete | 2026-04-18 |
 | 10. Docs & Distribution | v1.1 | 5/5 | Complete | 2026-04-18 |
 | 11. MANIFEST | v0.5 | 5/5 | Complete | 2026-04-19 |
-| 12. INJECT | v0.5 | 0/3 | In progress | — |
+| 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 13. REACT | v0.5 | 0/? | Not started | — |
 | 14. MACRO | v0.5 | 0/? | Not started | — |
 | 15. REPEAT | v0.5 | 0/? | Not started | — |
