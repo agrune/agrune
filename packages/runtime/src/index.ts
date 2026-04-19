@@ -27,3 +27,10 @@ export {
   type MacroResult,
   type MacroRunnerDeps,
 } from './runtime/macro-runner'
+
+export {
+  RepeatExpander,
+  REPEAT_MAX_INSTANCES,
+  type RepeatInstance,
+  type VirtualizedExpandResult,
+} from './runtime/repeat-expander'
