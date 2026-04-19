@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@agrune/core": "workspace:*",
+    "@agrune/manifest": "workspace:*",
     "ai-motion": "0.4.8"
   },
   "devDependencies": {

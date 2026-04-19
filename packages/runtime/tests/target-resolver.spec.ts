@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, it, expect } from 'vitest'
+import { beforeEach, afterEach, describe, it, expect } from 'vitest'
 import {
   resolveByLadder,
   computeAccessibleName,
@@ -171,5 +171,73 @@ describe('assertNoHashClass / assertNoNthChild', () => {
   })
   it('assertNoNthChild does NOT throw on normal selectors', () => {
     expect(() => assertNoNthChild('button.submit')).not.toThrow()
+  })
+})
+
+describe('resolveByLadder — fiber-first branch', () => {
+  const fiberPath = [{ componentName: 'Button', key: null, index: 0 }]
+
+  afterEach(() => {
+    delete (globalThis as Record<string, unknown>).__agrune_identity__
+  })
+
+  it('Test A: bridge + resolve returns element → fiber element returned, role branch skipped', () => {
+    // DOM에 role=button을 가진 다른 element도 존재하지만 fiber element가 우선해야 함
+    document.body.innerHTML = `
+      <button role="button" aria-label="RoleBtn">Role</button>
+      <div id="fiber-target">Fiber Target</div>
+    `
+    const fiberEl = document.getElementById('fiber-target') as HTMLElement
+    ;(globalThis as Record<string, unknown>).__agrune_identity__ = {
+      resolve: (_path: unknown) => fiberEl,
+    }
+    const matched = resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })
+    expect(matched).toHaveLength(1)
+    expect(matched[0].id).toBe('fiber-target')
+  })
+
+  it('Test B: bridge undefined → fiber branch skipped, role fallback returns correctly', () => {
+    document.body.innerHTML = `<button role="button" aria-label="FallbackBtn">Fallback</button>`
+    // __agrune_identity__ 없음
+    const matched = resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })
+    expect(matched).toHaveLength(1)
+    expect(matched[0].getAttribute('aria-label')).toBe('FallbackBtn')
+  })
+
+  it('Test C: bridge.resolve returns null → role fallback used', () => {
+    document.body.innerHTML = `<button role="button" aria-label="FallbackBtn">Fallback</button>`
+    ;(globalThis as Record<string, unknown>).__agrune_identity__ = {
+      resolve: (_path: unknown) => null,
+    }
+    const matched = resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })
+    expect(matched).toHaveLength(1)
+    expect(matched[0].getAttribute('aria-label')).toBe('FallbackBtn')
+  })
+
+  it('Test D: fiber-only ladder + bridge absent → returns []', () => {
+    document.body.innerHTML = `<button>X</button>`
+    // __agrune_identity__ 없음
+    const matched = resolveByLadder({ fiber: { path: fiberPath } })
+    expect(matched).toEqual([])
+  })
+
+  it('Test E: bridge.resolve throws → fallback to role normally', () => {
+    document.body.innerHTML = `<button role="button" aria-label="FallbackBtn">Fallback</button>`
+    ;(globalThis as Record<string, unknown>).__agrune_identity__ = {
+      resolve: (_path: unknown) => { throw new Error('internal bridge error') },
+    }
+    const matched = resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })
+    expect(matched).toHaveLength(1)
+    expect(matched[0].getAttribute('aria-label')).toBe('FallbackBtn')
+  })
+
+  it('Test F: bridge.resolve is not a function → fallback to role (no throw)', () => {
+    document.body.innerHTML = `<button role="button" aria-label="FallbackBtn">Fallback</button>`
+    ;(globalThis as Record<string, unknown>).__agrune_identity__ = {
+      resolve: null,
+    }
+    expect(() => resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })).not.toThrow()
+    const matched = resolveByLadder({ fiber: { path: fiberPath }, role: { name: 'button' } })
+    expect(matched).toHaveLength(1)
   })
 })
