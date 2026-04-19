@@ -121,6 +121,20 @@ export async function runAddCli(
     return errorExit(err)
   }
 
+  // WR-01 (review 18): re-adding a host must not silently clear a user's
+  // manual `disabled.reason = 'user'` — that would be a stealth re-enable.
+  // Auto-disable states (`stale` / `revoked`) are reset on a fresh fetch
+  // because the user explicitly chose to re-add the entry.
+  const existing = lock.entries.find((e) => e.host === entry.registry.host)
+  if (existing?.disabled?.reason === 'user') {
+    process.stderr.write(
+      color.yellow(
+        `! ${entry.registry.host} is user-disabled — use \`agrune maps enable ${entry.registry.host}\` first (or remove the \`disabled\` row manually)\n`,
+      ),
+    )
+    return 1
+  }
+
   // Idempotent upsert: remove any existing entry for this host, push the new
   // one. writeLockfile re-sorts.
   const withoutHost = lock.entries.filter((e) => e.host !== entry.registry.host)
@@ -136,6 +150,9 @@ export async function runAddCli(
     fetchedAt: new Date().toISOString(),
     source,
     allowedEnvironments: entry.registry.allowedEnvironments,
+    // existing `stale` / `revoked` states are intentionally dropped — a
+    // fresh, successful fetch is what clears auto-disable. `user` reason
+    // was already rejected above.
   })
 
   try {
