@@ -429,3 +429,130 @@ describe('NTH_CHILD_PATTERN', () => {
     expect(NTH_CHILD_PATTERN.test('button[type="submit"]')).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// keyFrom 검증 — Phase 15-03 (REPEAT-01/02/03)
+// ---------------------------------------------------------------------------
+
+const REPEAT_FIXTURE = (keyFrom: string) => ({
+  version: 3,
+  groups: [
+    {
+      groupId: 'feed',
+      targets: [],
+      repeats: [
+        {
+          repeatId: 'posts',
+          template: 'post_${key}',
+          keyFrom,
+          strategy: 'dom',
+          targets: [
+            { targetId: 'like_btn', actionKinds: ['click'], selector: { css: '.like' } },
+          ],
+        },
+      ],
+    },
+  ],
+})
+
+describe('validateManifest — keyFrom validation (Phase 15-03)', () => {
+  it('Test 1: 빈 keyFrom 문자열 → ok:false + 필수 메시지', () => {
+    const result = validateManifest(REPEAT_FIXTURE(''))
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      const msg = result.errors.map((e) => e.message).join('\n')
+      expect(msg).toContain('keyFrom is required')
+    }
+  })
+
+  it('Test 2: 공백만 있는 keyFrom → ok:false', () => {
+    const result = validateManifest(REPEAT_FIXTURE('   '))
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      const msg = result.errors.map((e) => e.message).join('\n')
+      expect(msg).toContain('keyFrom is required')
+    }
+  })
+
+  it('Test 3: 유효한 keyFrom → ok:true', () => {
+    const result = validateManifest(REPEAT_FIXTURE('el.dataset.postId'))
+    expect(result.ok).toBe(true)
+  })
+
+  it('Test 4: 문법 오류 keyFrom → ok:false + compile failed 메시지', () => {
+    const result = validateManifest(REPEAT_FIXTURE('el.??? +++'))
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      const msg = result.errors.map((e) => e.message).join('\n')
+      expect(msg).toContain('compile failed')
+    }
+  })
+
+  it('Test 5: 복잡하지만 문법 유효한 keyFrom → ok:true (compile만 검증, semantic은 runtime 책임)', () => {
+    // fetch 같은 호출도 compile은 OK → pass (T-11-21 선례)
+    const result = validateManifest(REPEAT_FIXTURE('el.foo; String("ok")'))
+    expect(result.ok).toBe(true)
+  })
+
+  it('Test 6: 여러 repeat 중 일부만 실패 시 각각 독립 에러 보고', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'feed',
+          targets: [],
+          repeats: [
+            {
+              repeatId: 'posts',
+              template: 'post_${key}',
+              keyFrom: 'el.dataset.postId', // 유효
+              strategy: 'dom',
+              targets: [{ targetId: 'like', actionKinds: ['click'], selector: { css: '.like' } }],
+            },
+            {
+              repeatId: 'comments',
+              template: 'comment_${key}',
+              keyFrom: '', // 빈 문자열 — 실패
+              strategy: 'dom',
+              targets: [{ targetId: 'reply', actionKinds: ['click'], selector: { css: '.reply' } }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      // 실패한 repeat(comments)만 에러
+      const paths = result.errors.map((e) => e.path)
+      const hasCommentPath = paths.some((p) => p.includes('repeats[1]'))
+      expect(hasCommentPath).toBe(true)
+      // posts는 에러 없어야 함
+      const hasPostPath = paths.some((p) => p.includes('repeats[0]'))
+      expect(hasPostPath).toBe(false)
+    }
+  })
+
+  it('Test 7: new Function 자체가 차단되는 환경 → compile 검증 skip, ok:true (Pitfall 2 — CSP graceful)', () => {
+    // Function 생성자가 에러를 던지도록 시뮬레이션
+    const OriginalFunction = globalThis.Function
+    // @ts-expect-error — test override
+    globalThis.Function = function () {
+      throw new Error('CSP: eval blocked')
+    }
+    try {
+      const result = validateManifest(REPEAT_FIXTURE('el.dataset.postId'))
+      // compile 검증 자체가 skip되므로 ok:true여야 함
+      expect(result.ok).toBe(true)
+    } finally {
+      globalThis.Function = OriginalFunction
+    }
+  })
+
+  it('Test 8: CLI 회귀 — validateManifest ok:false는 기존 exit 1 배선으로 처리됨 (unit level 확인)', () => {
+    // manifest-validate-cli.ts는 이미 validateManifest 결과 ok:false → exit 1 배선 (11-05)
+    // 여기서는 unit level에서 validator 결과만 확인
+    const result = validateManifest(REPEAT_FIXTURE(''))
+    expect(result.ok).toBe(false)
+    // CLI는 이 result를 받아 exit 1 처리함 — 별도 E2E 없이 unit level에서 충분
+  })
+})
