@@ -10,17 +10,17 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 ### MANIFEST — Schema + SDK
 
 - [x] **MANIFEST-01**: `@agrune/manifest` 패키지가 `defineManifest`/`defineTarget`을 제공해 타입 안전 target 선언(`targetId` union + `actionKinds` + selector ladder) 가능
-- [ ] **MANIFEST-02**: `defineRepeat` 스키마가 template/keyFrom/nameFrom/strategy(dom|virtualized) 필드 지원
-- [ ] **MANIFEST-03**: `defineMacro` 스키마가 id/params/steps/precondition/postcondition/circuit breaker 지원
-- [ ] **MANIFEST-04**: `sensitive:true` flag + 런타임 DOM heuristic이 flag를 OR-only로 결합(override 불가) 설계 락
-- [ ] **MANIFEST-05**: `agrune manifest validate <file> --url` CLI가 live DOM에서 selector 1:1 매칭 검증
+- [x] **MANIFEST-02**: `defineRepeat` 스키마가 template/keyFrom/nameFrom/strategy(dom|virtualized) 필드 지원
+- [x] **MANIFEST-03**: `defineMacro` 스키마가 id/params/steps/precondition/postcondition/circuit breaker 지원
+- [x] **MANIFEST-04**: `sensitive:true` flag + 런타임 DOM heuristic이 flag를 OR-only로 결합(override 불가) 설계 락
+- [x] **MANIFEST-05**: `agrune manifest validate <file> --url` CLI가 live DOM에서 selector 1:1 매칭 검증
 
 ### RESOLVE — Runtime Target Resolution
 
 - [ ] **RESOLVE-01**: `ManifestLoader`가 `window.__agrune_manifest__` 또는 CDP preload JSON에서 manifest를 로드
-- [ ] **RESOLVE-02**: `TargetResolver`가 CSS fallback selector(priority: role > text > testId > stable attr > CSS, 해시 class / `:nth-child` 금지) 해석
+- [x] **RESOLVE-02**: `TargetResolver`가 CSS fallback selector(priority: role > text > testId > stable attr > CSS, 해시 class / `:nth-child` 금지) 해석
 - [ ] **RESOLVE-03**: `PageSnapshot`을 v3로 breaking 교체 (MCP 도구 출력 shape 변경, backward-compat adapter 없음)
-- [ ] **RESOLVE-04**: Runtime bootstrap 게이트 제거 — `dom-scanner` 없이 항상 부팅
+- [x] **RESOLVE-04**: Runtime bootstrap 게이트 제거 — `dom-scanner` 없이 항상 부팅
 
 ### INJECT — CDP + MCP 확장
 
@@ -122,14 +122,14 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MANIFEST-01 | Phase 11 | Complete |
-| MANIFEST-02 | Phase 11 | Pending |
-| MANIFEST-03 | Phase 11 | Pending |
-| MANIFEST-04 | Phase 11 | Pending |
-| MANIFEST-05 | Phase 11 | Pending |
+| MANIFEST-02 | Phase 11 | Complete |
+| MANIFEST-03 | Phase 11 | Complete |
+| MANIFEST-04 | Phase 11 | Complete |
+| MANIFEST-05 | Phase 11 | Complete |
 | RESOLVE-01 | Phase 12 | Pending |
-| RESOLVE-02 | Phase 11 | Pending |
+| RESOLVE-02 | Phase 11 | Complete |
 | RESOLVE-03 | Phase 12 | Pending |
-| RESOLVE-04 | Phase 11 | Pending |
+| RESOLVE-04 | Phase 11 | Complete |
 | INJECT-01 | Phase 12 | Pending |
 | INJECT-02 | Phase 12 | Pending |
 | REACT-01 | Phase 13 | Pending |
