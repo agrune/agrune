@@ -6,7 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 describe('getToolDefinitions', () => {
   const tools = getToolDefinitions()
 
-  it('defines all 12 required tools', () => {
+  it('defines all 13 required tools', () => {
     const names = tools.map((t) => t.name)
     expect(names).toEqual([
       'agrune_sessions',
@@ -21,7 +21,12 @@ describe('getToolDefinitions', () => {
       'agrune_read',
       'agrune_focus',
       'agrune_manifest_load',
+      'agrune_macro_run',
     ])
+  })
+
+  it('has exactly 13 tools', () => {
+    expect(tools).toHaveLength(13)
   })
 
   it('every tool has name, description, and inputSchema', () => {
@@ -116,6 +121,22 @@ describe('getToolDefinitions', () => {
     expect(tool.inputSchema.properties).toHaveProperty('manifest')
     expect(tool.inputSchema.properties).toHaveProperty('tabId')
   })
+
+  it('agrune_macro_run has required macroId, optional params and tabId', () => {
+    const tool = tools.find((t) => t.name === 'agrune_macro_run')!
+    expect(tool).toBeDefined()
+    expect(tool.inputSchema.required).toContain('macroId')
+    expect(tool.inputSchema.properties).toHaveProperty('macroId')
+    expect(tool.inputSchema.properties).toHaveProperty('params')
+    expect(tool.inputSchema.properties).toHaveProperty('tabId')
+  })
+
+  it('agrune_macro_run appears immediately after agrune_manifest_load', () => {
+    const names = tools.map((t) => t.name)
+    const manifestIdx = names.indexOf('agrune_manifest_load')
+    const macroIdx = names.indexOf('agrune_macro_run')
+    expect(macroIdx).toBe(manifestIdx + 1)
+  })
 })
 
 describe('tool registration parity — mcp-tools.ts vs tools.ts', () => {
@@ -133,5 +154,20 @@ describe('tool registration parity — mcp-tools.ts vs tools.ts', () => {
 
     const definitionNames = getToolDefinitions().map(d => d.name).sort()
     expect([...registeredNames].sort()).toEqual(definitionNames)
+  })
+
+  it('total registered tool count is 13', () => {
+    const registeredNames: string[] = []
+    const mockMcp = {
+      tool: (name: string) => {
+        registeredNames.push(name)
+        return mockMcp
+      },
+    } as unknown as McpServer
+
+    const noopHandler = async () => ({ text: '' })
+    registerAgruneTools(mockMcp, noopHandler)
+
+    expect(registeredNames).toHaveLength(13)
   })
 })
