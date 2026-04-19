@@ -39,7 +39,7 @@
 - [x] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
 - [x] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite (4/4 plans)
 - [x] **Phase 17: REMOVE** — inline `data-agrune-*` 스캐너 완전 제거 + 문서 재작성 + "target mapping" 용어 전환
-- [ ] **Phase 18: REGISTRY** — `github.com/agrune/maps` 공개 + `agrune maps` CLI + governance(tier + velocity limit + PR bot)
+- [x] **Phase 18: REGISTRY** — `github.com/agrune/maps` 공개 + `agrune maps` CLI + governance(tier + velocity limit + PR bot)
 
 ## Phase Details
 
@@ -170,7 +170,7 @@
 - [x] 18-01-PLAN.md — @agrune/registry 패키지 scaffold (schema + content-hash + cache + lockfile + staleness + registry-client)
 - [x] 18-02-PLAN.md — agrune maps {add,types,doctor,submit} CLI + bin dispatch + README/AGENTS 반영
 - [x] 18-03-PLAN.md — registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + index/incidents/maintainers + validate-seed 스크립트
-- [ ] 18-04-PLAN.md — PR bot + weekly health check + CODEOWNERS + PR template + external-sync-instructions + Phase 18 close
+- [x] 18-04-PLAN.md — PR bot + weekly health check + CODEOWNERS + PR template + external-sync-instructions + Phase 18 close
 **UI hint**: no
 
 ## Progress
@@ -194,8 +194,8 @@
 | 15. REPEAT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 16. RECORD | v0.5 | 4/4 | Complete | 2026-04-19 |
 | 17. REMOVE | v0.5 | 4/4 | Complete | 2026-04-19 |
-| 18. REGISTRY | v0.5 | 3/4 | In Progress | — |
+| 18. REGISTRY | v0.5 | 4/4 | Complete | 2026-04-20 |
 
 ---
 
-v0.5 Manifest Pivot 활성. Phase 11-17 완료 (25 plans) + Phase 18 Plan 01/02/03 완료 — 17-01 runtime/browser legacy 제거, 17-02 e2e bootstrap manifest-only + fixture 의미 반전, 17-03 루트 문서 7개 manifest 재작성 + SOT pointer 배치, 17-04 regression guard + CI 배선 + `lint:no-legacy` 전환 + 외부 `.github/profile/README.md` sync (로컬 커밋; 사용자 수동 push 대기), 18-01 `@agrune/registry` library layer (schema/content-hash/cache/lockfile/registry-client/staleness) 32 tests green, 18-02 `agrune maps {add,types,doctor,submit}` 4 CLI runner (DI-first unit tests 28 cases + e2e smoke 7 cases + mcp bin 'maps' dispatch + README/AGENTS docs), 18-03 registry-seed prototype (10 verified seed + 113줄 REGISTRY_GOVERNANCE.md + validate-seed.mjs 10/10 pass + pnpm validate:seed 배선). Next: Phase 18 Plan 04 (PR bot + weekly health check + external-sync-instructions + Phase 18 close).
+v0.5 Manifest Pivot 완료 (8/8 phases, 29 plans) — audit-milestone 대기. Phase 11-17 완료 (25 plans) + Phase 18 전체 4 plans 완료: 18-01 `@agrune/registry` library layer (schema/content-hash/cache/lockfile/registry-client/staleness) 32 tests green, 18-02 `agrune maps {add,types,doctor,submit}` 4 CLI runner (DI-first unit tests 28 cases + e2e smoke 7 cases + mcp bin 'maps' dispatch + README/AGENTS docs), 18-03 registry-seed prototype (10 verified seed + 113줄 REGISTRY_GOVERNANCE.md + validate-seed.mjs 10/10 pass + pnpm validate:seed 배선), 18-04 PR bot + weekly health check + 3 GitHub Actions workflow + 4 Node scripts (inline schema self-contained) + CODEOWNERS + PR template + external-sync-instructions.md (338 lines, 사용자 수동 push 경로). 사용자 pending (수동): (1) 외부 `.github` profile + `skills/annotate/` push (17-04 instructions), (2) `github.com/agrune/maps` public repo 생성 + initial push + branch protection + OAuth App 등록 + CODEOWNERS/maintainers.json placeholder 교체 + smoke test (18-04 instructions), (3) v0.6 에서 `@agrune/registry` npm publish + registry-seed scripts inline schema 제거. Next: `/gsd-audit-milestone` 로 v0.5 전체 requirements × artifact 대사 검증.

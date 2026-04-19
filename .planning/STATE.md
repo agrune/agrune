@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
-status: executing
-stopped_at: Completed 18-02-PLAN.md (4 agrune maps CLI runners + mcp bin dispatch + 67 registry tests green including 7 e2e smoke + README/AGENTS docs)
-last_updated: "2026-04-19T18:56:43Z"
-last_activity: 2026-04-19 -- Phase 18 Plan 02 complete (agrune maps {add,types,doctor,submit} CLI + dispatch + e2e smoke)
+status: milestone_ready_for_audit
+stopped_at: Completed 18-04-PLAN.md (PR bot + weekly health check + CODEOWNERS + external-sync-instructions + Phase 18 close)
+last_updated: "2026-04-20T00:00:00Z"
+last_activity: 2026-04-20 -- Phase 18 complete (REGISTRY wave 3 closed; v0.5 Manifest Pivot 8/8 phases 29/29 plans)
 progress:
   total_phases: 8
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 29
-  completed_plans: 28
-  percent: 97
+  completed_plans: 29
+  percent: 100
 ---
 
 # Project State
@@ -21,18 +21,18 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 **Core value:** AI 에이전트가 의미를 이해할 수 있는 제어 표면(v0.5부터 manifest 기반 target mapping + root-import component identity)을 통해 웹 앱을 로컬·결정적·검증 가능하게 자동화한다.
-**Current focus:** Phase 18 — registry (다음)
+**Current focus:** v0.5 Manifest Pivot — COMPLETE (8/8 phases, 29/29 plans). audit-milestone 대기.
 
 ## Current Position
 
-Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 18 (REGISTRY) — IN PROGRESS (3/4 plans)
-Status: Phase 18 Plan 01 + Plan 02 + Plan 03 completed 2026-04-19. Library layer + seed prototype + CLI surface 완료. 다음 Plan 04 (PR bot + weekly health check + external-sync) 대기.
-Last activity: 2026-04-19 -- Phase 18 Plan 02 complete (agrune maps {add,types,doctor,submit} 4 CLI runners + mcp bin 'maps' dispatch + README/AGENTS docs + 67 registry tests green including 7 e2e smoke)
+Milestone: v0.5 Manifest Pivot — READY FOR AUDIT (completion 2026-04-20)
+Phase: 18 (REGISTRY) — COMPLETE (4/4 plans)
+Status: Phase 18 전체 완료. `@agrune/registry` library + `agrune maps` CLI + registry-seed 10 seed + governance + PR bot + weekly health check + external-sync-instructions 착지. `github.com/agrune/maps` 공개 는 사용자 수동 push 대기 (external-sync-instructions.md § 1-3).
+Last activity: 2026-04-20 -- Phase 18 Plan 04 complete (pr-bot.yml + health-check.yml + validate-schema.yml + 4 Node scripts with inline schema + CODEOWNERS + pull_request_template + external-sync-instructions.md 338 lines + Phase 18 ceremony)
 
-브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) + Plan 02 (CLI) + Plan 03 (seed + governance) 완료로 사용자 surface 와 콘텐츠가 모두 갖춰졌고, Plan 04 (PR bot + weekly health check) 만 남음.
+브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) + Plan 02 (CLI) + Plan 03 (seed + governance) + Plan 04 (PR bot + external-sync) 완료로 v0.5 Manifest Pivot 의 모든 코드/문서 surface 가 완성됨.
 
-다음 단계: Phase 18 Plan 04 (PR bot + weekly health check + CODEOWNERS + external-sync-instructions). 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`), Plan 04 external-sync 후 `github.com/agrune/maps` push + maintainers.json placeholder 교체 + `AGRUNE_OAUTH_CLIENT_ID` env 세팅 (OAuth App 등록 후).
+다음 단계: `/gsd-audit-milestone` 로 v0.5 전체 requirements × artifact 대사 검증 후 v0.6 kickoff. 사용자 pending: (1) 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (17-04 external-sync-instructions), (2) `github.com/agrune/maps` public repo 생성 + initial push + branch protection + OAuth App 등록 + CODEOWNERS/maintainers.json placeholder 교체 + smoke test (18-04 external-sync-instructions § 1-6), (3) v0.6 kickoff 시 `@agrune/registry` npm publish + registry-seed scripts inline schema 제거.
 
 ## Accumulated Context
 
@@ -101,17 +101,39 @@ Recent decisions carrying forward:
 - [Phase 18-02]: `isSubcommand` guard 로 글로벌 --help/--version 가로챔 해제 — `agrune maps --help` 와 `agrune manifest --help` 가 서브커맨드 전용 help 로 흐름. 기존 `agrune --help` 는 그대로. T-18-17 dispatch isolation 강화.
 - [Phase 18-02]: picocolors 직접 import 대신 ANSI shim (makeColor) — isTTY 체크 후 최소 ANSI escape codes 반환, non-TTY 는 identity. dist bundle 크기 최소화 + 테스트 결정성.
 - [Phase 18-02]: e2e-smoke 는 `fetchEntry` DI 로 http 픽스처 연결 — 프로덕션 registry-client HTTPS-only 강제 invariant 를 테스트에서 약화시키지 않고 Plan 01 이 열어둔 fetch impl override slot 활용. 0 real network outbound.
+- [Phase 18-04]: PR bot workflow 는 label-only (merge block 은 repo branch protection 가 담당) — `pull_request_target` + PR head sha checkout + `octokit.issues.addLabels` 만 호출 + 어떤 file write 도 없음. fork PR 에서 GITHUB_TOKEN issues/pull-requests:write scope 가 확보되어도 safe surface (T-18-26 mitigation).
+- [Phase 18-04]: Health check 는 snapshot-only — role→text→testId→attr→css 순회 `probeSelector` 가 `.count()` 만 호출, click/fill/type/press 0 match (grep 으로 자동 증명). 상위 3 target 샘플링 + UA='agrune-health-check/0.5' 로 T-18-27 (외부 사이트 DoS) 구조적 차단.
+- [Phase 18-04]: Health check 는 2-strike rule (RESEARCH Pitfall 5 재발 방지) — `.github/health-state.json` 에 `consecutiveFails` 누적, `>= 2` 일 때만 single 'stale manifests' issue 를 연다. PR 생성으로 `registry.staleSince` 추가는 v0.6+ 로 연기.
+- [Phase 18-04]: `registry-seed/.github/scripts/_schema.mjs` 는 **self-contained inline schema** (v0.5 MVP — external repo 는 workspace 밖이라 `workspace:*` 로 `@agrune/registry` import 불가). DO NOT EDIT 헤더 + sync checklist 로 T-18-28 (schema drift) mitigation. v0.6 에서 `@agrune/registry` npm publish 후 `export { ... } from '@agrune/registry'` 한 줄로 축소.
+- [Phase 18-04]: CODEOWNERS 는 governance-critical 파일 (incidents.json / REGISTRY_GOVERNANCE.md / maintainers.json / CODEOWNERS / .github/) 만 maintainer-only gate. `manifests/**` 는 global owner 없음 — community tier 기여자 direct merge 허용 + PR bot 라벨 + branch protection 가 정책 enforcement. `@agrune-solo` placeholder 는 사용자가 실제 GitHub handle 로 교체.
+- [Phase 18-04]: OAuth App 등록 + `github.com/agrune/maps` public repo 생성 + 초기 push + branch protection + placeholder 교체 + smoke test 6 단계 = 사용자 수동 (autonomous 제약) — `external-sync-instructions.md` (338 lines, 9 섹션) 로 완전 문서화. MEMORY: "외부 repo push 는 사용자 수동 후속 조치".
 
 ### Pending Todos
 
-- 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치) — 로컬 main 이 origin/main 대비 2 commits 앞섬 (v1.1 DOCS-02 + Phase 17-04). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
-- 외부 `/Users/chenjing/dev/agrune/skills` repo 에서 `skills/annotate/` 디렉터리 폐기 — 사용자 수동 (pre-existing 변경 먼저 resolve 후). 상세 명령: `.planning/phases/17-remove/external-sync-instructions.md`
-- Phase 18 Plan 04 실행 (PR bot + weekly health check + CODEOWNERS + external-sync-instructions + Phase 18 close)
-- Plan 02 submit 실제 사용을 위한 OAuth App 등록 (사용자 수동) — `AGRUNE_OAUTH_CLIENT_ID` env 로 주입. scope = `public_repo` 로 충분. 미등록 상태에서도 placeholder client_id 로 빌드는 성공하고 yellow warning 만 출력됨
-- Plan 04 external-sync 완료 후: `github.com/agrune/maps` 공개 repo 생성 + `registry-seed/` 내용 push + maintainers.json `"agrune-solo"` placeholder 를 사용자 GitHub handle 로 교체 (사용자 수동)
+**외부 repo push (사용자 수동):**
+
+- 외부 `/Users/chenjing/dev/agrune/.github` repo push — 로컬 main 이 origin/main 대비 2 commits 앞섬 (v1.1 DOCS-02 + Phase 17-04). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
+- 외부 `/Users/chenjing/dev/agrune/skills` repo 에서 `skills/annotate/` 디렉터리 폐기 — 사용자 수동 (pre-existing 변경 먼저 resolve 후). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
+
+**Phase 18 external sync (사용자 수동, 상세: `.planning/phases/18-registry/external-sync-instructions.md`):**
+
+- `github.com/agrune/maps` 공개 repo 생성 + `registry-seed/` 내용 초기 push (§ 1A-1E)
+- Branch protection 설정 — `validate` / `analyze` required-checks + CODEOWNERS review + label-based approval 룰 (§ 2)
+- OAuth App 등록 (`agrune-maps-submit`) + `AGRUNE_OAUTH_CLIENT_ID` shell env 주입 — scope = `public_repo` 충분. 미등록이어도 빌드는 성공하고 placeholder 사용 시 yellow warning 출력 (§ 3)
+- `CODEOWNERS` + `maintainers.json` 의 `@agrune-solo` / `"agrune-solo"` placeholder 를 실제 GitHub handle 로 교체 (§ 1C)
+- Post-push smoke test 6A-6F (add / types / doctor / doctor --refresh / submit --dry-run / workflow 첫 실행) 실행 (§ 6)
+
+**v0.6 milestone kickoff 시:**
+
+- `@agrune/registry` npm publish → `registry-seed/.github/scripts/_schema.mjs` inline schema 제거 후 `export { RegistryEntrySchema, contentHash } from '@agrune/registry'` 한 줄로 교체 (상세: § 7). T-18-28 (schema drift) 블로커 해소 경로.
+- `agrune maps submit` 의 `.ts` manifest dynamic import 지원 (v0.5 는 `.json` 만)
+- Registry governance 임계값 (30일 holddown / 7·28·56 staleness / 30·60일 absence) 3 개월 후 실 기여 데이터로 재검토 (LOW confidence A2/A3/A7)
+
+**Test / infra backlog (pre-existing, 미악화):**
+
 - RECORD-05 TodoMVC 데모 수동 검증 (실제 skill 호출 → README 체크리스트 대조) — 사용자 실행
 - Corpus 확장 (v0.6+): `name=cvc`, `인증번호`, Japanese `パスワードの確認` substring mode 등 documented gap 해결
-- 5 pre-existing user-flow E2E failures (act-overlay / fill-real x3 / manifest-inject) — 별도 plan 또는 Phase 18 pre-flight 에서 fixture-level inline manifest injection
+- 5 pre-existing user-flow E2E failures (act-overlay / fill-real x3 / manifest-inject) — 별도 plan 에서 fixture-level inline manifest injection
 - runtime full-suite order-dependent flaky 1 건 (`act는 동적으로 추가된 overlay target…`) — 17-01 SUMMARY baseline 유지, test infra 리팩터 필요
 
 ### Blockers/Concerns
@@ -154,11 +176,13 @@ Recent decisions carrying forward:
 - ~~Phase 18-01 @agrune/registry library scaffold~~ — 신규 pnpm workspace 패키지, `errors` / `content-hash` (sha256 + fast-json-stable-stringify) / `schema` (RegistryEntrySchema + tier×env superRefine) / `cache` (0o700/0o600 + lstat symlink guard + path whitelist) / `lockfile` (atomic tmp+rename + host-sorted) / `registry-client` (HTTPS-only + latest resolver) / `staleness` (7/28/56 day) 착지. 32 unit tests green, workspace 9 패키지 build/typecheck/test 전부 pass, `pnpm lint:no-legacy` exit 0 유지. REGISTRY-03 완전 달성, REGISTRY-02/06 부분 달성 (CLI layer 는 Plan 02). 2026-04-19, commits `e63f719`..`3551b8f` (7 atomic commits).
 - ~~Phase 18-03 registry-seed + governance + validator~~ — `registry-seed/` 에 10 verified seed manifest (HN/Wikipedia/MDN/Python docs/Gutenberg/arXiv/PyPI/HN Algolia/Wikidata/Observable) + 113 줄 REGISTRY_GOVERNANCE.md (8 섹션 + 3 tier 서브) + 98 줄 README.md + incidents.json `[]` + maintainers.json solo placeholder + index.json (10 entries + sha256 contentHash per entry) 착지. `scripts/registry-seed/validate-seed.mjs` 가 RegistryEntrySchema.parse + contentHash 재계산, `pnpm validate:seed` 10/10 pass + negative test (invalid seed → exit 1 + zod issue path) 확인. 루트 package.json devDependencies 에 `@agrune/registry: workspace:*` link 추가 (node resolve 위해). Phase 17 regression guard 무영향 (`pnpm lint:no-legacy` exit 0). REGISTRY-04 완전 달성, REGISTRY-01 대부분 달성 (실제 공개 repo push 는 Plan 04 external-sync 이후 사용자 수동). 2026-04-19, commits `205fa39`/`8097f8d`/`84126be` (3 atomic commits).
 - ~~Phase 18-02 agrune maps CLI surface~~ — 4 CLI runner (shared + add/types/doctor/submit, packages/registry/src/cli/*) + `@agrune/registry/cli/*` sub-path exports + multi-entry tsup build + mcp bin 'maps' dispatch block (dynamic import pattern + isSubcommand guard). add: fetch+cache+lockfile 파이프라인 + contentHash re-compute + --offline. types: lockfile → AgruneMapsHost union + AgruneMapsTargetIds interface emit. doctor: classifyStaleness + --refresh opt-in incidents.json + --auto-disable lockfile 기록 (기본 offline). submit: AGRUNE_GITHUB_TOKEN → device flow 순서 + fork/commit/PR octokit skeleton + token scope-local (fs write 0, test assertion). DI-first unit tests 28 cases + e2e smoke 7 cases (총 67/67 registry green). README 'Registry (v0.5 Phase 18)' 섹션 + AGENTS 실행 모드 4 라인 + 체크리스트 step. Phase 17 regression guard 무영향 (`pnpm lint:no-legacy` exit 0). REGISTRY-02/03/06 완전 달성. 2026-04-19, commits `a56db43`/`298bddb`/`1667fe1`/`403e420` (4 atomic commits).
+- ~~Phase 18-04 PR bot + weekly health check + CODEOWNERS + external-sync-instructions~~ — `registry-seed/.github/workflows/` 3 YAML (pr-bot.yml = pull_request_target + label-only analysis, health-check.yml = cron '0 6 * * 1' + playwright snapshot-only, validate-schema.yml = pull_request RegistryEntrySchema.safeParse) + `registry-seed/.github/scripts/` 4 Node mjs (_schema.mjs inline Registry/Manifest schema + DO NOT EDIT header, validate-schema.mjs PR/local dual mode, pr-bot.mjs 4-signal 라벨러 [sensitive-diff/tier-escalation/schema-fail/velocity-holddown], health-check.mjs 2-strike rule + 3-target sample) + package.json (zod + @octokit/rest + @actions/core + fast-json-stable-stringify + playwright). `registry-seed/CODEOWNERS` (governance-critical 파일만 maintainer-only, manifests/** global owner 없음) + `.github/pull_request_template.md` (8 체크리스트) + `.gitignore`. `.planning/phases/18-registry/external-sync-instructions.md` 338 lines / 9 섹션 (repo 생성 1A-1E / branch protection / OAuth App / base URL / boundary / smoke test 6A-F / schema sync / pending todos / rollback). Phase 17 regression guard 무영향, YAML safe_load 3/3, node --check 4/4, grep click/fill/type/press on health-check = 0 match. REGISTRY-01 / REGISTRY-05 완전 달성 (실 `github.com/agrune/maps` push 는 사용자 수동). 2026-04-20, commits `487fcc7` / `4e8a2c9` / `d7e87f0` (3 atomic task commits).
+- ~~Phase 18 REGISTRY — 전체 4 plans 완료~~ — REGISTRY-01/02/03/04/05/06 모두 validated. `@agrune/registry` library + `agrune maps` CLI 4 서브커맨드 + registry-seed 10 verified seed + REGISTRY_GOVERNANCE.md 8 섹션 + PR bot/health-check workflow + external-sync-instructions 사용자 수동 경로까지 완결. v0.5 Manifest Pivot 8/8 phases 29/29 plans 완료 — audit-milestone 대기 상태 (2026-04-20).
 
 ## Session Continuity
 
-Last session: 2026-04-19T18:56:43Z
-Stopped at: Completed 18-02-PLAN.md (4 agrune maps CLI runners + mcp bin 'maps' dispatch + README/AGENTS docs + 67 registry tests green including 7 e2e smoke)
+Last session: 2026-04-20T00:00:00Z
+Stopped at: Completed 18-04-PLAN.md (PR bot + weekly health check + CODEOWNERS + external-sync-instructions + Phase 18 close)
 Resume file: None
 
 ### Phase 17 완료 — Phase 18 진입 조건 요약

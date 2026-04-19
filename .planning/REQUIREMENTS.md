@@ -64,11 +64,11 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### REGISTRY — 공개 + Governance
 
-- [ ] **REGISTRY-01**: `github.com/agrune/maps` 저장소 구조 초기화 + 10개 seed manifest (유명 사이트 중 low-risk 선정)
+- [x] **REGISTRY-01**: `github.com/agrune/maps` 저장소 구조 초기화 + 10개 seed manifest (유명 사이트 중 low-risk 선정)
 - [x] **REGISTRY-02**: CLI `agrune maps {add, types, doctor, submit}` 구현
 - [x] **REGISTRY-03**: `~/.agrune/maps/<host>@<ver>.json` 디스크 캐시 + `agrune.maps.lock.json` content-hash 잠금
 - [x] **REGISTRY-04**: `REGISTRY_GOVERNANCE.md` — tier 시스템(verified/community/unlisted), velocity limit(신규 저자 첫 3 PR 30일 holddown), revocation 경로 명시
-- [ ] **REGISTRY-05**: PR bot — `sensitive:false` 변경 자동 하이라이트 + weekly selector health check
+- [x] **REGISTRY-05**: PR bot — `sensitive:false` 변경 자동 하이라이트 + weekly selector health check
 - [x] **REGISTRY-06**: `agrune maps doctor` — 캐시된 manifest staleness 진단 + 자동 disable 경로
 
 ## v0.6+ Requirements
@@ -152,11 +152,11 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | REMOVE-01 | Phase 17 | Complete |
 | REMOVE-02 | Phase 17 | Complete |
 | REMOVE-03 | Phase 17 | Complete |
-| REGISTRY-01 | Phase 18 | Pending |
+| REGISTRY-01 | Phase 18 | Complete |
 | REGISTRY-02 | Phase 18 | Complete |
 | REGISTRY-03 | Phase 18 | Complete |
 | REGISTRY-04 | Phase 18 | Complete |
-| REGISTRY-05 | Phase 18 | Pending |
+| REGISTRY-05 | Phase 18 | Complete |
 | REGISTRY-06 | Phase 18 | Complete |
 
 **Coverage:**
@@ -177,4 +177,4 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 
 ---
 *Requirements defined: 2026-04-19*
-*Last updated: 2026-04-19 after roadmap creation — traceability table populated, 100% coverage*
+*Last updated: 2026-04-20 after Phase 18 close — REGISTRY-01/05 Complete (Plan 18-04: registry-seed .github workflows + scripts + CODEOWNERS + external-sync-instructions). RECORD-01/02 는 DevTools RecorderView + WS 프로토콜로 Phase 16-02 에서 landing 되었고 수동 UI 검증 단계만 남아 있음 — audit-milestone 시 재평가. 35/37 Complete + 2/37 검증 대기.*
