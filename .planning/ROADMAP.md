@@ -87,7 +87,10 @@
   3. Prod 번들에서 root-import가 활성화되려면 `AGRUNE_PROD_ENABLED=true` (빌드 env) + `localStorage['agrune.prod.consent']` (런타임 token) 두 guard가 모두 통과해야 하고, 하나라도 없으면 bridge는 no-op으로 동작한다.
   4. `bippy` 기반 `FiberIdentityIndex` 가 path descriptor(displayName + key props + index)로 저장되어, `React.memo(forwardRef(...))` / portal / Suspense / compound component 엣지케이스 fixture가 React 17/18/19 matrix CI에서 전부 pass한다.
   5. `window.__agrune_identity__` 가 `Object.defineProperty({ configurable: false, writable: false })` lock으로 게시되어 프로토타입 오염/덮어쓰기가 불가능하다.
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 13-01-PLAN.md — @agrune/manifest SelectorLadder.fiber + FiberIdentityPath 타입 + runtime resolver fiber-first branch (REACT-01 schema+resolver groundwork)
+- [ ] 13-02-PLAN.md — @agrune/react 패키지 초기화 + FiberIdentityIndex (bippy) + identity-bridge lock + prod-guard + SSR barrier + <AgruneDevtools /> 컴포넌트 (REACT-01/02/03/04)
+- [ ] 13-03-PLAN.md — React 17/18/19 matrix fixture + memo/forwardRef/portal/Suspense/compound 엣지케이스 + .github/workflows/react-matrix.yml (REACT-05)
 **UI hint**: yes
 
 ### Phase 14: MACRO
@@ -168,7 +171,7 @@
 | 10. Docs & Distribution | v1.1 | 5/5 | Complete | 2026-04-18 |
 | 11. MANIFEST | v0.5 | 5/5 | Complete | 2026-04-19 |
 | 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 13. REACT | v0.5 | 0/? | Not started | — |
+| 13. REACT | v0.5 | 0/3 | Planned | — |
 | 14. MACRO | v0.5 | 0/? | Not started | — |
 | 15. REPEAT | v0.5 | 0/? | Not started | — |
 | 16. RECORD | v0.5 | 0/? | Not started | — |
