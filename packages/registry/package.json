@@ -10,6 +10,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cli/add": {
+      "types": "./dist/cli/add.d.ts",
+      "import": "./dist/cli/add.js"
+    },
+    "./cli/types": {
+      "types": "./dist/cli/types.d.ts",
+      "import": "./dist/cli/types.js"
+    },
+    "./cli/doctor": {
+      "types": "./dist/cli/doctor.d.ts",
+      "import": "./dist/cli/doctor.js"
     }
   },
   "files": ["dist"],
