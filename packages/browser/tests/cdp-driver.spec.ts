@@ -505,3 +505,133 @@ describe('CdpDriver.injectManifest', () => {
     expect(hasSnapshot).toBe(true)
   })
 })
+
+// ─── CdpDriver.runMacro ───────────────────────────────────────────────────────
+
+describe('CdpDriver.runMacro — Runtime.evaluate 단일 호출 (Phase 14-03)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('Case A: runMacro → evaluateInSession 정확히 1회만 호출 (step 수 무관)', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const mockResult = { status: 'ok', macroId: 'login', stepCount: 3 }
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(mockResult as never)
+
+    await driver.runMacro(1, 'login', { username: 'user' })
+
+    // step 수(3)와 무관하게 evaluate 1회만 호출 — 핵심 요구사항
+    expect(evaluateInSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('Case B: expression에 macroId와 params가 JSON.stringify되어 포함됨', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const mockResult = { status: 'ok', macroId: 'login', stepCount: 2 }
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(mockResult as never)
+
+    await driver.runMacro(1, 'login', { password: 'secret' })
+
+    const expression = evaluateInSession.mock.calls[0][1] as string
+    // macroId JSON literal이 포함되어야 함
+    expect(expression).toContain(JSON.stringify('login'))
+    // params 직렬화가 포함되어야 함
+    expect(expression).toContain('JSON.parse')
+  })
+
+  it('Case C: evaluate 반환 객체를 그대로 MacroRunResponse로 전달', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const mockResult = { status: 'ok', macroId: 'fill-form', stepCount: 5 }
+    vi.spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(mockResult as never)
+
+    const result = await driver.runMacro(1, 'fill-form', {})
+    expect(result).toMatchObject(mockResult)
+  })
+
+  it('Case D: U+2028/U+2029 이스케이프 적용 (T-12-05 회귀 방지)', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    const mockResult = { status: 'ok', macroId: 'm', stepCount: 0 }
+    const evaluateInSession = vi
+      .spyOn(driver as never, 'evaluateInSession' as never)
+      .mockResolvedValue(mockResult as never)
+
+    // U+2028 포함 params 전달
+    await driver.runMacro(1, 'm', { note: 'line\u2028break' })
+
+    const expression = evaluateInSession.mock.calls[0][1] as string
+    // 원시 U+2028이 expression에 없어야 함 (이스케이프됨)
+    expect(expression).not.toContain('\u2028')
+    expect(expression).toContain('\\u2028')
+  })
+
+  it('Case E: target session 없음 → TAB_NOT_FOUND 에러 throw', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue(undefined)
+
+    await expect(driver.runMacro(999, 'login', {})).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('Case E-2: sessionId가 없는 target → TAB_NOT_FOUND 에러 throw', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: undefined,
+    })
+
+    await expect(driver.runMacro(1, 'login', {})).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('Case F: evaluate exceptionDetails → Error throw (기존 evaluateInSession 경로)', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      sessionId: 'session-1',
+    })
+
+    // evaluateInSession 내부에서 exceptionDetails → Error throw 시뮬레이션
+    vi.spyOn(driver as never, 'evaluateInSession' as never)
+      .mockRejectedValue(new Error('ReferenceError: __agrune_runtime__ is not defined') as never)
+
+    await expect(driver.runMacro(1, 'login', {})).rejects.toThrow('ReferenceError')
+  })
+})
