@@ -1,39 +1,71 @@
 # agrune
 
-AI 에이전트가 어노테이션된 웹 앱을 브라우저에서 직접 조작할 수 있게 해주는 CDP 기반 브라우저 자동화 도구입니다.
+AI 에이전트가 외부 **manifest**로 정의된 제어 표면을 통해 웹 앱을 브라우저에서 직접 조작할 수 있게 해주는 CDP 기반 MCP 서버입니다.
 
-핵심 배포물은 `@agrune/mcp`이고, Claude Code나 Codex 같은 하네스는 이 MCP 서버를 실행해 사용합니다. 어노테이션은 특정 하네스에 묶인 구현이 아니라 `workflows/annotate`에 정의된 공통 워크플로를 외부 하네스 어댑터가 감싸는 구조를 목표로 합니다.
+핵심 배포물은 `@agrune/mcp`이고, Claude Code나 Codex 같은 MCP 하네스가 stdio로 실행해 사용합니다. 제어 대상은 `@agrune/manifest` SDK (`defineManifest`, `defineTarget`, `defineMacro`, `defineRepeat`)로 작성한 manifest.ts 한 파일로 정의하며, owned React 프로젝트는 root에 `<AgruneDevtools />` 한 줄을 추가하는 것 외에 컴포넌트 소스를 수정할 필요가 없습니다.
+
+> AI agent가 manifest 작성을 수행할 때의 authoritative source는 [`.agents/skills/manifest/SKILL.md`](./.agents/skills/manifest/SKILL.md)입니다.
 
 ## 현재 구조
 
 ```text
 packages/
-  core/        shared types, contracts, annotation linter
-  runtime/     page runtime, scanner, manifest builder
-  browser/     CdpDriver, Chrome launcher, CDP transport
+  core/        shared types, contracts, annotation-lint (legacy consumer tool)
+  runtime/     page runtime, manifest loader, target resolver (fiber + CSS)
+  browser/     CdpDriver, Chrome launcher, CDP transport, runtime injector
+  manifest/    @agrune/manifest SDK (defineManifest / defineTarget / ...)
+  react/       root-import <AgruneDevtools /> + React fiber identity bridge
   mcp/         publish target: @agrune/mcp (MCP server + DevTools webapp)
-  devtools/    DevTools webapp (command log, HITL toolbar, sessions, failures)
+  devtools/    DevTools webapp (command log, HITL toolbar, sessions, failures, recorder)
 
 workflows/
-  annotate/    harness-neutral annotation workflow source of truth
+  annotate/    harness-neutral manifest authoring workflow (요약판; SOT는 .agents/skills/manifest/)
 ```
+
+## 아키텍처 (manifest → CDP)
+
+```text
+manifest.ts (defineManifest)
+     │
+     ▼
+@agrune/manifest SDK  ──────►  zod validation
+     │
+     ▼
+window.__agrune_manifest__      (owned apps: <AgruneDevtools /> root-import)
+window.__agrune_preload_manifest__ (external sites: preload JSON)
+     │
+     ▼
+CdpRuntimeInjector  (Phase 12 inject)
+     │
+     ▼
+TargetResolver (fiber ladder | CSS fallback)
+     │
+     ▼
+CDP Input / DOM / Runtime  ──►  agrune_act / agrune_fill / agrune_snapshot ...
+```
+
+Runtime 은 더 이상 페이지 DOM 의 `data-agrune-*` 속성을 스캔하지 않습니다 (Phase 17 v0.5 에서 제거). 모든 target 등록은 manifest 가 유일한 경로입니다.
 
 ## 배포 모델
 
-- `@agrune/mcp`: 제품 본체. Claude, Codex, 기타 MCP 하네스가 공통으로 실행하는 canonical entry
-- `workflows/annotate`: Agrune 사용에 필요한 어노테이션 워크플로 원본
+- `@agrune/mcp`: 제품 본체. Claude, Codex, 기타 MCP 하네스가 stdio로 실행하는 canonical entry
+- `@agrune/manifest`: target/macro/repeat 를 타입 안전하게 정의하는 authoring SDK
+- `@agrune/react`: owned React 앱을 위한 root-import 패키지 (`<AgruneDevtools />`)
+- `.agents/skills/manifest/`: AI 에이전트를 위한 manifest authoring skill (authoritative source)
 
-이 구조의 의도는 `plugin이 본체`가 아니라 `@agrune/mcp + workflow`가 본체가 되도록 만드는 것입니다. DevTools 웹앱은 `@agrune/mcp` 프로세스가 기본 포트 47654에서 `http://localhost:47654/devtools` 로 제공합니다.
+DevTools 웹앱은 `@agrune/mcp` 프로세스가 기본 포트 47654에서 `http://localhost:47654/devtools` 로 제공합니다.
 
 ## 패키지
 
 | 패키지 | 경로 | 설명 |
 |--------|------|------|
-| **@agrune/core** | `packages/core` | 공유 타입, 에러 코드, 런타임 설정 헬퍼, annotation linter |
-| **@agrune/runtime** | `packages/runtime` | 페이지 런타임, DOM 스캐너, manifest builder |
-| **@agrune/browser** | `packages/browser` | `CdpDriver`, Chrome launcher, CDP 전송 계층 |
-| **@agrune/mcp** | `packages/mcp` | MCP 서버 본체와 `agrune-mcp` CLI |
-| **@agrune/devtools** | `packages/devtools` | MCP 서버가 내장 서빙하는 DevTools 웹앱 (command log, HITL toolbar, sessions panel, failure diagnostics) |
+| **@agrune/core** | `packages/core` | 공유 타입, 에러 코드, 런타임 설정, `annotation-lint` (외부 소비자용 build-linter) |
+| **@agrune/manifest** | `packages/manifest` | `defineManifest` / `defineTarget` / `defineRepeat` / `defineMacro` SDK |
+| **@agrune/runtime** | `packages/runtime` | 페이지 런타임, manifest loader, TargetResolver (fiber + CSS) |
+| **@agrune/browser** | `packages/browser` | `CdpDriver`, Chrome launcher, CDP 전송 계층, runtime injector |
+| **@agrune/react** | `packages/react` | `<AgruneDevtools />` root-import, React fiber identity bridge |
+| **@agrune/mcp** | `packages/mcp` | MCP 서버 본체와 `agrune-mcp` / `agrune` CLI |
+| **@agrune/devtools** | `packages/devtools` | MCP 서버가 내장 서빙하는 DevTools 웹앱 (command log, HITL toolbar, sessions panel, failure diagnostics, recorder) |
 
 ## 실행 방식
 
@@ -152,9 +184,47 @@ agrune 이 종료된 뒤에도 Chrome 은 계속 열려 있습니다.
 | 지금 Chrome 에 저장된 로그인·쿠키를 자동화로 그대로 옮기고 싶다 | `--user-data-dir` 복제 (방법 2) |
 | 평소 Chrome 에 그대로 붙어서 자동화하고 싶다 | `--attach` (방법 3) |
 
-### 어노테이션
+### Manifest 작성
 
-어노테이션은 Claude 전용 기능이 아니라 Agrune 사용의 필수 워크플로입니다. source of truth는 [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md)에 두고, 하네스별 어댑터는 이 워크플로를 각 환경 형식에 맞게 감쌉니다.
+agrune 제어 대상은 `@agrune/manifest` SDK 로 작성한 `manifest.ts` 한 파일로 정의합니다. 간단한 로그인 폼 예시:
+
+```typescript
+// src/manifest.ts
+import { defineManifest, defineGroup, defineTarget } from '@agrune/manifest'
+
+export default defineManifest({
+  groups: [
+    defineGroup({
+      groupId: 'login',
+      route: '/login',
+      targets: [
+        defineTarget({
+          targetId: 'email_input',
+          selector: { role: { name: 'textbox' }, css: 'input[type=email]' },
+          actionKinds: ['fill'],
+        }),
+        defineTarget({
+          targetId: 'password_input',
+          selector: { role: { name: 'textbox' }, css: 'input[type=password]' },
+          actionKinds: ['fill'],
+          sensitive: true,
+        }),
+        defineTarget({
+          targetId: 'submit_button',
+          selector: { role: { name: 'button' }, text: '로그인' },
+          actionKinds: ['click'],
+        }),
+      ],
+    }),
+  ],
+})
+```
+
+실제 레퍼런스 구현은 [`packages/e2e/fixtures/todomvc/manifest.ts`](./packages/e2e/fixtures/todomvc/manifest.ts) 를 참고하세요 — TodoMVC 8 개 static target + `defineRepeat` 1 개로 인터랙티브 표면을 완전히 매핑한 예제입니다.
+
+**사람용 workflow**: `agrune manifest validate src/manifest.ts` 로 target shape + live DOM 매칭을 검증하고, `agrune manifest dev src/manifest.ts` 로 DevTools recorder → ts-morph merge watcher 를 띄웁니다. 공통 요약은 [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md) 를 참고 (하네스 중립 요약판).
+
+**AI 에이전트용 workflow (authoritative source)**: [`.agents/skills/manifest/SKILL.md`](./.agents/skills/manifest/SKILL.md) — Claude Code 나 Codex 가 `manifest` skill 을 호출하면 프로젝트를 분석해 manifest.ts 를 자동 생성합니다.
 
 ## MCP 도구
 
@@ -171,6 +241,8 @@ agrune 이 종료된 뒤에도 Chrome 은 계속 열려 있습니다.
 | `agrune_guide` | 대상 하이라이트 |
 | `agrune_read` | 페이지를 마크다운으로 읽기 |
 | `agrune_config` | 런타임 시각 설정 변경 |
+| `agrune_manifest_load` | 런타임에 manifest 를 로드/교체 (owned 앱 외부 케이스) |
+| `agrune_macro_run` | `defineMacro` 로 정의된 복합 플로우 (로그인 등) 실행 |
 
 자가 복구 supervisor 가 세션 재연결·탭 크래시 상황을 감지하면 도구 응답에 `recovered` 플래그가 붙어 반환됩니다.
 
@@ -206,12 +278,15 @@ node packages/mcp/dist/bin/agrune-mcp.js
 
 - `pnpm test` — 유닛·통합 테스트
 - `pnpm test:e2e` — Playwright E2E 하네스 (v1.1 phase 9 에서 추가)
-- `pnpm lint:annotations` — `data-agrune-*` 어노테이션 linter (`@agrune/core`)
+- `agrune manifest validate <file>` — manifest target shape + live DOM 매칭 검증 (`@agrune/manifest`)
+- `pnpm lint:annotations` — 외부 소비자용 `@agrune/core/annotation-lint` build-linter (agrune 모노레포 자체에서는 legacy 호환 체크 용도)
 
 ## 관련 디렉터리
 
 - [packages/mcp/README.md](./packages/mcp/README.md): `@agrune/mcp` 패키지 설명
-- [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md): 공통 어노테이션 워크플로
+- [.agents/skills/manifest/SKILL.md](./.agents/skills/manifest/SKILL.md): AI 에이전트 manifest authoring skill (authoritative source)
+- [workflows/annotate/WORKFLOW.md](./workflows/annotate/WORKFLOW.md): 하네스 중립 manifest workflow 요약판
+- [packages/e2e/fixtures/todomvc/manifest.ts](./packages/e2e/fixtures/todomvc/manifest.ts): TodoMVC reference manifest
 - [docs/notes/](./docs/notes): v1.0 시점의 아카이브 문서. 현재 아키텍처는 본 README 기준
 
 ## 개인정보 처리방침
