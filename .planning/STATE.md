@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 17-02-PLAN.md (e2e bootstrap shim → manifest-only + fixture 의미 반전)
-last_updated: "2026-04-19T16:00:50Z"
-last_activity: 2026-04-19 -- Phase 17 Plan 02 complete (e2e bootstrap manifest-only)
+stopped_at: Completed 17-03-PLAN.md (루트 문서 7개 manifest 재작성 + SOT pointer 배치)
+last_updated: "2026-04-19T16:14:02Z"
+last_activity: 2026-04-19 -- Phase 17 Plan 03 complete (docs manifest-centric rewrite)
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 25
-  completed_plans: 23
-  percent: 92
+  completed_plans: 24
+  percent: 96
 ---
 
 # Project State
@@ -27,13 +27,13 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
 Phase: 17 (remove) — EXECUTING
-Plan: 3 of 4 (17-01 ✓ runtime/browser src 삭제, 17-02 ✓ e2e bootstrap manifest-only)
-Status: Executing Phase 17
-Last activity: 2026-04-19 -- Phase 17 Plan 02 complete (e2e bootstrap manifest-only)
+Plan: 4 of 4 (17-01 ✓ runtime/browser src 삭제, 17-02 ✓ e2e bootstrap manifest-only, 17-03 ✓ 루트 문서 7개 manifest 재작성 + SOT pointer)
+Status: Executing Phase 17 (last plan 17-04 남음)
+Last activity: 2026-04-19 -- Phase 17 Plan 03 complete (docs manifest-centric rewrite)
 
 브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거. Phase 18은 schema stable 확인 후 공개.
 
-다음 단계: 17-03 (README / AGENTS / PRIVACY / docs/* 재작성 + user-flow fixture manifest 주입으로 5개 pre-existing e2e fail 해소).
+다음 단계: 17-04 (외부 `.github/profile/README.md` sync + 외부 `skills/annotate/` 폐기 지침 + regression guard script + `lint:annotations` script 엔트리 삭제 결정).
 
 ## Accumulated Context
 
@@ -70,6 +70,11 @@ Recent decisions carrying forward:
 - [Phase 16-04]: TodoMVC fixture는 `@ts-nocheck` + e2e tsconfig include 밖 — `@agrune/e2e` 가 react/@agrune/react peerDep 없음. manifest.ts 는 standalone `tsc` 로 컴파일 검증. 실제 실행은 README.md recipe 로 별도 Vite 프로젝트 lift.
 - [Phase 16-04]: Skill 위치 `.agents/skills/manifest/` (Decision C) — 코드와 skill 진화를 git 으로 같이 추적. Legacy `skills/annotate/` 은 Phase 17 까지 병행.
 - [Phase 16-04]: Precision/recall CI threshold = 0.90/0.95 (plan spec), 실측 = 1.000/1.000. Headroom 은 미세 regression 은 허용하되 5–10% 이상 FP/FN 증가 시 CI fail.
+- [Phase 17-03]: `workflows/annotate/WORKFLOW.md` 파일명/디렉터리명 보존 — 외부 하네스 어댑터가 이미 링크해둔 경우 breaking 방지. 내용은 manifest-centric 으로 재작성 + 최상단에 `.agents/skills/manifest/SKILL.md` authoritative pointer.
+- [Phase 17-03]: `pnpm lint:annotations` script 엔트리 자체 보존 (package.json L10 + README L282 + AGENTS L50) — 본 plan 은 본문 설명만 rephrase. 삭제 여부는 Wave 4 (17-04) 결정.
+- [Phase 17-03]: PRIVACY.md "browser extension" 2 회 등장 모두 제거 — 첫 건 MCP server 로 교체, 두 번째 negative 문("does not install a browser extension") 은 "does not install any browser add-on" 으로 교체해 Wave 4 regression grep 이 literal 을 0 회로 유지.
+- [Phase 17-03]: Deprecated workflows 섹션 phrasing 전략 — code block 안에 실제 legacy attribute 예시를 쓰지 않고 property-to-field upgrade map (name→targetId / action→actionKinds / group→groupId / sensitive→sensitive) 으로 설명. regression grep 에 걸리지 않으면서 upgrade 의미 전달.
+- [Phase 17-03]: SOT pointer 5 개 진입점 배치 — README (3 위치) / AGENTS (3 위치) / WORKFLOW.md 최상단 블록쿼트 / docs/agent-setup.md / packages/mcp/README. Agent 가 어느 문서로 들어와도 `.agents/skills/manifest/SKILL.md` 로 수렴.
 
 ### Pending Todos
 
@@ -114,17 +119,21 @@ Recent decisions carrying forward:
 - ~~RECORD-05 manifest authoring skill 작성~~ — `.agents/skills/manifest/` + TodoMVC reference fixture (2026-04-19, 수동 검증 게이트)
 - ~~Phase 17-01 runtime+browser src legacy 제거~~ — 9 call-site group 전부 삭제, scanner/builder file 2개 제거, regression spec 2개 신설 (2026-04-19, commit `2b69647`)
 - ~~Phase 17-02 e2e bootstrap shim manifest-only 전환~~ — `helpers.ts` BOOTSTRAP_SOURCE + `idle-boot.html` + `legacy-annotated.html` (의미 반전) + `bootstrap-idle.spec.ts` (assertion 반전) + `annotation-scan.spec.ts` (allow-list 주석). `bootstrap-idle.spec.ts` 3/3 PASS + `annotation-scan.spec.ts` 4/4 PASS (2026-04-19, commits `e59992b`..`402b0e1`)
+- ~~Phase 17-03 루트 문서 7 개 manifest 재작성~~ — README / AGENTS / PRIVACY / workflows/annotate/WORKFLOW / docs/agent-setup / docs/improvement-notes / packages/mcp/README. 치환된 용어 (annotate/어노테이션 → manifest/defineTarget, browser extension → MCP server) vs 유지된 용어 (annotation-lint 패키지명 / KNOWN_AGRUNE_ATTRS / lint:annotations script 엔트리 / docs/notes/ 아카이브) Pitfall 4 원칙 적용. SOT pointer `.agents/skills/manifest/SKILL.md` 를 5 개 진입점에 배치. 8 개 gate 전부 pass (2026-04-19, commits `1302d4c`..`2bc221b`)
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:00:50Z
-Stopped at: Completed 17-02-PLAN.md (e2e bootstrap manifest-only)
+Last session: 2026-04-19T16:14:02Z
+Stopped at: Completed 17-03-PLAN.md (루트 문서 7개 manifest 재작성 + SOT pointer 배치)
 Resume file: None
 
-### Phase 17 Plan 02 — Known Out-of-scope Failures (for 17-03)
+### Phase 17 Plan 03 — Known Out-of-scope (Deferred to 17-04 or later)
 
-`pnpm test:e2e` 전체 suite 에 5 개 pre-existing user-flow spec fail 이 baseline (17-01 이전에도 실패) — 17-02 가 만든 회귀가 아님. 17-03 에서 fixture 에 inline manifest 주입으로 해소 권고:
+17-03 은 "문서 7 개 재작성" 으로 scope 가 한정되어 있어 아래 항목은 의도적으로 17-04 또는 별도 plan 으로 이관:
 
-- `packages/e2e/tests/user-flow/fill-real.spec.ts` (3 개) — tricky-inputs fixture 의 `cc`/`bio`/`pw` target 이 snapshot 에 없음
-- `packages/e2e/tests/user-flow/act-overlay.spec.ts` (1 개) — overlay-modal target resolution
-- `packages/e2e/tests/user-flow/manifest-inject.spec.ts` happy-path (1 개) — `manifest_load` 직후 snapshot refresh 타이밍
+- `package.json` 의 `lint:annotations` script 엔트리 삭제 여부 — 17-04 결정 예정 (RESEARCH Pitfall 6, 권고 = 삭제 + README L282 / AGENTS L50 해당 line 도 함께 삭제)
+- 외부 `/Users/chenjing/dev/agrune/.github/profile/README.md` sync — 17-04 파일 수정, 사용자 수동 push
+- 외부 `/Users/chenjing/dev/agrune/skills/skills/annotate/` 폐기 지침 — 17-04 `.planning/phases/17-remove/external-sync-instructions.md` 생성 (사용자 수동 PR)
+- Regression guard script (`scripts/regression-guard/no-legacy-data-agrune.sh` + `data-agrune-allowlist.txt`) — 17-04 신설
+- 17-02 handoff 의 5 개 pre-existing user-flow E2E fail (tricky-inputs / overlay-modal / manifest-inject) 은 17-03 frontmatter scope 외라 본 plan 에서 처리 안 함 — 별도 plan 또는 17-04 rewrite pass 에서 fixture 에 inline manifest 주입으로 해소 필요
+- `manifest_load` happy-path refresh 타이밍 디버깅 — 별도 plan 또는 Phase 18 research
