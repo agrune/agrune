@@ -26,21 +26,43 @@ fi
 # playwright-report (playwright runtime output — already gitignored).
 # `cd "$ROOT"` so grep emits *relative* paths (`packages/...`) that match
 # the allow-list entries, which are also stored relative to repo root.
+#
+# grep exit codes: 0 = match, 1 = no match, 2+ = real error (permission
+# denied, unreadable binary, OOM, etc). WR-02 review: the previous
+# `|| true` swallowed `2+` errors and silently turned a malfunctioning
+# scan into "no matches" → false-OK in CI. Distinguish the cases.
+set +e
 MATCHES=$(cd "$ROOT" && grep -rEn 'data-agrune-' 'packages' \
   --include='*.ts' --include='*.tsx' --include='*.js' --include='*.html' --include='*.md' \
   --exclude-dir=node_modules --exclude-dir=dist \
-  --exclude-dir=test-results --exclude-dir=playwright-report || true)
+  --exclude-dir=test-results --exclude-dir=playwright-report)
+grep_rc=$?
+set -e
+if [[ $grep_rc -gt 1 ]]; then
+  echo "ERROR: grep failed with exit $grep_rc while scanning $ROOT/packages" >&2
+  exit 2
+fi
 
 # Apply allow-list using awk (exact path-prefix match, anchored by ':').
 # awk handles arbitrary path characters without the regex-metacharacter
 # escape hazards of `grep -E` + bash parameter expansion (notably `?` and
 # `*` inside `${var//pat/repl}` are bash globs, not literals).
+#
+# WR-02 hardening: surface awk and printf pipeline failures through
+# `pipefail` — no `|| true` here on purpose. If awk exits non-zero
+# (allowlist open failed, malformed input, etc.), the script must fail.
+set +e
 MATCHES=$(printf '%s\n' "$MATCHES" | awk -v allowlist="$ALLOWLIST" '
   BEGIN {
-    while ((getline l < allowlist) > 0) {
+    allow_count = 0
+    while ((rc = (getline l < allowlist)) > 0) {
       sub(/#.*$/, "", l)
       sub(/[[:space:]]+$/, "", l)
-      if (l != "") allow[l] = 1
+      if (l != "") { allow[l] = 1; allow_count++ }
+    }
+    if (rc < 0) {
+      print "awk: failed to read allowlist " allowlist > "/dev/stderr"
+      exit 2
     }
     close(allowlist)
   }
@@ -51,6 +73,12 @@ MATCHES=$(printf '%s\n' "$MATCHES" | awk -v allowlist="$ALLOWLIST" '
     if (!(path in allow)) print
   }
 ')
+awk_rc=$?
+set -e
+if [[ $awk_rc -ne 0 ]]; then
+  echo "ERROR: allow-list filter (awk) failed with exit $awk_rc" >&2
+  exit 2
+fi
 
 if [[ -n "$MATCHES" ]]; then
   echo "Phase 17 regression: legacy 'data-agrune-' found outside allow-list:" >&2
