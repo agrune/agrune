@@ -24,9 +24,15 @@
 //   PR_AUTHOR             PR author login (github.event.pull_request.user.login)
 
 import { readFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import * as core from '@actions/core'
 import { Octokit } from '@octokit/rest'
+
+// CR-01 (review 18): fork PR 로부터 받는 f.filename 이 `execSync` 쉘 문자열에
+// interpolate 되던 취약점을 막는다. `pull_request_target` 은 repo-scoped
+// GITHUB_TOKEN 을 env 로 노출하므로, 파일명에 쉘 메타문자가 섞이는 순간
+// 토큰 유출 경로가 된다. whitelist regex + execFileSync argv 배열로 차단.
+const MANIFEST_FILENAME_RE = /^manifests\/[A-Za-z0-9][A-Za-z0-9.\-@+]{0,120}\.json$/
 
 const token = process.env.GITHUB_TOKEN
 const slug = process.env.GITHUB_REPOSITORY
@@ -77,8 +83,15 @@ function collectSensitiveMap(entry) {
 }
 
 function readBeforeJson(relPath) {
+  // Defense-in-depth: re-check whitelist at call site even though the file
+  // list is pre-filtered. Cheap and prevents silent regressions if a future
+  // caller forgets the filter.
+  if (!MANIFEST_FILENAME_RE.test(relPath)) return null
   try {
-    const raw = execSync(`git show origin/main:${relPath}`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] })
+    const raw = execFileSync('git', ['show', `origin/main:${relPath}`], {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
     return JSON.parse(raw)
   } catch {
     return null
@@ -105,12 +118,30 @@ function isPrivateHost(hostname) {
   return false
 }
 
-function readMaintainers() {
+/**
+ * CR-02 (review 18): fetch maintainers.json from the BASE repo's `main`
+ * branch, never the fork's PR tree. A fork PR author could otherwise include
+ * their own login in `maintainers.json` and bypass `velocity:holddown`.
+ *
+ * The same pattern MUST apply to any future policy file (allow-lists,
+ * auto-merge configs, etc.) read from inside `pull_request_target`.
+ */
+async function readMaintainersFromBase() {
   try {
-    const raw = readFileSync('maintainers.json', 'utf-8')
+    const { data } = await octokit.repos.getContent({
+      owner,
+      repo,
+      path: 'maintainers.json',
+      ref: 'main',
+    })
+    if (Array.isArray(data) || data.type !== 'file' || typeof data.content !== 'string') {
+      return new Set()
+    }
+    const raw = Buffer.from(data.content, 'base64').toString('utf-8')
     const parsed = JSON.parse(raw)
     return new Set(parsed.maintainers ?? [])
-  } catch {
+  } catch (err) {
+    core.warning(`failed to read maintainers.json from base: ${err.message}`)
     return new Set()
   }
 }
@@ -124,9 +155,10 @@ async function main() {
     pull_number: prNumber,
     per_page: 100,
   })
-  const manifestFiles = files.filter(
-    (f) => f.filename.startsWith('manifests/') && f.filename.endsWith('.json'),
-  )
+  // CR-01 (review 18): reject fork-supplied filenames that are not a pure
+  // `manifests/<host>@<version>.json` shape early. Prevents any downstream
+  // shell / path / URL interpolation from seeing attacker-controlled bytes.
+  const manifestFiles = files.filter((f) => MANIFEST_FILENAME_RE.test(f.filename))
   if (manifestFiles.length === 0) {
     core.notice('PR does not touch manifests/** — nothing to analyze')
     return 0
@@ -197,7 +229,7 @@ async function main() {
   }
 
   // 2. Velocity check — new author, recent PR, not maintainer
-  const maintainers = readMaintainers()
+  const maintainers = await readMaintainersFromBase()
   if (!maintainers.has(prAuthor)) {
     try {
       const { data: authorPrs } = await octokit.search.issuesAndPullRequests({
