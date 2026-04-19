@@ -44,9 +44,9 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### REPEAT — Dynamic Lists
 
-- [ ] **REPEAT-01**: `defineRepeat` runtime expander — DOM enumerate + textContent anchor로 N 인스턴스 snapshot
-- [ ] **REPEAT-02**: `strategy: 'dom'|'virtualized'` — virtualized는 viewport 내 row + `aria-rowcount`/`aria-setsize` logical-size hint (fiber data-state 접근은 v0.6+)
-- [ ] **REPEAT-03**: Snapshot group의 `repeatInstance` 필드로 인스턴스 식별
+- [x] **REPEAT-01**: `defineRepeat` runtime expander — DOM enumerate + textContent anchor로 N 인스턴스 snapshot
+- [x] **REPEAT-02**: `strategy: 'dom'|'virtualized'` — virtualized는 viewport 내 row + `aria-rowcount`/`aria-setsize` logical-size hint (fiber data-state 접근은 v0.6+)
+- [x] **REPEAT-03**: Snapshot group의 `repeatInstance` 필드로 인스턴스 식별
 
 ### RECORD — Authoring UX
 
@@ -141,9 +141,9 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | MACRO-02 | Phase 14 | Complete |
 | MACRO-03 | Phase 14 | Complete |
 | MACRO-04 | Phase 14 | Complete |
-| REPEAT-01 | Phase 15 | Pending |
-| REPEAT-02 | Phase 15 | Pending |
-| REPEAT-03 | Phase 15 | Pending |
+| REPEAT-01 | Phase 15 | Complete |
+| REPEAT-02 | Phase 15 | Complete |
+| REPEAT-03 | Phase 15 | Complete |
 | RECORD-01 | Phase 16 | Pending |
 | RECORD-02 | Phase 16 | Pending |
 | RECORD-03 | Phase 16 | Pending |
