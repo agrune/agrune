@@ -4,6 +4,7 @@ import type {
   BrowserDriver,
   CommandResult,
   FocusResult,
+  MacroRunResponse,
   PageSnapshot,
   Session,
 } from '@agrune/core'
@@ -369,6 +370,38 @@ export class CdpDriver implements BrowserDriver {
 
     await this.evaluateInSession(target.sessionId, expression)
     await this.refreshSnapshot(tabId)
+  }
+
+  async runMacro(
+    tabId: number,
+    macroId: string,
+    params: Record<string, unknown> = {},
+  ): Promise<MacroRunResponse> {
+    const target = this.targetManager.getTarget(tabId)
+    if (!target?.sessionId) {
+      throw createCommandError('TAB_NOT_FOUND', `No session for tabId ${tabId}.`, { tabId })
+    }
+
+    const macroIdLiteral = JSON.stringify(macroId)
+    // JSON.stringify 이중 인코딩 + U+2028/U+2029 이스케이프 (T-12-05 회귀 방지)
+    const paramsJson = JSON.stringify(JSON.stringify(params))
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')
+
+    const expression =
+      `(async () => {` +
+      `  const rt = window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}];` +
+      `  if (!rt || typeof rt.runMacro !== 'function') {` +
+      `    return { status: 'step-error', stepIndex: -1, error: 'runtime not ready', macroId: ${macroIdLiteral}, stepCount: 0 };` +
+      `  }` +
+      `  return await rt.runMacro({ macroId: ${macroIdLiteral}, params: JSON.parse(${paramsJson}) });` +
+      `})()`
+
+    const raw = await this.evaluateInSession<MacroRunResponse>(target.sessionId, expression)
+    if (!raw || typeof raw !== 'object' || typeof raw.status !== 'string') {
+      throw createCommandError('INVALID_COMMAND', 'MacroRunner returned invalid result.', { raw: raw as unknown })
+    }
+    return raw
   }
 
   private async doConnect(): Promise<void> {
