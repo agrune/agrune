@@ -29,11 +29,11 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 ### REACT — `@agrune/react` Root-Import
 
-- [ ] **REACT-01**: `bippy` 통합 — DOM ↔ Fiber, `FiberIdentityIndex` (path descriptor 기반, 참조 아님) 빌드
-- [ ] **REACT-02**: `window.__agrune_identity__` bridge가 `Object.defineProperty` lock으로 runtime에 publish
-- [ ] **REACT-03**: SSR hydration barrier — `readyState` + root fiber 존재 확인 후 bridge activate
-- [ ] **REACT-04**: 2단계 prod guard — `AGRUNE_PROD_ENABLED` 빌드 env + `localStorage['agrune.prod.consent']` 런타임 token 동시 통과해야 활성화
-- [ ] **REACT-05**: React 17/18/19 matrix CI fixture + memo/forwardRef/portal/Suspense 엣지케이스 전부 pass
+- [x] **REACT-01**: `bippy` 통합 — DOM ↔ Fiber, `FiberIdentityIndex` (path descriptor 기반, 참조 아님) 빌드
+- [x] **REACT-02**: `window.__agrune_identity__` bridge가 `Object.defineProperty` lock으로 runtime에 publish
+- [x] **REACT-03**: SSR hydration barrier — `readyState` + root fiber 존재 확인 후 bridge activate
+- [x] **REACT-04**: 2단계 prod guard — `AGRUNE_PROD_ENABLED` 빌드 env + `localStorage['agrune.prod.consent']` 런타임 token 동시 통과해야 활성화
+- [x] **REACT-05**: React 17/18/19 matrix CI fixture + memo/forwardRef/portal/Suspense 엣지케이스 전부 pass
 
 ### MACRO — Composed Flows + Sensitive
 
@@ -132,11 +132,11 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | RESOLVE-04 | Phase 11 | Complete |
 | INJECT-01 | Phase 12 | Complete |
 | INJECT-02 | Phase 12 | Complete |
-| REACT-01 | Phase 13 | Pending |
-| REACT-02 | Phase 13 | Pending |
-| REACT-03 | Phase 13 | Pending |
-| REACT-04 | Phase 13 | Pending |
-| REACT-05 | Phase 13 | Pending |
+| REACT-01 | Phase 13 | Complete |
+| REACT-02 | Phase 13 | Complete |
+| REACT-03 | Phase 13 | Complete |
+| REACT-04 | Phase 13 | Complete |
+| REACT-05 | Phase 13 | Complete |
 | MACRO-01 | Phase 14 | Pending |
 | MACRO-02 | Phase 14 | Pending |
 | MACRO-03 | Phase 14 | Pending |

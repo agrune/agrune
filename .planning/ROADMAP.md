@@ -34,7 +34,7 @@
 
 - [x] **Phase 11: MANIFEST** — `@agrune/manifest` SDK + v3 schema + CSS-only runtime resolver
 - [x] **Phase 12: INJECT** — CDP manifest preload + `agrune_manifest_load` MCP tool + PageSnapshot v3 landing
-- [ ] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
+- [x] **Phase 13: REACT** — `@agrune/react` root-import + fiber identity bridge + 2단계 prod guard
 - [ ] **Phase 14: MACRO** — in-page MacroRunner + `agrune_macro_run` + runtime sensitive mask (override 불가)
 - [ ] **Phase 15: REPEAT** — `defineRepeat` runtime expander + viewport-only virtualized strategy
 - [ ] **Phase 16: RECORD** — DevTools recorder overlay + `agrune manifest dev` watcher + AI authoring skill rewrite
@@ -88,9 +88,9 @@
   4. `bippy` 기반 `FiberIdentityIndex` 가 path descriptor(displayName + key props + index)로 저장되어, `React.memo(forwardRef(...))` / portal / Suspense / compound component 엣지케이스 fixture가 React 17/18/19 matrix CI에서 전부 pass한다.
   5. `window.__agrune_identity__` 가 `Object.defineProperty({ configurable: false, writable: false })` lock으로 게시되어 프로토타입 오염/덮어쓰기가 불가능하다.
 **Plans**: 3 plans
-- [ ] 13-01-PLAN.md — @agrune/manifest SelectorLadder.fiber + FiberIdentityPath 타입 + runtime resolver fiber-first branch (REACT-01 schema+resolver groundwork)
-- [ ] 13-02-PLAN.md — @agrune/react 패키지 초기화 + FiberIdentityIndex (bippy) + identity-bridge lock + prod-guard + SSR barrier + <AgruneDevtools /> 컴포넌트 (REACT-01/02/03/04)
-- [ ] 13-03-PLAN.md — React 17/18/19 matrix fixture + memo/forwardRef/portal/Suspense/compound 엣지케이스 + .github/workflows/react-matrix.yml (REACT-05)
+- [x] 13-01-PLAN.md — @agrune/manifest SelectorLadder.fiber + FiberIdentityPath 타입 + runtime resolver fiber-first branch (REACT-01 schema+resolver groundwork)
+- [x] 13-02-PLAN.md — @agrune/react 패키지 초기화 + FiberIdentityIndex (bippy) + identity-bridge lock + prod-guard + SSR barrier + <AgruneDevtools /> 컴포넌트 (REACT-01/02/03/04)
+- [x] 13-03-PLAN.md — React 17/18/19 matrix fixture + memo/forwardRef/portal/Suspense/compound 엣지케이스 + .github/workflows/react-matrix.yml (REACT-05)
 **UI hint**: yes
 
 ### Phase 14: MACRO
@@ -171,7 +171,7 @@
 | 10. Docs & Distribution | v1.1 | 5/5 | Complete | 2026-04-18 |
 | 11. MANIFEST | v0.5 | 5/5 | Complete | 2026-04-19 |
 | 12. INJECT | v0.5 | 3/3 | Complete | 2026-04-19 |
-| 13. REACT | v0.5 | 0/3 | Planned | — |
+| 13. REACT | v0.5 | 3/3 | Complete | 2026-04-19 |
 | 14. MACRO | v0.5 | 0/? | Not started | — |
 | 15. REPEAT | v0.5 | 0/? | Not started | — |
 | 16. RECORD | v0.5 | 0/? | Not started | — |
