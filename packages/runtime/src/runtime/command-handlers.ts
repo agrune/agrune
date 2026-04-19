@@ -370,6 +370,17 @@ export async function withDescriptor(
 
   const resolvedTarget = resolveRuntimeTarget(deps.getDescriptors(), targetId)
   if (!resolvedTarget) {
+    // Phase 15-03: repeat key 기반 lookup 실패 → REPEAT_INDEX_OUT_OF_RANGE
+    const parsed = parseRuntimeTargetId(targetId)
+    if (parsed.repeatId && parsed.repeatKey) {
+      return buildErrorResult(
+        commandId,
+        'REPEAT_INDEX_OUT_OF_RANGE',
+        `repeat "${parsed.repeatId}": key "${parsed.repeatKey}" not found in current snapshot.`,
+        currentSnapshot,
+        targetId,
+      )
+    }
     return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${targetId}`, currentSnapshot, targetId)
   }
 

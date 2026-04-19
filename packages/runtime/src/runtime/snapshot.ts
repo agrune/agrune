@@ -333,11 +333,42 @@ export function toRuntimeTargetId(
   return `${baseTargetId}${REPEATED_TARGET_ID_DELIMITER}${index}`
 }
 
-export function parseRuntimeTargetId(targetId: string): {
+export interface ParsedRuntimeTargetId {
   baseTargetId: string
   index: number
   hasExplicitIndex: boolean
-} {
+  /** Phase 15-03 (REPEAT-03): repeat key 기반 targetId 시 존재. */
+  repeatId?: string
+  /** Phase 15-03 (REPEAT-03): repeat key 기반 targetId 시 존재. */
+  repeatKey?: string
+}
+
+export function parseRuntimeTargetId(targetId: string): ParsedRuntimeTargetId {
+  // Phase 15-03: repeat key 기반 delimiter 우선 체크 (index delimiter보다 먼저)
+  const keyDelimIdx = targetId.indexOf(REPEATED_TARGET_KEY_DELIMITER)
+  if (keyDelimIdx > 0) {
+    const repeatId = targetId.slice(0, keyDelimIdx)
+    const rest = targetId.slice(keyDelimIdx + REPEATED_TARGET_KEY_DELIMITER.length)
+    // rest에서 leftmost '.' 로 repeatKey / baseTargetId 분리
+    const dotIdx = rest.indexOf('.')
+    if (dotIdx > 0) {
+      const repeatKey = rest.slice(0, dotIdx)
+      const baseTargetId = rest.slice(dotIdx + 1)
+      if (repeatId && repeatKey && baseTargetId) {
+        return {
+          baseTargetId,
+          index: 0,
+          hasExplicitIndex: false,
+          repeatId,
+          repeatKey,
+        }
+      }
+    }
+    // 잘못된 형식 (key 없음 또는 dot 없음) → fallback (opaque, index=0)
+    return { baseTargetId: targetId, index: 0, hasExplicitIndex: false }
+  }
+
+  // 기존 index-delim 경로 (회귀 없음)
   const markerIndex = targetId.lastIndexOf(REPEATED_TARGET_ID_DELIMITER)
   if (markerIndex < 0) {
     return {
@@ -369,7 +400,29 @@ export function resolveRuntimeTarget(
   descriptors: TargetDescriptor[],
   requestedTargetId: string,
 ): RuntimeTargetMatch | null {
-  const { baseTargetId, index } = parseRuntimeTargetId(requestedTargetId)
+  const parsed = parseRuntimeTargetId(requestedTargetId)
+
+  // Phase 15-03: repeat key 기반 lookup
+  if (parsed.repeatId && parsed.repeatKey) {
+    const match = descriptors.find(
+      (d) =>
+        d.repeatInstance != null &&
+        d.repeatInstance.repeatId === parsed.repeatId &&
+        d.repeatInstance.key === parsed.repeatKey &&
+        d.target.targetId === parsed.baseTargetId,
+    )
+    if (!match) return null
+    const elements = findElements(match)
+    if (elements.length === 0) return null
+    return {
+      descriptor: match,
+      element: elements[0],
+      targetId: requestedTargetId,
+    }
+  }
+
+  // 기존 index-based 경로 (회귀 없음)
+  const { baseTargetId, index } = parsed
   const descriptor = descriptors.find(entry => entry.target.targetId === baseTargetId)
   if (!descriptor) {
     return null
