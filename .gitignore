@@ -7,4 +7,4 @@ coverage/
 testbeds/
 .codemap/
 packages/e2e/test-results/
-packages/e2e/playwright-report/
+packages/e2e/playwright-report/packages/e2e/fixtures/runtime.bundle.js

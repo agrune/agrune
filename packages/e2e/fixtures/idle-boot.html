@@ -1,0 +1,57 @@
+<!-- agrune idle boot fixture -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Agrune Idle Boot Fixture</title>
+  <script src="/runtime.bundle.js"></script>
+</head>
+<body>
+  <h1>No annotations here</h1>
+  <p>This page intentionally has no agrune annotations. Runtime must still boot (idle).</p>
+  <button class="plain-button">Plain button (not annotated)</button>
+  <script>
+    // Simulate bootstrap source inline — in real CDP quick mode the bootstrap
+    // is injected by CdpRuntimeInjector. In this fixture we replicate the
+    // critical path: resolveManifest() -> installPageAgentRuntime() ->
+    // window.__agrune_runtime_state__ = { hasManifest, source }.
+    (function () {
+      var runtimeApi = window.__agrune_runtime__;
+      if (!runtimeApi || typeof runtimeApi.buildEmptyManifest !== 'function') {
+        // Fail loudly so the test surfaces a missing export instead of hanging.
+        window.__agrune_runtime_state__ = { hasManifest: false, source: 'runtime-missing' };
+        return;
+      }
+      function resolveManifest() {
+        if (window.__agrune_manifest__) return { manifest: window.__agrune_manifest__, hasManifest: true, source: 'window' };
+        if (window.__agrune_preload_manifest__) return { manifest: window.__agrune_preload_manifest__, hasManifest: true, source: 'preload' };
+        try {
+          var legacy = runtimeApi.buildManifest(
+            runtimeApi.scanAnnotations(document),
+            runtimeApi.scanGroups(document)
+          );
+          if (legacy && legacy.groups && legacy.groups.some(function (g) { return g.targets && g.targets.length > 0; })) {
+            return { manifest: legacy, hasManifest: true, source: 'inline' };
+          }
+        } catch (e) {}
+        return { manifest: runtimeApi.buildEmptyManifest(), hasManifest: false, source: 'idle' };
+      }
+      function install() {
+        var resolved = resolveManifest();
+        runtimeApi.installPageAgentRuntime(resolved.manifest, { cdpPostMessage: function () {} });
+        Object.defineProperty(window, '__agrune_runtime_state__', {
+          value: { hasManifest: resolved.hasManifest, source: resolved.source },
+          writable: false,
+          configurable: true,
+          enumerable: true,
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', install, { once: true });
+      } else {
+        install();
+      }
+    })();
+  </script>
+</body>
+</html>
