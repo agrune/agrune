@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.5
 milestone_name: Manifest Pivot
 status: executing
-stopped_at: Completed 17-04-PLAN.md (regression guard + CI 배선 + 외부 profile sync + external-sync-instructions)
-last_updated: "2026-04-19T16:32:31Z"
-last_activity: 2026-04-19 -- Phase 17 complete (REMOVE wave 4 closed)
+stopped_at: Completed 18-01-PLAN.md (@agrune/registry library layer — schema/content-hash/cache/lockfile/registry-client/staleness + 32 tests green)
+last_updated: "2026-04-19T17:30:33Z"
+last_activity: 2026-04-19 -- Phase 18 Plan 01 complete (REGISTRY library scaffold)
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 25
-  completed_plans: 25
-  percent: 100
+  total_plans: 29
+  completed_plans: 26
+  percent: 90
 ---
 
 # Project State
@@ -26,13 +26,13 @@ See: `.planning/PROJECT.md` (updated 2026-04-19 for v0.5 Manifest Pivot kickoff)
 ## Current Position
 
 Milestone: v0.5 Manifest Pivot — ACTIVE (kickoff 2026-04-19)
-Phase: 17 (REMOVE) — COMPLETE (4/4 plans)
-Status: Phase 17 closed 2026-04-19. 다음 Phase 18 (REGISTRY) 계획 대기.
-Last activity: 2026-04-19 -- Phase 17 Plan 04 complete (regression guard + CI 배선 + 외부 profile sync)
+Phase: 18 (REGISTRY) — IN PROGRESS (1/4 plans)
+Status: Phase 18 Plan 01 completed 2026-04-19. Library layer (`@agrune/registry`) 착지 완료. 다음 Plan 02 (CLI 서브커맨드) 대기.
+Last activity: 2026-04-19 -- Phase 18 Plan 01 complete (@agrune/registry scaffold + schema + content-hash + cache + lockfile + registry-client + staleness, 32 tests green)
 
-브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족.
+브랜치 `feat/v0.5-manifest`에서 진행. Phase 11 → 12 → 13이 DAG의 sequential spine (schema → CDP injector → React bridge). Phase 13 이후 Phase 14/15/16은 resolver가 안정된 뒤 확장. Phase 17은 authoring 대안 완성 후 legacy 제거 (4/4 complete). Phase 18은 schema stable 확인 후 공개 — 전제 조건 (schema stable + inline 경로 0 + regression guard 활성 + 용어 전환) 모두 충족. Plan 01 (library) 완료로 CLI·seed·PR bot 3 wave 가 동일 schema/hash/validator 를 공유.
 
-다음 단계: Phase 18 계획 분해 (`/gsd-plan-phase 18`) — registry 공개 + governance + seed manifest. 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`).
+다음 단계: Phase 18 Plan 02 (`agrune maps {add,types,doctor,submit}` CLI). 라이브러리 18 runtime export 를 얇은 argparse wrapper 로 consume. 사용자 pending: 외부 `.github` repo push + 외부 `skills/annotate/` 폐기 (instructions: `.planning/phases/17-remove/external-sync-instructions.md`).
 
 ## Accumulated Context
 
@@ -80,12 +80,21 @@ Recent decisions carrying forward:
 - [Phase 17-04]: `packages/mcp/README.md` 의 `data-agrune-` literal phrase 제거 — 17-03 Deprecated workflows phrasing 전략과 일관. "legacy HTML data attribute (v0.4 까지 사용하던 inline 어노테이션 prefix 시리즈)" 로 교체.
 - [Phase 17-04]: 외부 `.github/profile/README.md` 의 `browser extension` literal 2 건 모두 "browser add-on" 으로 교체 — 17-03 PRIVACY 결정과 동일한 regex-safe 전략.
 - [Phase 17-04]: 외부 skills repo 파일 편집 수행 안 함 — working tree 의 pre-existing unrelated 변경 (marketplace.json, .mcp.json, mcp-server build artefacts) 때문에 agent 자동 commit 시 위험. instructions 에 사용자 선조건 resolve 를 명시하는 safer default 선택.
+- [Phase 18-01]: tier × allowedEnvironments cross-field 는 zod `.superRefine` 로 구조적 강제 — verified 만 prod 허용, community/unlisted 는 dev only. 에러 메시지 path 로 사용자에게 정확한 수정 지점 지시 (Pitfall 7 근본 차단).
+- [Phase 18-01]: v0.5 MVP 는 exact semver + 'latest' 만 지원, range (`^1.2.0`) 는 v0.6+ 로 연기 (RESEARCH Open Q 5). v0.5 스코프 축소로 CLI 의존성 최소화.
+- [Phase 18-01]: 환경 변수 네이밍 확정 — `AGRUNE_CACHE_DIR` (cache override, 기본 `~/.agrune/maps`), `AGRUNE_REGISTRY_BASE_URL` (mirror override, 기본 `raw.githubusercontent.com/agrune/maps/main`, HTTPS-only).
+- [Phase 18-01]: Trust-boundary 재검증 일관성 — writeCache 가 검증한 바이트라도 readCache 는 RegistryEntrySchema 재실행 (T-18-05 방어). 동일 패턴을 readLockfile + fetchRegistryEntry 에도 적용.
+- [Phase 18-01]: Cache host/version strict regex 화이트리스트 (`HOST_PATTERN` + `VERSION_PATTERN`) — slash, `..`, null byte 가 file path 구성 전에 리젝 (T-18-10 path traversal).
+- [Phase 18-01]: Atomic lockfile write (`tmp-<6hex>.json` + rename + catch-cleanup) — 동시 CLI 실행 시 tmp 충돌 방지 + partial write 방지 (T-18-09). 추후 cache write 에서도 재사용 가능 패턴.
+- [Phase 18-01]: registry-client `fetch` impl optional override 지원 — Plan 04 PR bot 의 record+replay 테스트 바닥 사전 깔기. 기본은 `globalThis.fetch` (Node 22 built-in).
 
 ### Pending Todos
 
 - 외부 `/Users/chenjing/dev/agrune/.github` repo push (사용자 수동 후속 조치) — 로컬 main 이 origin/main 대비 2 commits 앞섬 (v1.1 DOCS-02 + Phase 17-04). 상세: `.planning/phases/17-remove/external-sync-instructions.md`
 - 외부 `/Users/chenjing/dev/agrune/skills` repo 에서 `skills/annotate/` 디렉터리 폐기 — 사용자 수동 (pre-existing 변경 먼저 resolve 후). 상세 명령: `.planning/phases/17-remove/external-sync-instructions.md`
-- Phase 18 계획 분해 (`/gsd-plan-phase 18`) — registry 공개 + governance + seed manifest
+- Phase 18 Plan 02 실행 (`agrune maps {add,types,doctor,submit}` CLI — library 18 runtime export 를 얇은 argparse wrapper 로 consume)
+- Phase 18 Plan 03 실행 (registry-seed/ 10 seed manifest + REGISTRY_GOVERNANCE.md + validate-seed 스크립트)
+- Phase 18 Plan 04 실행 (PR bot + weekly health check + CODEOWNERS + Phase 18 close)
 - Registry seed manifest 선정 기준 확정 (Phase 18 research-phase 후보)
 - RECORD-05 TodoMVC 데모 수동 검증 (실제 skill 호출 → README 체크리스트 대조) — 사용자 실행
 - Corpus 확장 (v0.6+): `name=cvc`, `인증번호`, Japanese `パスワードの確認` substring mode 등 documented gap 해결
@@ -129,11 +138,12 @@ Recent decisions carrying forward:
 - ~~Phase 17-03 루트 문서 7 개 manifest 재작성~~ — README / AGENTS / PRIVACY / workflows/annotate/WORKFLOW / docs/agent-setup / docs/improvement-notes / packages/mcp/README. 치환된 용어 (annotate/어노테이션 → manifest/defineTarget, browser extension → MCP server) vs 유지된 용어 (annotation-lint 패키지명 / KNOWN_AGRUNE_ATTRS / lint:annotations script 엔트리 / docs/notes/ 아카이브) Pitfall 4 원칙 적용. SOT pointer `.agents/skills/manifest/SKILL.md` 를 5 개 진입점에 배치. 8 개 gate 전부 pass (2026-04-19, commits `1302d4c`..`2bc221b`)
 - ~~Phase 17-04 regression guard + CI 배선 + 외부 profile sync~~ — `scripts/regression-guard/no-legacy-data-agrune.sh` + `data-agrune-allowlist.txt` (27 entries / 5 categories) / `pnpm lint:no-legacy` wire / `.github/workflows/ci.yml` build-test step 교체 / 외부 `.github/profile/README.md` 재작성 (로컬 commit `3d429ba`, push 대기) / `external-sync-instructions.md` 생성. ROADMAP + REQUIREMENTS Phase 17 Complete (2026-04-19, commits `9b32455`..`1f594a0`)
 - ~~Phase 17 REMOVE — 전체 4 waves 완료~~ — REMOVE-01/02/03 requirements 전부 validated. Phase 18 REGISTRY 공개 전제 조건 (schema stable + breaking surface 정리 + regression guard 활성) 충족 (2026-04-19)
+- ~~Phase 18-01 @agrune/registry library scaffold~~ — 신규 pnpm workspace 패키지, `errors` / `content-hash` (sha256 + fast-json-stable-stringify) / `schema` (RegistryEntrySchema + tier×env superRefine) / `cache` (0o700/0o600 + lstat symlink guard + path whitelist) / `lockfile` (atomic tmp+rename + host-sorted) / `registry-client` (HTTPS-only + latest resolver) / `staleness` (7/28/56 day) 착지. 32 unit tests green, workspace 9 패키지 build/typecheck/test 전부 pass, `pnpm lint:no-legacy` exit 0 유지. REGISTRY-03 완전 달성, REGISTRY-02/06 부분 달성 (CLI layer 는 Plan 02). 2026-04-19, commits `e63f719`..`3551b8f` (7 atomic commits).
 
 ## Session Continuity
 
-Last session: 2026-04-19T16:32:31Z
-Stopped at: Completed 17-04-PLAN.md (regression guard + CI 배선 + 외부 profile sync + external-sync-instructions)
+Last session: 2026-04-19T17:30:33Z
+Stopped at: Completed 18-01-PLAN.md (@agrune/registry library layer — schema/content-hash/cache/lockfile/registry-client/staleness + 32 tests green)
 Resume file: None
 
 ### Phase 17 완료 — Phase 18 진입 조건 요약

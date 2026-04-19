@@ -66,7 +66,7 @@ Inline `data-agrune-*` 어노테이션을 완전 폐기하고 외부 manifest + 
 
 - [ ] **REGISTRY-01**: `github.com/agrune/maps` 저장소 구조 초기화 + 10개 seed manifest (유명 사이트 중 low-risk 선정)
 - [ ] **REGISTRY-02**: CLI `agrune maps {add, types, doctor, submit}` 구현
-- [ ] **REGISTRY-03**: `~/.agrune/maps/<host>@<ver>.json` 디스크 캐시 + `agrune.maps.lock.json` content-hash 잠금
+- [x] **REGISTRY-03**: `~/.agrune/maps/<host>@<ver>.json` 디스크 캐시 + `agrune.maps.lock.json` content-hash 잠금
 - [ ] **REGISTRY-04**: `REGISTRY_GOVERNANCE.md` — tier 시스템(verified/community/unlisted), velocity limit(신규 저자 첫 3 PR 30일 holddown), revocation 경로 명시
 - [ ] **REGISTRY-05**: PR bot — `sensitive:false` 변경 자동 하이라이트 + weekly selector health check
 - [ ] **REGISTRY-06**: `agrune maps doctor` — 캐시된 manifest staleness 진단 + 자동 disable 경로
@@ -154,7 +154,7 @@ Roadmap 생성 완료 (2026-04-19) — 37개 requirements 전부 Phases 11-18에
 | REMOVE-03 | Phase 17 | Complete |
 | REGISTRY-01 | Phase 18 | Pending |
 | REGISTRY-02 | Phase 18 | Pending |
-| REGISTRY-03 | Phase 18 | Pending |
+| REGISTRY-03 | Phase 18 | Complete |
 | REGISTRY-04 | Phase 18 | Pending |
 | REGISTRY-05 | Phase 18 | Pending |
 | REGISTRY-06 | Phase 18 | Pending |
