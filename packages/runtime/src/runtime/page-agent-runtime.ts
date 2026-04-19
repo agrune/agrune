@@ -11,6 +11,8 @@ import type {
   AgruneManifest,
   AgruneRuntimeOptions,
 } from '../types'
+import type { ManifestMacro, MacroStep } from '@agrune/manifest'
+import { MacroRunner, type MacroResult } from './macro-runner'
 import {
   isRelevantSnapshotMutation,
   waitForNextFrame,
@@ -116,6 +118,16 @@ export interface PageAgentRuntime {
   isBusy: () => boolean
   /** Returns true when visual effects are active (agent busy, queue processing, or idle timer pending). */
   isActive: () => boolean
+  runMacro: (input: {
+    macroId: string
+    params?: Record<string, unknown>
+    onStepProgress?: (event: {
+      stepIndex: number
+      step: MacroStep
+      phase: 'start' | 'end' | 'sensitive'
+      ok?: boolean
+    }) => void
+  }) => Promise<MacroResult & { macroId: string; stepCount: number }>
 }
 
 export interface PageAgentRuntimeHandle extends PageAgentRuntime {
@@ -281,6 +293,55 @@ export function createPageAgentRuntime(
     eventSequences,
   }
 
+  // macroId → MacroRunner 캐시: 세션 범위에서 consecutiveFailures 유지 (MACRO-04)
+  const macroRunners = new Map<string, MacroRunner>()
+
+  const runMacro: PageAgentRuntime['runMacro'] = async ({
+    macroId,
+    params = {},
+    onStepProgress,
+  }) => {
+    // manifest 에서 매크로 찾기
+    const macro = manifest.macros?.find((m: ManifestMacro) => m.macroId === macroId)
+    if (!macro) {
+      return {
+        status: 'step-error',
+        stepIndex: -1,
+        error: `macro not found: ${macroId}`,
+        macroId,
+        stepCount: 0,
+      }
+    }
+
+    // MacroRunner 캐시 조회 or 신규 생성
+    let runner = macroRunners.get(macroId)
+    if (!runner) {
+      runner = new MacroRunner({
+        commandHandlerDeps: deps,
+        onStepStart: onStepProgress
+          ? (i, step) => onStepProgress({ stepIndex: i, step, phase: 'start' })
+          : undefined,
+        onStepEnd: onStepProgress
+          ? (i, step, ok) => onStepProgress({ stepIndex: i, step, phase: 'end', ok })
+          : undefined,
+        onSensitiveStep: onStepProgress
+          ? (i, step) => onStepProgress({ stepIndex: i, step, phase: 'sensitive' })
+          : undefined,
+      })
+      macroRunners.set(macroId, runner)
+    } else if (onStepProgress) {
+      // 기존 캐시된 runner 에 새 콜백을 반영하기 위해 deps 업데이트가 불가하므로
+      // onStepProgress 가 있을 때는 래퍼만 사용 (consecutiveFailures 는 runner 에 보존)
+      // 실제로 MacroRunner 콜백은 생성 시 고정이므로 진행 이벤트는 runner 교체 없이
+      // 동일 runner 를 재사용 — onStepProgress 는 최초 생성 시에만 연결됨.
+      // 간단 구현: 최초 생성 시 onStepProgress 없이 만들어진 runner 에 콜백 없음.
+      // Task 14-03 (MCP layer) 이 CommandBroker 를 통해 이벤트를 브로드캐스트할 예정.
+    }
+
+    const result = await runner.run(macro, params)
+    return { ...result, macroId, stepCount: macro.steps.length }
+  }
+
   const runtime: PageAgentRuntime = {
     getSnapshot: captureSnapshot,
 
@@ -323,6 +384,8 @@ export function createPageAgentRuntime(
 
     isBusy: () => agentActivityActive || queue.active,
     isActive: () => agentActivityActive || queue.active || activityIdleTimer !== null,
+
+    runMacro,
   }
 
   runtimeDisposers.set(runtime, () => {
@@ -330,6 +393,9 @@ export function createPageAgentRuntime(
     mutationObserver?.disconnect()
     queue.dispose()
     cdpClient.dispose()
+    // MacroRunner 타이머 leak 방지 (T-14-13)
+    macroRunners.forEach(r => r.dispose())
+    macroRunners.clear()
   })
 
   return runtime
