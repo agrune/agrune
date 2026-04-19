@@ -1,4 +1,4 @@
-<!-- agrune idle boot fixture -->
+<!-- agrune idle boot fixture (Phase 17 manifest-only) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,40 +7,51 @@
   <script src="/runtime.bundle.js"></script>
 </head>
 <body>
-  <h1>No annotations here</h1>
-  <p>This page intentionally has no agrune annotations. Runtime must still boot (idle).</p>
-  <button class="plain-button">Plain button (not annotated)</button>
+  <h1>No manifest here</h1>
+  <p>This page intentionally has no manifest. Runtime must still boot (idle).</p>
+  <button class="plain-button">Plain button (not mapped)</button>
   <script>
     // Simulate bootstrap source inline — in real CDP quick mode the bootstrap
     // is injected by CdpRuntimeInjector. In this fixture we replicate the
     // critical path: resolveManifest() -> installPageAgentRuntime() ->
-    // window.__agrune_runtime_state__ = { hasManifest, source }.
+    // window.__agrune_runtime_state__ = { hasManifest, source, descriptorCount }.
+    //
+    // Phase 17 note: bootstrap is manifest-only. Runtime does not auto-discover
+    // mappings from DOM attributes.
     (function () {
       var runtimeApi = window.__agrune_runtime__;
       if (!runtimeApi || typeof runtimeApi.buildEmptyManifest !== 'function') {
         // Fail loudly so the test surfaces a missing export instead of hanging.
-        window.__agrune_runtime_state__ = { hasManifest: false, source: 'runtime-missing' };
+        window.__agrune_runtime_state__ = {
+          hasManifest: false,
+          source: 'runtime-missing',
+          descriptorCount: 0,
+        };
         return;
       }
       function resolveManifest() {
         if (window.__agrune_manifest__) return { manifest: window.__agrune_manifest__, hasManifest: true, source: 'window' };
         if (window.__agrune_preload_manifest__) return { manifest: window.__agrune_preload_manifest__, hasManifest: true, source: 'preload' };
-        try {
-          var legacy = runtimeApi.buildManifest(
-            runtimeApi.scanAnnotations(document),
-            runtimeApi.scanGroups(document)
-          );
-          if (legacy && legacy.groups && legacy.groups.some(function (g) { return g.targets && g.targets.length > 0; })) {
-            return { manifest: legacy, hasManifest: true, source: 'inline' };
-          }
-        } catch (e) {}
         return { manifest: runtimeApi.buildEmptyManifest(), hasManifest: false, source: 'idle' };
+      }
+      function countDescriptors(manifest) {
+        if (!manifest || !Array.isArray(manifest.groups)) return 0;
+        var total = 0;
+        for (var i = 0; i < manifest.groups.length; i++) {
+          var g = manifest.groups[i];
+          if (g && Array.isArray(g.targets)) total += g.targets.length;
+        }
+        return total;
       }
       function install() {
         var resolved = resolveManifest();
         runtimeApi.installPageAgentRuntime(resolved.manifest, { cdpPostMessage: function () {} });
         Object.defineProperty(window, '__agrune_runtime_state__', {
-          value: { hasManifest: resolved.hasManifest, source: resolved.source },
+          value: {
+            hasManifest: resolved.hasManifest,
+            source: resolved.source,
+            descriptorCount: countDescriptors(resolved.manifest),
+          },
           writable: false,
           configurable: true,
           enumerable: true,

@@ -315,6 +315,11 @@ function sleep(ms: number): Promise<void> {
  * declarations. Includes the MutationObserver + scheduled snapshot posts so
  * DOM changes after a command (e.g. a click that opens a modal) reach the
  * driver's session-manager.
+ *
+ * Phase 17 note: bootstrap is manifest-only — the manifest source is
+ * window-scope (`window.__agrune_manifest__`), preload (`window.__agrune_preload_manifest__`),
+ * or idle (`buildEmptyManifest()`). Runtime does not auto-discover mappings
+ * from DOM attributes anymore.
  */
 const BOOTSTRAP_SOURCE = `
 ;(() => {
@@ -331,10 +336,9 @@ const BOOTSTRAP_SOURCE = `
     if (typeof b === 'function') b(JSON.stringify({ type, data }));
   };
   const installRuntime = () => {
-    const manifest = runtimeApi.buildManifest(
-      runtimeApi.scanAnnotations(document),
-      runtimeApi.scanGroups(document),
-    );
+    const manifest = window.__agrune_manifest__
+      || window.__agrune_preload_manifest__
+      || runtimeApi.buildEmptyManifest();
     runtimeApi.installPageAgentRuntime(manifest, {
       cdpPostMessage: (type, data) => post(type, data),
     });
@@ -353,7 +357,7 @@ const BOOTSTRAP_SOURCE = `
       }
     }, debounceMs);
   };
-  const touchesAnnotations = (m) => {
+  const touchesDom = (m) => {
     if (m.type === 'attributes') return typeof m.attributeName === 'string';
     if (m.type === 'childList') return true;
     return false;
@@ -361,7 +365,7 @@ const BOOTSTRAP_SOURCE = `
   if (!window.__agrune_e2e_observer_installed__) {
     window.__agrune_e2e_observer_installed__ = true;
     const observer = new MutationObserver((muts) => {
-      if (muts.some(touchesAnnotations)) scheduleSnapshot();
+      if (muts.some(touchesDom)) scheduleSnapshot();
     });
     observer.observe(document.documentElement || document, {
       attributes: true, childList: true, subtree: true,
@@ -425,8 +429,8 @@ export interface SnapshotTargetLite {
 
 /**
  * Snapshot + flatten (`mode: 'full'`) so specs can pick a target by its
- * `data-agrune-key` slug without hand-parsing the outline. Waits briefly
- * because the runtime scan is async.
+ * manifest-defined `targetId` without hand-parsing the outline. Waits briefly
+ * because the manifest-driven runtime resolve is async.
  */
 export async function getFullTargets(
   call: RealHarness['call'],
