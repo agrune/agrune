@@ -1,8 +1,15 @@
 import { test, expect } from '@playwright/test'
 
+// Phase 17 note: this spec exercises DOM-level interactions against fixture
+// pages (overlay-modal, tricky-inputs) that use `data-agrune-*` attributes
+// as *fixture-only* CSS selectors / DOM hooks. The Phase 17 runtime does
+// NOT auto-scan these attributes — they are equivalent to `data-testid`
+// markers for Playwright assertions. Preserved under the Success Criteria
+// 4 allow-list (scripts/regression-guard/data-agrune-allowlist.txt, landing
+// in Wave 4). File name is also stable so the allow-list entry stays valid.
 const SKIP = process.env.PLAYWRIGHT_SKIP_E2E === '1'
 
-test.describe('annotation scan — real browser', () => {
+test.describe('fixture DOM hooks — real browser (legacy attribute allow-list)', () => {
   test.skip(SKIP, 'PLAYWRIGHT_SKIP_E2E=1 set — run `pnpm test:e2e:install` to enable locally')
 
   test('overlay-modal fixture yields 4 targets and 2 groups', async ({ page }) => {
