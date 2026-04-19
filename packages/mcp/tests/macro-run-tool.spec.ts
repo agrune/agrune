@@ -162,7 +162,7 @@ describe('agrune_macro_run — happy path (status: ok)', () => {
     const { handleToolCall, commandBroker } = createMcpServer(driver)
 
     const events: string[] = []
-    commandBroker.onEvent((e) => events.push(e.phase))
+    commandBroker.subscribe((e) => events.push(e.phase))
 
     await handleToolCall('agrune_macro_run', { macroId: 'login', params: {} })
 
@@ -181,7 +181,7 @@ describe('agrune_macro_run — happy path (status: ok)', () => {
     const { handleToolCall, commandBroker } = createMcpServer(driver)
 
     let endDuration: number | undefined
-    commandBroker.onEvent((e) => {
+    commandBroker.subscribe((e) => {
       if (e.phase === 'end') endDuration = e.durationMs
     })
 
@@ -202,7 +202,7 @@ describe('agrune_macro_run — happy path (status: ok)', () => {
     const { handleToolCall, commandBroker } = createMcpServer(driver)
 
     const startEvents: unknown[] = []
-    commandBroker.onEvent((e) => {
+    commandBroker.subscribe((e) => {
       if (e.phase === 'start') startEvents.push(e)
     })
 
@@ -243,7 +243,7 @@ describe('agrune_macro_run — already-satisfied', () => {
 
     const { handleToolCall, commandBroker } = createMcpServer(driver)
     const events: string[] = []
-    commandBroker.onEvent((e) => events.push(e.phase))
+    commandBroker.subscribe((e) => events.push(e.phase))
 
     await handleToolCall('agrune_macro_run', { macroId: 'checkout' })
 
@@ -429,7 +429,7 @@ describe('agrune_macro_run — sensitive step redaction', () => {
 
     const { handleToolCall, commandBroker } = createMcpServer(driver)
     const endEvents: unknown[] = []
-    commandBroker.onEvent((e) => {
+    commandBroker.subscribe((e) => {
       if (e.phase === 'end') endEvents.push(e)
     })
 
@@ -450,7 +450,7 @@ describe('agrune_macro_run — sensitive step redaction', () => {
 
     const { handleToolCall, commandBroker } = createMcpServer(driver)
     const startEvents: Array<Record<string, unknown>> = []
-    commandBroker.onEvent((e) => {
+    commandBroker.subscribe((e) => {
       if (e.phase === 'start') startEvents.push(e as Record<string, unknown>)
     })
 
@@ -516,10 +516,18 @@ describe('agrune_macro_run — HITL gate 경로', () => {
 
     const { handleToolCall, commandBroker, hitl } = createMcpServer(driver)
     const events: string[] = []
-    commandBroker.onEvent((e) => events.push(e.phase))
+    commandBroker.subscribe((e) => events.push(e.phase))
 
+    // pause 먼저 걸고, call이 gate에 블록된 후 skip
+    hitl.pause()
+    const callPromise = handleToolCall('agrune_macro_run', { macroId: 'login' })
+
+    // awaitGate가 waiter 등록할 때까지 microtask yield
+    await Promise.resolve()
+    await Promise.resolve()
     hitl.skip()
-    const result = await handleToolCall('agrune_macro_run', { macroId: 'login' })
+
+    const result = await callPromise
 
     expect(result.isError).toBe(true)
     expect(events).toContain('error')

@@ -1,5 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, Session } from '@agrune/core'
+import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, MacroRunResponse, Session } from '@agrune/core'
 import { validateManifest } from '@agrune/manifest'
 import type { AgruneManifest } from '@agrune/manifest'
 import { registerAgruneTools } from './mcp-tools.js'
@@ -162,6 +162,81 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
           manifestSource: 'window' as const,
         }
         return { text: JSON.stringify(payload, null, 2) }
+      }
+      case 'agrune_macro_run': {
+        if (tabId == null) {
+          return errorText('SESSION_NOT_ACTIVE', 'No active session for macro run.')
+        }
+        if (typeof driver.runMacro !== 'function') {
+          return errorText('INVALID_COMMAND', 'Driver does not support runMacro.')
+        }
+        const macroId = typeof args.macroId === 'string' ? args.macroId : null
+        if (!macroId) {
+          return errorText('INVALID_COMMAND', 'agrune_macro_run requires macroId (string).')
+        }
+        const params = (args.params ?? {}) as Record<string, unknown>
+
+        let response: MacroRunResponse
+        try {
+          response = await driver.runMacro(tabId, macroId, params)
+        } catch (error) {
+          const shape = error as Partial<CommandErrorShape>
+          if (shape && typeof shape.code === 'string' && shape.code === 'TAB_NOT_FOUND') {
+            return errorText('TAB_NOT_FOUND', shape.message ?? 'Tab not found.', shape.details)
+          }
+          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
+        }
+
+        // Status → error code 매핑 (per 14-RESEARCH.md Q4)
+        switch (response.status) {
+          case 'ok':
+          case 'already-satisfied':
+            return {
+              text: JSON.stringify(
+                { ok: true, status: response.status, macroId: response.macroId, stepCount: response.stepCount },
+                null,
+                2,
+              ),
+            }
+          case 'circuit-open':
+            return errorText('MACRO_CIRCUIT_OPEN', 'Circuit breaker opened — consecutive failures.', {
+              failedStep: response.failedStep,
+              macroId,
+            })
+          case 'precondition-failed':
+            return errorText(
+              'MACRO_PRECONDITION_FAILED',
+              `Macro precondition failed: ${response.reason}`,
+              { macroId, reason: response.reason },
+            )
+          case 'postcondition-failed':
+            return errorText(
+              'MACRO_POSTCONDITION_FAILED',
+              `Macro postcondition failed: ${response.reason}`,
+              { macroId, reason: response.reason },
+            )
+          case 'step-error':
+            // macro not found 는 PageAgentRuntime 에서 error="macro not found: xxx" 로 반환 → 매핑
+            if (response.stepIndex === -1 && response.error.startsWith('macro not found')) {
+              return errorText('MACRO_NOT_FOUND', response.error, { macroId })
+            }
+            return errorText('INVALID_COMMAND', `Macro step failed: ${response.error}`, {
+              macroId,
+              stepIndex: response.stepIndex,
+              error: response.error,
+            })
+          case 'target-not-found':
+            return errorText(
+              'TARGET_NOT_FOUND',
+              `Macro target not found at step ${response.stepIndex}: ${response.targetId}`,
+              { macroId, stepIndex: response.stepIndex, targetId: response.targetId },
+            )
+          default: {
+            // TypeScript exhaustiveness guard — unknown status → INVALID_COMMAND
+            const _exhaustive: never = response
+            return errorText('INVALID_COMMAND', `Unknown macro result status.`, { macroId, response: _exhaustive })
+          }
+        }
       }
       case 'agrune_config': {
         const config: Partial<AgruneRuntimeConfig> = {}

@@ -210,4 +210,15 @@ export function registerAgruneTools(
     },
     async (args) => toMcpToolResult(await handleToolCall('agrune_manifest_load', args)),
   )
+
+  mcp.tool(
+    'agrune_macro_run',
+    'Run a macro defined in the loaded manifest by macroId. Executes the entire step loop in-page via a single Runtime.evaluate — step-level CDP round-trips do not occur. Returns MacroResult-shaped response. Call agrune_manifest_load first if the page does not ship its own manifest.',
+    {
+      macroId: z.string().describe('Macro ID as defined in the manifest'),
+      params: z.record(z.string(), z.unknown()).optional().describe('Params matching macro.params schema — interpolated into step.value as {{key}}'),
+      ...optionalTabId,
+    },
+    async (args) => toMcpToolResult(await handleToolCall('agrune_macro_run', args)),
+  )
 }
