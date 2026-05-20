@@ -2,10 +2,9 @@
  * TodoMVC demo App.tsx — RECORD-05 reference fixture.
  *
  * NOT a runnable app in this workspace — `@agrune/e2e` does not depend on
- * `react`. This file is a **structural reference** that
- * the `agrune:manifest` authoring skill should read to produce the adjacent
- * `manifest.ts`. To actually run the demo, drop this directory into a Vite
- * + React project with `react` and `react-dom` installed.
+ * `react`. This file is a **structural reference** for the adjacent
+ * `manifest.ts`. To actually run the demo, drop this directory into a Vite +
+ * React project with `react` and `react-dom` installed.
  *
  * `tsconfig.json` in `packages/e2e/` excludes `fixtures/**`, so TypeScript
  * does NOT check this file during `pnpm --filter @agrune/e2e run typecheck`.
