@@ -2,21 +2,18 @@
  * TodoMVC demo App.tsx — RECORD-05 reference fixture.
  *
  * NOT a runnable app in this workspace — `@agrune/e2e` does not depend on
- * `react` / `@agrune/react`. This file is a **structural reference** that
+ * `react`. This file is a **structural reference** that
  * the `agrune:manifest` authoring skill should read to produce the adjacent
  * `manifest.ts`. To actually run the demo, drop this directory into a Vite
- * + React project with `react`, `react-dom`, and `@agrune/react` installed.
+ * + React project with `react` and `react-dom` installed.
  *
  * `tsconfig.json` in `packages/e2e/` excludes `fixtures/**`, so TypeScript
  * does NOT check this file during `pnpm --filter @agrune/e2e run typecheck`.
  * Keeping it uncompiled is deliberate — the fixture's job is to show the
- * AgruneDevtools root-import + interactive element layout that maps 1:1
- * with `manifest.ts`.
+ * interactive element layout that maps 1:1 with `manifest.ts`.
  */
 // @ts-nocheck — fixture is intentionally not typechecked in this workspace.
 import { useMemo, useState } from 'react'
-import { AgruneDevtools } from '@agrune/react'
-import manifest from './manifest'
 
 type Todo = { id: string; title: string; completed: boolean }
 type Filter = 'all' | 'active' | 'completed'
@@ -69,9 +66,6 @@ export default function App() {
 
   return (
     <>
-      {/* Root-import — v0.5 방식: 소스에 1줄만 추가, 모든 매핑은 manifest.ts */}
-      <AgruneDevtools manifest={manifest} mode="dev" />
-
       <input
         id="new-todo"
         placeholder="What needs to be done?"

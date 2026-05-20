@@ -42,7 +42,6 @@ import {
   handleAct,
   handleDrag,
   handleFill,
-  handleGuide,
   handlePointer,
   handleRead,
   handleWait,
@@ -87,12 +86,6 @@ export interface PageAgentRuntime {
     targetId: string
     state: WaitState
     timeoutMs?: number
-  }) => Promise<CommandResult>
-  guide: (input: {
-    commandId?: string
-    targetId: string
-    expectedVersion?: number
-    config?: Partial<AgruneRuntimeConfig>
   }) => Promise<CommandResult>
   read: (input: {
     commandId?: string
@@ -363,8 +356,6 @@ export function createPageAgentRuntime(
     fill: async input => handleFill(deps, input),
 
     wait: async input => handleWait(deps, input),
-
-    guide: async input => handleGuide(deps, input),
 
     read: async input => handleRead(deps, input),
 

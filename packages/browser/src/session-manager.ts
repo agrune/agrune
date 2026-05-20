@@ -105,6 +105,29 @@ export class SessionManager {
     })
   }
 
+  waitForSessionSnapshot(tabId: number, timeoutMs: number): Promise<boolean> {
+    if (this.sessions.get(tabId)?.snapshot !== null && this.sessions.has(tabId)) {
+      return Promise.resolve(true)
+    }
+
+    return new Promise<boolean>((resolve) => {
+      const onReady = () => {
+        const session = this.sessions.get(tabId)
+        if (!session?.snapshot) return
+        clearTimeout(timer)
+        const idx = this.snapshotWaiters.indexOf(onReady)
+        if (idx !== -1) this.snapshotWaiters.splice(idx, 1)
+        resolve(true)
+      }
+      const timer = setTimeout(() => {
+        const idx = this.snapshotWaiters.indexOf(onReady)
+        if (idx !== -1) this.snapshotWaiters.splice(idx, 1)
+        resolve(false)
+      }, timeoutMs)
+      this.snapshotWaiters.push(onReady)
+    })
+  }
+
   private notifyWaiters(): void {
     if (!this.hasReadySession()) return
     const waiters = this.snapshotWaiters.splice(0)

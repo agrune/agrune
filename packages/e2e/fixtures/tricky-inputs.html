@@ -4,13 +4,9 @@
     <meta charset="utf-8">
     <title>tricky-inputs fixture</title>
   </head>
-  <body data-agrune-group="form" data-agrune-group-name="Signup form" data-agrune-group-desc="Credit card + bio form">
+  <body>
     <label>Card number:
       <input
-        data-agrune-action="fill"
-        data-agrune-name="Card number"
-        data-agrune-desc="Credit card number — 16 digits"
-        data-agrune-key="cc-number"
         inputmode="numeric"
         maxlength="19"
         id="cc"
@@ -20,10 +16,6 @@
     <label>Bio:
       <div
         contenteditable="true"
-        data-agrune-action="fill"
-        data-agrune-name="Bio"
-        data-agrune-desc="Short bio — rich text"
-        data-agrune-key="bio"
         id="bio"
         style="border:1px solid #ccc; min-height:40px; padding:4px;"
       ></div>
@@ -32,13 +24,46 @@
     <label>Password:
       <input
         type="password"
-        data-agrune-action="fill"
-        data-agrune-name="Password"
-        data-agrune-desc="Account password — sensitive"
-        data-agrune-key="pw"
-        data-agrune-sensitive
         id="pw"
       >
     </label>
+
+    <script>
+      window.__agrune_manifest__ = {
+        version: 3,
+        groups: [
+          {
+            groupId: 'form',
+            name: 'Signup form',
+            desc: 'Credit card + bio form',
+            targets: [
+              {
+                targetId: 'cc-number',
+                name: 'Card number',
+                desc: 'Credit card number — 16 digits',
+                actionKinds: ['fill'],
+                selector: { css: '#cc' },
+                sensitive: true
+              },
+              {
+                targetId: 'bio',
+                name: 'Bio',
+                desc: 'Short bio — rich text',
+                actionKinds: ['fill'],
+                selector: { css: '#bio' }
+              },
+              {
+                targetId: 'pw',
+                name: 'Password',
+                desc: 'Account password — sensitive',
+                actionKinds: ['fill'],
+                selector: { css: '#pw' },
+                sensitive: true
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </body>
 </html>

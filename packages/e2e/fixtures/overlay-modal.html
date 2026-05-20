@@ -14,45 +14,70 @@
     </style>
   </head>
   <body>
-    <main data-agrune-group="toolbar" data-agrune-group-name="Toolbar" data-agrune-group-desc="Document toolbar">
+    <main>
       <div id="toolbar">
-        <button
-          data-agrune-action="click"
-          data-agrune-name="Save"
-          data-agrune-desc="Save the document"
-          data-agrune-key="save-btn"
-        >Save</button>
-        <button
-          data-agrune-action="click"
-          data-agrune-name="Cancel"
-          data-agrune-desc="Cancel pending edits"
-          data-agrune-key="cancel-btn"
-          id="cancel"
-        >Cancel</button>
+        <button id="save">Save</button>
+        <button id="cancel">Cancel</button>
       </div>
     </main>
 
     <div class="modal-backdrop" id="backdrop" role="presentation">
-      <div class="modal" role="dialog" aria-modal="true" data-agrune-group="confirm-modal" data-agrune-group-name="Confirm Modal" data-agrune-group-desc="Discard confirmation">
+      <div class="modal" role="dialog" aria-modal="true">
         <p>Discard your changes?</p>
-        <button
-          data-agrune-action="click"
-          data-agrune-name="Discard"
-          data-agrune-desc="Confirm discard and close modal"
-          data-agrune-key="modal-discard"
-          id="discard"
-        >Discard</button>
-        <button
-          data-agrune-action="click"
-          data-agrune-name="Keep editing"
-          data-agrune-desc="Cancel discard and close modal"
-          data-agrune-key="modal-keep"
-          id="keep"
-        >Keep editing</button>
+        <button id="discard">Discard</button>
+        <button id="keep">Keep editing</button>
       </div>
     </div>
 
     <script>
+      window.__agrune_manifest__ = {
+        version: 3,
+        groups: [
+          {
+            groupId: 'toolbar',
+            name: 'Toolbar',
+            desc: 'Document toolbar',
+            targets: [
+              {
+                targetId: 'save-btn',
+                name: 'Save',
+                desc: 'Save the document',
+                actionKinds: ['click'],
+                selector: { text: 'Save' }
+              },
+              {
+                targetId: 'cancel-btn',
+                name: 'Cancel',
+                desc: 'Cancel pending edits',
+                actionKinds: ['click'],
+                selector: { css: '#cancel' }
+              }
+            ]
+          },
+          {
+            groupId: 'confirm-modal',
+            name: 'Confirm Modal',
+            desc: 'Discard confirmation',
+            targets: [
+              {
+                targetId: 'modal-discard',
+                name: 'Discard',
+                desc: 'Confirm discard and close modal',
+                actionKinds: ['click'],
+                selector: { css: '#discard' }
+              },
+              {
+                targetId: 'modal-keep',
+                name: 'Keep editing',
+                desc: 'Cancel discard and close modal',
+                actionKinds: ['click'],
+                selector: { css: '#keep' }
+              }
+            ]
+          }
+        ]
+      }
+
       const backdrop = document.getElementById('backdrop')
       document.getElementById('cancel').addEventListener('click', () => backdrop.classList.add('open'))
       document.getElementById('keep').addEventListener('click', () => backdrop.classList.remove('open'))

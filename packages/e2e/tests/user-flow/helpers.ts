@@ -400,6 +400,10 @@ const BOOTSTRAP_SOURCE = `
     dispatchCdpMessage: (detail) => {
       window.dispatchEvent(new CustomEvent('agrune:cdp', { detail }));
     },
+    reloadRuntime: () => {
+      installRuntime();
+      scheduleSnapshot();
+    },
   };
   installRuntime();
 })();

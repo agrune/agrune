@@ -5,6 +5,7 @@ import type {
   CommandResult,
   FocusResult,
   MacroRunResponse,
+  OpenTabResult,
   PageSnapshot,
   Session,
 } from '@agrune/core'
@@ -26,6 +27,7 @@ import {
 
 const ENSURE_READY_TIMEOUT_MS = 10_000
 const ACTIVITY_TAIL_BLOCK_MS = 5_000
+const OPEN_TAB_READY_TIMEOUT_MS = 10_000
 
 export interface CdpDriverOptions {
   mode: 'launch' | 'attach'
@@ -345,6 +347,44 @@ export class CdpDriver implements BrowserDriver {
     }
   }
 
+  async openTab(url: string): Promise<OpenTabResult> {
+    await this.connect()
+
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw createCommandError('INVALID_COMMAND', `Invalid URL for new tab: ${url}`, { url })
+    }
+
+    const response = await this.connection.send('Target.createTarget', { url: parsed.toString() })
+    const targetId = typeof response.targetId === 'string' ? response.targetId : null
+    if (!targetId) {
+      throw createCommandError('INVALID_COMMAND', 'CDP Target.createTarget did not return a targetId.', {
+        response,
+      })
+    }
+
+    const target = await this.waitForTarget(targetId, 5_000)
+    if (!target) {
+      throw createCommandError('SESSION_NOT_ACTIVE', 'New tab was created but no attached session became available.', {
+        targetId,
+        url: parsed.toString(),
+      })
+    }
+
+    await this.focusSession(target.tabId).catch(() => undefined)
+    await this.refreshSnapshot(target.tabId).catch(() => undefined)
+    await this.sessions.waitForSessionSnapshot(target.tabId, OPEN_TAB_READY_TIMEOUT_MS)
+
+    const session = this.sessions.getSession(target.tabId)
+    return {
+      tabId: target.tabId,
+      url: session?.url ?? target.url,
+      title: session?.title ?? target.title,
+    }
+  }
+
   async injectManifest(tabId: number, manifest: AgruneManifest): Promise<void> {
     const target = this.targetManager.getTarget(tabId)
     if (!target?.sessionId) {
@@ -419,7 +459,7 @@ export class CdpDriver implements BrowserDriver {
       if (!this.options.wsEndpoint) {
         throw new Error('CDP attach mode requires a wsEndpoint.')
       }
-      return this.options.wsEndpoint
+      return resolveCdpWsEndpoint(this.options.wsEndpoint)
     }
 
     const launched = await this.launcher.launch({
@@ -738,6 +778,18 @@ export class CdpDriver implements BrowserDriver {
     }
   }
 
+  private async waitForTarget(targetId: string, timeoutMs: number): Promise<TargetInfo | null> {
+    const deadline = Date.now() + timeoutMs
+
+    while (Date.now() <= deadline) {
+      const target = this.targetManager.getTargets().find(candidate => candidate.targetId === targetId)
+      if (target?.sessionId) return target
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+
+    return null
+  }
+
   private asSnapshot(value: unknown): PageSnapshot | null {
     if (!value || typeof value !== 'object') return null
     const snapshot = value as Record<string, unknown>
@@ -752,4 +804,27 @@ export class CdpDriver implements BrowserDriver {
     }
     return value as PageSnapshot
   }
+}
+
+async function resolveCdpWsEndpoint(endpoint: string): Promise<string> {
+  if (endpoint.startsWith('ws://') || endpoint.startsWith('wss://')) {
+    return endpoint
+  }
+
+  if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+    throw new Error(`Unsupported CDP attach endpoint: ${endpoint}`)
+  }
+
+  const versionUrl = new URL('/json/version', endpoint.endsWith('/') ? endpoint : `${endpoint}/`)
+  const response = await fetch(versionUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to resolve CDP websocket endpoint from ${versionUrl}: HTTP ${response.status}`)
+  }
+
+  const json = await response.json() as { webSocketDebuggerUrl?: unknown }
+  if (typeof json.webSocketDebuggerUrl !== 'string') {
+    throw new Error(`CDP version response did not include webSocketDebuggerUrl: ${versionUrl}`)
+  }
+
+  return json.webSocketDebuggerUrl
 }

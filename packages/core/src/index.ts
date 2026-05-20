@@ -31,7 +31,7 @@ export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
 
 export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
-export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'guide' | 'read' | 'pointer'
+export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'read' | 'pointer'
 export type FillStrategy = 'insert' | 'keystroke' | 'auto'
 export type AuroraTheme = 'dark' | 'light'
 export type PageTargetReason =
@@ -147,12 +147,6 @@ export interface ActCommandRequest extends BaseCommandRequest {
   expectedVersion?: number
 }
 
-export interface GuideCommandRequest extends BaseCommandRequest {
-  kind: 'guide'
-  targetId: string
-  expectedVersion?: number
-}
-
 export interface DragCommandRequest extends BaseCommandRequest {
   kind: 'drag'
   sourceTargetId: string
@@ -203,7 +197,6 @@ export interface PointerCommandRequest extends BaseCommandRequest {
 export type CommandRequest =
   | ActCommandRequest
   | DragCommandRequest
-  | GuideCommandRequest
   | FillCommandRequest
   | WaitCommandRequest
   | ReadCommandRequest
@@ -304,6 +297,3 @@ export function isCommandResultOk(result: CommandResult): result is CommandResul
 export * from './native-messages'
 export * from './driver.js'
 export * from './manifest.js'
-
-// Re-exports for annotation-lint consumers that want one-import access
-export type { Diagnostic, DiagnosticCode, DiagnosticSeverity } from './annotation-lint/rules.js'

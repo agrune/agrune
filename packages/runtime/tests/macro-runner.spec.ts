@@ -48,10 +48,9 @@ function makeElement(attrs: Record<string, string> = {}): HTMLElement {
 }
 
 function makeDeps(elements: Record<string, HTMLElement>): CommandHandlerDeps {
-  // Set data-testid and data-agrune-key so resolveByLadder can find elements
+  // Set a stable test selector so resolveByLadder can find elements.
   for (const [targetId, el] of Object.entries(elements)) {
     el.setAttribute('data-testid', targetId)
-    el.setAttribute('data-agrune-key', targetId)
   }
 
   return {
@@ -64,7 +63,7 @@ function makeDeps(elements: Record<string, HTMLElement>): CommandHandlerDeps {
         target: {
           targetId,
           actionKinds: ['click', 'fill'],
-          selector: { css: `[data-agrune-key="${targetId}"]` },
+          selector: { css: `[data-testid="${targetId}"]` },
         },
       })),
     ),
@@ -590,11 +589,11 @@ const mockCdpPostMessage = vi.fn((_type: string, data: unknown) => {
 
 function makeManifestWithMacros(): AgruneManifest {
   const emailEl = document.createElement('input')
-  emailEl.setAttribute('data-agrune-key', 'email')
+  emailEl.setAttribute('data-testid', 'email')
   document.body.appendChild(emailEl)
 
   const btnEl = document.createElement('button')
-  btnEl.setAttribute('data-agrune-key', 'login-btn')
+  btnEl.setAttribute('data-testid', 'login-btn')
   document.body.appendChild(btnEl)
 
   return {
@@ -608,13 +607,13 @@ function makeManifestWithMacros(): AgruneManifest {
             targetId: 'email',
             name: '이메일',
             actionKinds: ['fill'],
-            selector: { css: '[data-agrune-key="email"]' },
+            selector: { css: '[data-testid="email"]' },
           },
           {
             targetId: 'login-btn',
             name: '로그인',
             actionKinds: ['click'],
-            selector: { css: '[data-agrune-key="login-btn"]' },
+            selector: { css: '[data-testid="login-btn"]' },
           },
         ],
       },

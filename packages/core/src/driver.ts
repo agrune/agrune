@@ -38,6 +38,12 @@ export interface FocusResult {
   cdpFocusError?: string
 }
 
+export interface OpenTabResult {
+  tabId: number
+  url: string
+  title: string
+}
+
 export interface BrowserDriver {
   connect(): Promise<void>
   disconnect(): Promise<void>
@@ -54,13 +60,13 @@ export interface BrowserDriver {
   ensureReady(): Promise<string | null>
   resolveTabId(tabId?: number): number | null
   focusSession(tabId: number): Promise<FocusResult>
+  openTab?(url: string): Promise<OpenTabResult>
 
   /**
    * manifest를 활성 세션에 런타임 주입한다.
    * window.__agrune_manifest__ = manifest; reloadRuntime() 시퀀스로 즉시 적용.
-   * MCP layer(Plan 03)가 agrune_manifest_load tool에서 호출하는 계약점.
    *
-   * optional — mock driver에서 누락 시 Plan 03에서 typeof 타입 가드로 방어 (T-12-07).
+   * optional — 일반 에이전트용 MCP surface에는 노출하지 않는다.
    */
   injectManifest?(tabId: number, manifest: AgruneManifest): Promise<void>
 

@@ -110,7 +110,7 @@ describe('normalizeAgentTargetId — ReDoS / 성능', () => {
 // ---------------------------------------------------------------------------
 
 describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
-  it('Test 14: agrune_act tool 호출 시 targetId normalize 통과 후 handleToolCall 전달', async () => {
+  it('Test 14: browser_click tool 호출 시 targetId normalize 통과 후 handleToolCall 전달', async () => {
     const { registerAgruneTools } = await import('../src/mcp-tools')
 
     const calledWithArgs: Array<{ name: string; args: Record<string, unknown> }> = []
@@ -132,7 +132,7 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     registerAgruneTools(mockMcp, mockHandler)
 
-    const actHandler = handlers.find(h => h.name === 'agrune_act')!
+    const actHandler = handlers.find(h => h.name === 'browser_click')!
     expect(actHandler).toBeDefined()
 
     // dot-bracket targetId 전달
@@ -140,12 +140,13 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     expect(mockHandler).toHaveBeenCalledOnce()
     const callArgs = calledWithArgs[0]!
-    expect(callArgs.name).toBe('agrune_act')
+    expect(callArgs.name).toBe('browser_click')
     // normalize 후 runtime delimiter 형식으로 전달돼야 함
     expect(callArgs.args.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc123.like_btn`)
+    expect(callArgs.args.action).toBe('click')
   })
 
-  it('Test 15: agrune_fill, agrune_wait, agrune_guide, agrune_pointer 모두 normalize 적용', async () => {
+  it('Test 15: browser_fill, browser_wait_for, browser_pointer 모두 normalize 적용', async () => {
     const { registerAgruneTools } = await import('../src/mcp-tools')
 
     const calledArgs: Record<string, Record<string, unknown>> = {}
@@ -167,12 +168,12 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     registerAgruneTools(mockMcp, mockHandler)
 
-    const toolsToTest = ['agrune_fill', 'agrune_wait', 'agrune_guide']
+    const toolsToTest = ['browser_fill', 'browser_wait_for']
     for (const toolName of toolsToTest) {
       const h = handlers.find(hh => hh.name === toolName)!
       expect(h).toBeDefined()
-      const extraArgs = toolName === 'agrune_fill' ? { value: 'hello' }
-        : toolName === 'agrune_wait' ? { state: 'visible' }
+      const extraArgs = toolName === 'browser_fill' ? { value: 'hello' }
+        : toolName === 'browser_wait_for' ? { state: 'visible' }
         : {}
       await h.handler({ targetId: 'posts[postId=abc].like_btn', ...extraArgs })
     }
@@ -181,10 +182,10 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
       expect(calledArgs[toolName]?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
     }
 
-    // agrune_pointer: targetId optional
-    const pointerH = handlers.find(hh => hh.name === 'agrune_pointer')!
+    // browser_pointer: targetId optional
+    const pointerH = handlers.find(hh => hh.name === 'browser_pointer')!
     await pointerH.handler({ targetId: 'posts[postId=abc].like_btn', actions: [] })
-    expect(calledArgs['agrune_pointer']?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
+    expect(calledArgs['browser_pointer']?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
   })
 
   it('Test 16: normalize 에러 발생 시 INVALID_TARGET 반환 (handleToolCall 호출되지 않음)', async () => {
@@ -205,7 +206,7 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     registerAgruneTools(mockMcp, mockHandler)
 
-    const actHandler = handlers.find(h => h.name === 'agrune_act')!
+    const actHandler = handlers.find(h => h.name === 'browser_click')!
     // 잘못된 bracket — = 없음
     const result = await actHandler.handler({ targetId: 'posts[abc].like_btn' })
 

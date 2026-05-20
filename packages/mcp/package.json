@@ -1,7 +1,8 @@
 {
   "name": "@agrune/mcp",
   "version": "0.4.1",
-  "description": "Agrune MCP server for annotated browser automation.",
+  "description": "Internal MCP server bundle source for the agrune package.",
+  "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -9,14 +10,10 @@
     ".": {
       "import": "./dist/src/index.js",
       "types": "./dist/src/index.d.ts"
-    },
-    "./devtools-server": {
-      "import": "./dist/src/devtools-server.js",
-      "types": "./dist/src/devtools-server.d.ts"
     }
   },
   "bin": {
-    "agrune": "./dist/bin/agrune-mcp.js"
+    "agrune-mcp": "./dist/bin/agrune-mcp.js"
   },
   "files": [
     "dist",
@@ -29,26 +26,17 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "license": "MIT",
   "dependencies": {
     "@agrune/browser": "workspace:*",
     "@agrune/core": "workspace:*",
     "@agrune/manifest": "workspace:*",
-    "@agrune/registry": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@playwright/test": "^1.48.0",
-    "chokidar": "5.0.0",
-    "diff": "8.0.2",
-    "ts-morph": "28.0.0",
-    "tsx": "^4.0.0",
     "ws": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/diff": "8.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
     "tsup": "^8.0.0",

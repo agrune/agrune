@@ -52,10 +52,6 @@ import {
   resolvePointerDurationMs,
   CURSOR_CLICK_PRESS_MS,
 } from './cursor-animator'
-import {
-  activateRecorderOverlay,
-  type CaptureResult as RecorderCaptureResult,
-} from './recorder-injected'
 import { getCursorMeta } from './cursors/index'
 import type { EventSequences, Coords } from './event-sequences'
 import type { ActionQueue } from './action-queue'
@@ -1375,103 +1371,4 @@ export async function handlePointer(
     actionKind: 'pointer',
     actionsCount: input.actions.length,
   })
-}
-
-// ---------------------------------------------------------------------------
-// guide handler
-// ---------------------------------------------------------------------------
-
-export async function handleGuide(
-  deps: CommandHandlerDeps,
-  input: {
-    commandId?: string
-    targetId: string
-    expectedVersion?: number
-    config?: Partial<AgruneRuntimeConfig>
-  },
-): Promise<CommandResult> {
-  return withDescriptor(deps, input.commandId ?? input.targetId, input.targetId, input.expectedVersion, async (descriptor, element, snapshot) => {
-    const snapshotTarget = findSnapshotTarget(snapshot, input.targetId)
-    if (snapshotTarget && isOverlayFlowLocked(snapshot) && !snapshotTarget.overlay) {
-      return buildFlowBlockedResult(input.commandId ?? input.targetId, snapshot, input.targetId)
-    }
-
-    if (!descriptor.actionKinds.some(k => ACT_COMPATIBLE_KINDS.has(k))) {
-      return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support guide: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
-    }
-
-    if (!isVisible(element)) {
-      return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is not visible: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
-    }
-
-    // Always auto-scroll for guide mode
-    await smoothScrollIntoView(element)
-
-    if (!isElementInViewport(element)) {
-      return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is outside of viewport: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
-    }
-    if (!isTopmostInteractable(element)) {
-      return buildErrorResult(input.commandId ?? input.targetId, 'NOT_VISIBLE', `target is covered by another element: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
-    }
-    if (!isEnabled(element)) {
-      return buildErrorResult(input.commandId ?? input.targetId, 'DISABLED', `target is disabled: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
-    }
-
-    // Always perform cursor animation in guide mode (ignore config.pointerAnimation)
-    const guideConfig = deps.resolveExecutionConfig(input.config)
-
-    await deps.queue.push({
-      type: 'animation',
-      execute: () =>
-        animateCursorThenCdpAction(
-          element,
-          guideConfig.cursorName ?? DEFAULT_CURSOR_NAME,
-          guideConfig.pointerDurationMs,
-          coords => deps.eventSequences.click(coords),
-        ),
-    })
-
-    const nextSnapshot = deps.captureSnapshot()
-    return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
-      actionKind: 'guide',
-      targetId: input.targetId,
-    })
-  })
-}
-
-// ---------------------------------------------------------------------------
-// recorder_enable / recorder_disable handlers (Phase 16 RECORD-02 Task 3)
-//
-// These are thin bindings over activateRecorderOverlay. The MCP-side
-// RecorderController issues `recorder_enable` via CDP Runtime.evaluate and
-// awaits the click-driven capture. The returned cleanup handle is kept in
-// a module-scoped variable so `recorder_disable` can cancel picking without
-// a click (Esc key path).
-//
-// Security: this module never reads element values or page secrets (T-16-04);
-// see activateRecorderOverlay in recorder-injected.ts.
-// ---------------------------------------------------------------------------
-
-let recorderOverlayCleanup: (() => void) | null = null
-
-export function handleRecorderEnable(
-  onCapture: (result: RecorderCaptureResult) => void,
-): void {
-  // Enabling twice in a row: tear down the previous listener pair first so
-  // we don't accumulate handlers and double-fire capture.
-  if (recorderOverlayCleanup) {
-    recorderOverlayCleanup()
-    recorderOverlayCleanup = null
-  }
-  recorderOverlayCleanup = activateRecorderOverlay((result) => {
-    recorderOverlayCleanup = null
-    onCapture(result)
-  })
-}
-
-export function handleRecorderDisable(): void {
-  if (recorderOverlayCleanup) {
-    recorderOverlayCleanup()
-    recorderOverlayCleanup = null
-  }
 }

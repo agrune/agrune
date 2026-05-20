@@ -1,7 +1,5 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, MacroRunResponse, Session } from '@agrune/core'
-import { validateManifest } from '@agrune/manifest'
-import type { AgruneManifest } from '@agrune/manifest'
+import type { AgruneRuntimeConfig, BrowserDriver, CommandErrorShape, Session } from '@agrune/core'
 import { registerAgruneTools } from './mcp-tools.js'
 import type { ToolHandlerResult } from './mcp-tools.js'
 import {
@@ -47,7 +45,7 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
       await driver.connect()
     }
 
-    if (name !== 'agrune_config') {
+    if (name !== 'browser_update_config' && name !== 'browser_open_tab') {
       const readyError = await driver.ensureReady()
       if (readyError) return { text: readyError, isError: true }
     }
@@ -55,10 +53,41 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
     const tabId = driver.resolveTabId(args.tabId as number | undefined)
 
     switch (name) {
-      case 'agrune_sessions': {
+      case 'browser_list_tabs': {
         return { text: JSON.stringify(driver.listSessions().map(toPublicSession), null, 2) }
       }
-      case 'agrune_snapshot': {
+      case 'browser_open_tab': {
+        if (typeof args.url !== 'string' || args.url.trim().length === 0) {
+          return errorText('INVALID_COMMAND', 'browser_open_tab requires url (string).')
+        }
+        if (typeof driver.openTab !== 'function') {
+          return errorText('INVALID_COMMAND', 'Driver does not support openTab.')
+        }
+        try {
+          const opened = await driver.openTab(args.url)
+          const session = driver.listSessions().find(s => s.tabId === opened.tabId)
+          const payload = {
+            ok: true,
+            tabId: opened.tabId,
+            url: opened.url,
+            title: opened.title,
+            session: session
+              ? toPublicSessionMeta(session as Session, {
+                  wasActive: false,
+                  becameActive: session.active === true,
+                })
+              : null,
+          }
+          return { text: JSON.stringify(payload, null, 2) }
+        } catch (error) {
+          const shape = error as Partial<CommandErrorShape>
+          if (shape && typeof shape.code === 'string') {
+            return errorText(shape.code, shape.message ?? 'Failed to open tab.', shape.details)
+          }
+          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
+        }
+      }
+      case 'browser_get_targets': {
         if (tabId == null) return { text: 'No active sessions.', isError: true }
         const snapshot = driver.getSnapshot(tabId)
         if (!snapshot) return { text: `No snapshot available for tab ${tabId}.`, isError: true }
@@ -68,17 +97,20 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
         }
         return { text: JSON.stringify(payload, null, 2) }
       }
-      case 'agrune_act':
-      case 'agrune_fill':
-      case 'agrune_drag':
-      case 'agrune_pointer':
-      case 'agrune_wait':
-      case 'agrune_guide':
-      case 'agrune_read': {
+      case 'browser_click':
+      case 'browser_double_click':
+      case 'browser_right_click':
+      case 'browser_hover':
+      case 'browser_long_press':
+      case 'browser_fill':
+      case 'browser_drag':
+      case 'browser_pointer':
+      case 'browser_wait_for':
+      case 'browser_read': {
         if (tabId == null) return { text: 'No active sessions.', isError: true }
         const wasActive = driver.listSessions().find(s => s.tabId === tabId)?.active === true
         const command: Record<string, unknown> & { kind: string } = {
-          kind: name.replace('agrune_', ''), ...args,
+          kind: resolveRuntimeCommandKind(name), ...args,
         }
         delete command.tabId
         const result = await driver.execute(tabId, command)
@@ -93,10 +125,10 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
         const payload = sessionMeta ? { ...publicResult, session: sessionMeta } : publicResult
         return { text: JSON.stringify(payload, null, 2) }
       }
-      case 'agrune_focus': {
+      case 'browser_focus_tab': {
         const focusArg = resolveFocusTabId(args)
         if (focusArg == null) {
-          return errorText('TAB_NOT_FOUND', 'agrune_focus requires tabId or numeric sessionId.')
+          return errorText('TAB_NOT_FOUND', 'browser_focus_tab requires tabId or numeric sessionId.')
         }
         const target = driver.listSessions().find(s => s.tabId === focusArg)
         if (!target) {
@@ -126,119 +158,7 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
           return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
         }
       }
-      case 'agrune_manifest_load': {
-        const validation = validateManifest(args.manifest)
-        if (!validation.ok) {
-          return errorText(
-            'INVALID_MANIFEST',
-            'Manifest failed schema validation.',
-            { errors: validation.errors },
-          )
-        }
-        if (tabId == null) {
-          return errorText('SESSION_NOT_ACTIVE', 'No active session for manifest load.')
-        }
-        if (typeof driver.injectManifest !== 'function') {
-          return errorText('INVALID_COMMAND', 'Driver does not support injectManifest.')
-        }
-        try {
-          await driver.injectManifest(tabId, validation.manifest as AgruneManifest)
-        } catch (error) {
-          const shape = error as Partial<CommandErrorShape>
-          if (shape && typeof shape.code === 'string' && shape.code === 'TAB_NOT_FOUND') {
-            return errorText('TAB_NOT_FOUND', shape.message ?? 'Tab not found.', shape.details)
-          }
-          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
-        }
-        const session = driver.listSessions().find(s => s.tabId === tabId)
-        const payload = {
-          ok: true,
-          session: session
-            ? toPublicSessionMeta(session as Session, {
-                wasActive: session.active === true,
-                becameActive: false,
-              })
-            : null,
-          manifestSource: 'window' as const,
-        }
-        return { text: JSON.stringify(payload, null, 2) }
-      }
-      case 'agrune_macro_run': {
-        if (tabId == null) {
-          return errorText('SESSION_NOT_ACTIVE', 'No active session for macro run.')
-        }
-        if (typeof driver.runMacro !== 'function') {
-          return errorText('INVALID_COMMAND', 'Driver does not support runMacro.')
-        }
-        const macroId = typeof args.macroId === 'string' ? args.macroId : null
-        if (!macroId) {
-          return errorText('INVALID_COMMAND', 'agrune_macro_run requires macroId (string).')
-        }
-        const params = (args.params ?? {}) as Record<string, unknown>
-
-        let response: MacroRunResponse
-        try {
-          response = await driver.runMacro(tabId, macroId, params)
-        } catch (error) {
-          const shape = error as Partial<CommandErrorShape>
-          if (shape && typeof shape.code === 'string' && shape.code === 'TAB_NOT_FOUND') {
-            return errorText('TAB_NOT_FOUND', shape.message ?? 'Tab not found.', shape.details)
-          }
-          return errorText('INVALID_COMMAND', error instanceof Error ? error.message : String(error))
-        }
-
-        // Status → error code 매핑 (per 14-RESEARCH.md Q4)
-        switch (response.status) {
-          case 'ok':
-          case 'already-satisfied':
-            return {
-              text: JSON.stringify(
-                { ok: true, status: response.status, macroId: response.macroId, stepCount: response.stepCount },
-                null,
-                2,
-              ),
-            }
-          case 'circuit-open':
-            return errorText('MACRO_CIRCUIT_OPEN', 'Circuit breaker opened — consecutive failures.', {
-              failedStep: response.failedStep,
-              macroId,
-            })
-          case 'precondition-failed':
-            return errorText(
-              'MACRO_PRECONDITION_FAILED',
-              `Macro precondition failed: ${response.reason}`,
-              { macroId, reason: response.reason },
-            )
-          case 'postcondition-failed':
-            return errorText(
-              'MACRO_POSTCONDITION_FAILED',
-              `Macro postcondition failed: ${response.reason}`,
-              { macroId, reason: response.reason },
-            )
-          case 'step-error':
-            // macro not found 는 PageAgentRuntime 에서 error="macro not found: xxx" 로 반환 → 매핑
-            if (response.stepIndex === -1 && response.error.startsWith('macro not found')) {
-              return errorText('MACRO_NOT_FOUND', response.error, { macroId })
-            }
-            return errorText('INVALID_COMMAND', `Macro step failed: ${response.error}`, {
-              macroId,
-              stepIndex: response.stepIndex,
-              error: response.error,
-            })
-          case 'target-not-found':
-            return errorText(
-              'TARGET_NOT_FOUND',
-              `Macro target not found at step ${response.stepIndex}: ${response.targetId}`,
-              { macroId, stepIndex: response.stepIndex, targetId: response.targetId },
-            )
-          default: {
-            // TypeScript exhaustiveness guard — unknown status → INVALID_COMMAND
-            const _exhaustive: never = response
-            return errorText('INVALID_COMMAND', `Unknown macro result status.`, { macroId, response: _exhaustive })
-          }
-        }
-      }
-      case 'agrune_config': {
+      case 'browser_update_config': {
         const config: Partial<AgruneRuntimeConfig> = {}
         if (typeof args.pointerAnimation === 'boolean') config.pointerAnimation = args.pointerAnimation
         if (typeof args.auroraGlow === 'boolean') config.auroraGlow = args.auroraGlow
@@ -324,6 +244,29 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
   registerAgruneTools(mcp, handleToolCall)
 
   return { server: mcp, driver, handleToolCall, commandBroker, hitl }
+}
+
+function resolveRuntimeCommandKind(toolName: string): string {
+  switch (toolName) {
+    case 'browser_click':
+    case 'browser_double_click':
+    case 'browser_right_click':
+    case 'browser_hover':
+    case 'browser_long_press':
+      return 'act'
+    case 'browser_fill':
+      return 'fill'
+    case 'browser_drag':
+      return 'drag'
+    case 'browser_pointer':
+      return 'pointer'
+    case 'browser_wait_for':
+      return 'wait'
+    case 'browser_read':
+      return 'read'
+    default:
+      return toolName
+  }
 }
 
 function resolveSnapshotOptions(args: Record<string, unknown>): PublicSnapshotOptions {

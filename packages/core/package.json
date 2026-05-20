@@ -1,7 +1,8 @@
 {
   "name": "@agrune/core",
   "version": "0.4.1",
-  "description": "Shared types, errors, and config helpers for agrune",
+  "description": "Internal shared types, errors, and config helpers for agrune",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -10,22 +11,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./annotation-lint": {
-      "types": "./dist/annotation-lint.d.ts",
-      "import": "./dist/annotation-lint.js"
-    },
-    "./annotation-lint/vite-plugin": {
-      "types": "./dist/annotation-lint-vite-plugin.d.ts",
-      "import": "./dist/annotation-lint-vite-plugin.js"
     }
   },
-  "bin": {
-    "agrune-lint": "./bin/agrune-lint.js"
-  },
   "files": [
-    "dist",
-    "bin"
+    "dist"
   ],
   "scripts": {
     "build": "tsup",

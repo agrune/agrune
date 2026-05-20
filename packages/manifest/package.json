@@ -1,7 +1,8 @@
 {
   "name": "@agrune/manifest",
   "version": "0.4.1",
-  "description": "Type-safe authoring SDK for agrune v3 manifests.",
+  "description": "Internal schema and validator for agrune manifests.",
+  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -18,7 +19,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"
   },
-  "publishConfig": { "access": "public" },
   "license": "MIT",
   "dependencies": {
     "zod": "^4.3.6"

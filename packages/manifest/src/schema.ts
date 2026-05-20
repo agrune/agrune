@@ -4,21 +4,9 @@ import { z } from 'zod'
 
 export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
 
-export interface FiberPathSegment {
-  /** getDisplayName(fiber.type) — empty string if anonymous */
-  componentName: string
-  /** fiber.key (React key prop) — null if not keyed */
-  key: string | null
-  /** fiber.index (sibling 순서) — non-negative integer */
-  index: number
-}
-
-/** DOM 노드를 식별하는 직렬화 가능한 경로 (컴포넌트 → root 방향). Max 8 segments. */
-export type FiberIdentityPath = FiberPathSegment[]
-
 /**
  * AtLeastOne<T> — T의 키 중 최소 1개는 반드시 존재해야 하는 타입 helper.
- * SelectorLadder는 role/text/testId/attr/css/fiber 중 최소 1개가 필수.
+ * SelectorLadder는 role/text/testId/attr/css 중 최소 1개가 필수.
  */
 type AtLeastOne<T> = { [K in keyof T]: Pick<T, K> & Partial<Omit<T, K>> }[keyof T]
 
@@ -28,7 +16,6 @@ export type SelectorLadder = AtLeastOne<{
   testId: string
   attr: string
   css: string
-  fiber: { path: FiberIdentityPath }
 }>
 
 export interface MacroStep {
@@ -104,17 +91,10 @@ export const SelectorLadderSchema = z
     testId: z.string().optional(),
     attr: z.string().optional(),
     css: z.string().optional(),
-    fiber: z.object({
-      path: z.array(z.object({
-        componentName: z.string(),
-        key: z.string().nullable(),
-        index: z.number().int().nonnegative(),
-      })).min(1).max(8),
-    }).optional(),
   })
   .refine(
-    (v) => Boolean(v.role || v.text || v.testId || v.attr || v.css || v.fiber),
-    { message: 'SelectorLadder must define at least one of: role, text, testId, attr, css, fiber' },
+    (v) => Boolean(v.role || v.text || v.testId || v.attr || v.css),
+    { message: 'SelectorLadder must define at least one of: role, text, testId, attr, css' },
   )
 
 export const TargetSchema = z.object({

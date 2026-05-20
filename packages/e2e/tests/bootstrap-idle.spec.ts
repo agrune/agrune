@@ -1,9 +1,5 @@
 import { test, expect } from '@playwright/test'
 
-// Phase 17 note: `source` union no longer includes 'inline' — the runtime
-// does not read legacy data-agrune-* DOM attributes at all. `descriptorCount`
-// is surfaced by the fixtures so specs can positively verify the empty
-// manifest path even when the DOM contains legacy bait.
 const SKIP = process.env.PLAYWRIGHT_SKIP_E2E === '1'
 
 interface RuntimeState {
@@ -31,36 +27,13 @@ test.describe('RESOLVE-04 — bootstrap always runs, idle when no manifest', () 
     expect(state!.descriptorCount).toBe(0)
   })
 
-  test('legacy-annotated.html: runtime ignores legacy data-agrune-* attributes (source=idle)', async ({ page }) => {
-    // Phase 17 REMOVE-01 regression: the fixture body deliberately still has
-    // data-agrune-group / data-agrune-action / data-agrune-key attributes.
-    // The runtime must NOT interpret them — it must resolve to the empty
-    // manifest exactly like idle-boot.html.
-    await page.goto('http://127.0.0.1:5555/legacy-annotated.html')
-    await page.waitForFunction(() => window.__agrune_runtime_state__ !== undefined, null, { timeout: 10000 })
-    const state = await page.evaluate(() => window.__agrune_runtime_state__)
-    expect(state).toBeDefined()
-    expect(state!.hasManifest).toBe(false)
-    expect(state!.source).toBe('idle')
-    expect(state!.descriptorCount).toBe(0)
-    // Belt-and-suspenders: the legacy bait attributes are still present in
-    // the DOM, proving we really are testing ignore (not absence).
-    const legacyDomPresent = await page.evaluate(() => ({
-      actions: document.querySelectorAll('[data-agrune-action]').length,
-      groups: document.querySelectorAll('[data-agrune-group]').length,
-    }))
-    expect(legacyDomPresent.actions).toBeGreaterThan(0)
-    expect(legacyDomPresent.groups).toBeGreaterThan(0)
-  })
-
   test('__agrune_runtime_state__ resists direct reassignment (writable:false)', async ({ page }) => {
     // Scope note (Phase 17 REVIEW WR-03): this test verifies ONLY that the
     // property is non-writable — i.e. a direct `window.__agrune_runtime_state__ = ...`
     // reassignment does not mutate the published snapshot. It intentionally does
     // NOT claim full tamper-proofness:
-    //   - The property is defined with `configurable: true` (see idle-boot.html
-    //     and legacy-annotated.html); a determined script could `delete` and
-    //     redefine it. That is acceptable for the v1 threat model where the
+    //   - The property is defined with `configurable: true` (see idle-boot.html);
+    //     a determined script could `delete` and redefine it. That is acceptable for the v1 threat model where the
     //     fixtures are under repo control and we only care about catching
     //     accidental runtime self-overwrite.
     //   - The reassignment below runs in a Playwright page.evaluate() context,

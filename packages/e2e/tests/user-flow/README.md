@@ -15,7 +15,7 @@ scanner; these specs complement them by validating the stack that AI harnesses
 - No spawning of the `agrune` CLI and no stdio JSON-RPC envelope: we hit the
   exact same code path the child process would execute after the MCP SDK
   peels off the envelope. If you'd like to add a real child-process
-  smoke-test in the future, wrap `packages/mcp/dist/bin/agrune-mcp.js` with
+  smoke-test in the future, spawn `agrune` with
   `child_process.spawn` and pipe JSON-RPC frames over stdio.
 
 ## Prerequisites
@@ -58,7 +58,7 @@ The Chrome-crash scenario additionally `test.skip()`s itself if it cannot send
 
 Things this batch intentionally does NOT cover — good candidates for follow-up:
 
-1. **End-to-end stdio spawning** of `agrune-mcp.js` as a child process, with
+1. **End-to-end stdio spawning** of `agrune` as a child process, with
    JSON-RPC frames. Our in-process path is functionally equivalent but
    wouldn't catch binary-shebang or build-time packaging regressions.
 2. **DevTools webapp** user flow (open the URL, click pause/resume, observe

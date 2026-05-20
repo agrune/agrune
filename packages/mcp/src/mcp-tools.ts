@@ -62,13 +62,42 @@ export function registerAgruneTools(
     tabId: z.number().optional().describe('Tab ID (omit for active tab)'),
   }
 
-  mcp.tool('agrune_sessions', 'List active browser sessions (tabs). Only call this when switching between multiple tabs. agrune_snapshot automatically uses the active tab.', {}, async () =>
-    toMcpToolResult(await handleToolCall('agrune_sessions', {})),
+  const registerActTool = (
+    toolName: string,
+    action: 'click' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress',
+    description: string,
+  ) => {
+    mcp.tool(
+      toolName,
+      description,
+      {
+        targetId: z.string().describe('Exact targetId copied from browser_get_targets. Do not invent this value.'),
+        ...optionalTabId,
+      },
+      async (args) => {
+        const n = tryNormalizeTargetId(args.targetId as string)
+        if (!n.ok) return n.result
+        return toMcpToolResult(await handleToolCall(toolName, { ...args, targetId: n.normalized, action }))
+      },
+    )
+  }
+
+  mcp.tool('browser_list_tabs', 'List active browser tabs managed by Agrune. Only call when switching between tabs; other tools use the active tab by default.', {}, async () =>
+    toMcpToolResult(await handleToolCall('browser_list_tabs', {})),
   )
 
   mcp.tool(
-    'agrune_snapshot',
-    'Get page snapshot with actionable targets. Calling with outline mode (default) returns a group summary. To get targetIds for a specific group, specify groupId to expand it. To get all targets at once, use mode=full. Do not re-snapshot after actions — one snapshot per task is enough. Defaults: reason=ready, sensitive=false.',
+    'browser_open_tab',
+    'Open a new browser tab in the attached or launched automation browser and make it the active Agrune session.',
+    {
+      url: z.string().url().describe('URL to open in the new tab'),
+    },
+    async (args) => toMcpToolResult(await handleToolCall('browser_open_tab', args)),
+  )
+
+  mcp.tool(
+    'browser_get_targets',
+    'Get manifest-defined actionable targets for the active browser context. Default returns group summaries. Use groupId/groupIds to expand specific groups, or mode="full" to return all targetIds.',
     {
       groupId: z.string().optional().describe('Expand a group to get its targetIds'),
       groupIds: z.array(z.string()).optional().describe('Expand multiple groups'),
@@ -76,27 +105,37 @@ export function registerAgruneTools(
       includeTextContent: z.boolean().optional().describe('Include text content'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_snapshot', args)),
+    async (args) => toMcpToolResult(await handleToolCall('browser_get_targets', args)),
+  )
+
+  registerActTool(
+    'browser_click',
+    'click',
+    'Click one actionable target. First call browser_get_targets, copy the exact targetId, then call browser_click with that targetId.',
+  )
+  registerActTool(
+    'browser_double_click',
+    'dblclick',
+    'Double-click one actionable target. Use only when browser_get_targets shows dblclick in actionKinds or the user explicitly asks for a double-click.',
+  )
+  registerActTool(
+    'browser_right_click',
+    'contextmenu',
+    'Right-click one actionable target to open its context menu. Use only when browser_get_targets shows contextmenu in actionKinds or the user asks for a context menu.',
+  )
+  registerActTool(
+    'browser_hover',
+    'hover',
+    'Hover one actionable target. Use when hover reveals UI or browser_get_targets shows hover in actionKinds.',
+  )
+  registerActTool(
+    'browser_long_press',
+    'longpress',
+    'Long-press one actionable target. Use for touch-style long press interactions exposed by the page manifest.',
   )
 
   mcp.tool(
-    'agrune_act',
-    'Perform an interaction (click, dblclick, contextmenu, hover, longpress) on a target element by targetId. Defaults to click. When ok:true is returned, do not re-snapshot to verify.',
-    {
-      targetId: z.string().describe('Target ID'),
-      action: z.enum(['click', 'dblclick', 'contextmenu', 'hover', 'longpress']).optional().describe('Interaction type (default: click)'),
-      ...optionalTabId,
-    },
-    async (args) => {
-      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
-      const n = tryNormalizeTargetId(args.targetId as string)
-      if (!n.ok) return n.result
-      return toMcpToolResult(await handleToolCall('agrune_act', { ...args, targetId: n.normalized }))
-    },
-  )
-
-  mcp.tool(
-    'agrune_fill',
+    'browser_fill',
     'Fill an input/textarea/contenteditable with a value by targetId. When ok:true is returned, do not re-snapshot to verify.',
     {
       targetId: z.string().describe('Target ID'),
@@ -106,7 +145,7 @@ export function registerAgruneTools(
         .enum(['insert', 'keystroke', 'auto'])
         .optional()
         .describe(
-          'Input method. "insert" = CDP Input.insertText; "keystroke" = per-character dispatchKeyEvent (for masked inputs); "auto" detects. Defaults to "auto".',
+          'Input method. "insert" is fast text insertion; "keystroke" sends typed key events for masked inputs; "auto" detects. Defaults to "auto".',
         ),
       ...optionalTabId,
     },
@@ -114,12 +153,12 @@ export function registerAgruneTools(
       // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
       const n = tryNormalizeTargetId(args.targetId as string)
       if (!n.ok) return n.result
-      return toMcpToolResult(await handleToolCall('agrune_fill', { ...args, targetId: n.normalized }))
+      return toMcpToolResult(await handleToolCall('browser_fill', { ...args, targetId: n.normalized }))
     },
   )
 
   mcp.tool(
-    'agrune_drag',
+    'browser_drag',
     'Drag a source target to a destination. Use destinationTargetId for target-to-target drag, or destinationCoords for coordinate-based placement. For canvas groups, coords are in canvas space (auto-converted). Use relativeTo to position relative to another target. Returns movedTarget with final position.',
     {
       sourceTargetId: z.string().describe('Source target ID'),
@@ -148,16 +187,15 @@ export function registerAgruneTools(
         if (!nd.ok) return nd.result
         normalizedArgs.destinationTargetId = nd.normalized
       }
-      return toMcpToolResult(await handleToolCall('agrune_drag', normalizedArgs))
+      return toMcpToolResult(await handleToolCall('browser_drag', normalizedArgs))
     },
   )
 
   mcp.tool(
-    'agrune_pointer',
-    'Execute a low-level pointer/wheel event sequence on an element. Use for canvas pan, zoom, freeform drawing, or any interaction requiring raw coordinates. Specify target element via targetId, selector, or coords (priority: targetId > selector > coords).',
+    'browser_pointer',
+    'Execute a low-level pointer/wheel event sequence. Use targetId from a snapshot when possible; use coords only for canvas or freeform interactions.',
     {
-      targetId: z.string().optional().describe('Annotated target ID'),
-      selector: z.string().optional().describe('CSS selector for target element'),
+      targetId: z.string().optional().describe('Target ID'),
       coords: z.object({
         x: z.number().describe('Viewport X coordinate'),
         y: z.number().describe('Viewport Y coordinate'),
@@ -199,14 +237,14 @@ export function registerAgruneTools(
       if (typeof args.targetId === 'string') {
         const n = tryNormalizeTargetId(args.targetId)
         if (!n.ok) return n.result
-        return toMcpToolResult(await handleToolCall('agrune_pointer', { ...args, targetId: n.normalized }))
+        return toMcpToolResult(await handleToolCall('browser_pointer', { ...args, targetId: n.normalized }))
       }
-      return toMcpToolResult(await handleToolCall('agrune_pointer', args))
+      return toMcpToolResult(await handleToolCall('browser_pointer', args))
     },
   )
 
   mcp.tool(
-    'agrune_wait',
+    'browser_wait_for',
     'Wait for target state change.',
     {
       targetId: z.string().describe('Target ID'),
@@ -218,27 +256,12 @@ export function registerAgruneTools(
       // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
       const n = tryNormalizeTargetId(args.targetId as string)
       if (!n.ok) return n.result
-      return toMcpToolResult(await handleToolCall('agrune_wait', { ...args, targetId: n.normalized }))
+      return toMcpToolResult(await handleToolCall('browser_wait_for', { ...args, targetId: n.normalized }))
     },
   )
 
   mcp.tool(
-    'agrune_guide',
-    'Highlight a target visually.',
-    {
-      targetId: z.string().describe('Target ID'),
-      ...optionalTabId,
-    },
-    async (args) => {
-      // Phase 15-03: normalize dot-bracket targetId → runtime delimiter
-      const n = tryNormalizeTargetId(args.targetId as string)
-      if (!n.ok) return n.result
-      return toMcpToolResult(await handleToolCall('agrune_guide', { ...args, targetId: n.normalized }))
-    },
-  )
-
-  mcp.tool(
-    'agrune_config',
+    'browser_update_config',
     'Update visual config. Only call when user explicitly requests.',
     {
       pointerAnimation: z.boolean().optional(),
@@ -249,51 +272,25 @@ export function registerAgruneTools(
       autoScroll: z.boolean().optional(),
       agentActive: z.boolean().optional().describe('Toggle agent visual presence'),
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_config', args)),
+    async (args) => toMcpToolResult(await handleToolCall('browser_update_config', args)),
   )
 
   mcp.tool(
-    'agrune_read',
-    'Extract visible page content as structured markdown. Use selector to scope extraction to a specific area.',
+    'browser_read',
+    'Extract visible page content as structured markdown.',
     {
-      selector: z.string().optional().describe('CSS selector to scope extraction (default: full page)'),
       ...optionalTabId,
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_read', args)),
+    async (args) => toMcpToolResult(await handleToolCall('browser_read', args)),
   )
 
   mcp.tool(
-    'agrune_focus',
-    'Switch the active browser session (tab). Subsequent tool calls without tabId target this tab. Best-effort brings the underlying browser window to the foreground. Get tabIds from agrune_sessions.',
+    'browser_focus_tab',
+    'Switch the active browser tab. Subsequent tool calls without tabId target this tab. Best-effort brings the underlying browser window to the foreground. Get tabIds from browser_list_tabs.',
     {
       tabId: z.number().optional().describe('Tab ID to focus (preferred)'),
       sessionId: z.string().optional().describe('Reserved — pass numeric-string sessionId for future compatibility'),
     },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_focus', args)),
-  )
-
-  mcp.tool(
-    'agrune_manifest_load',
-    'Load an AgruneManifest v3 into the active browser session. After loading, agrune_snapshot and agrune_act resolve targets defined in the manifest. Call this before using other tools on external sites (e.g. youtube.com) where the page does not ship its own window.__agrune_manifest__.',
-    {
-      manifest: z.object({
-        version: z.literal(3),
-        groups: z.array(z.any()),
-        macros: z.array(z.any()).optional(),
-      }).describe('AgruneManifest v3 object. Must pass validateManifest schema (see @agrune/manifest).'),
-      ...optionalTabId,
-    },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_manifest_load', args)),
-  )
-
-  mcp.tool(
-    'agrune_macro_run',
-    'Run a macro defined in the loaded manifest by macroId. Executes the entire step loop in-page via a single Runtime.evaluate — step-level CDP round-trips do not occur. Returns MacroResult-shaped response. Call agrune_manifest_load first if the page does not ship its own manifest.',
-    {
-      macroId: z.string().describe('Macro ID as defined in the manifest'),
-      params: z.record(z.string(), z.unknown()).optional().describe('Params matching macro.params schema — interpolated into step.value as {{key}}'),
-      ...optionalTabId,
-    },
-    async (args) => toMcpToolResult(await handleToolCall('agrune_macro_run', args)),
+    async (args) => toMcpToolResult(await handleToolCall('browser_focus_tab', args)),
   )
 }

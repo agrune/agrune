@@ -1,0 +1,21 @@
+{
+  "name": "agrune",
+  "version": "0.4.1",
+  "description": "Agrune MCP server package.",
+  "type": "commonjs",
+  "bin": "./vendor/mcp-dist/bin/agrune-mcp.js",
+  "files": [
+    "vendor",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @agrune/runtime run build && pnpm --filter @agrune/mcp run build && node scripts/copy-mcp-dist.cjs",
+    "prepack": "pnpm run build",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {},
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT"
+}

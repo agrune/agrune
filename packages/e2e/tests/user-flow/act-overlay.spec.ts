@@ -27,6 +27,7 @@ test.describe('real user-flow: agrune_act + overlay context', () => {
     harness = await createRealHarness({
       startUrl: 'http://127.0.0.1:5555/overlay-modal.html',
     })
+    // The fixture owns window.__agrune_manifest__; no MCP manifest-load tool is involved.
     await harness.driver.ensureReady()
   })
 

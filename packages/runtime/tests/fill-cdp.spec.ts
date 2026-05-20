@@ -93,7 +93,7 @@ describe('handleFill — CDP Input domain', () => {
 
   it('INPUT-01: plain text input uses Input.insertText (strategy=auto)', async () => {
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'plain')
+    input.setAttribute('data-testid', 'plain')
     input.type = 'text'
     input.getBoundingClientRect = () => mockRect()
     document.body.appendChild(input)
@@ -101,7 +101,7 @@ describe('handleFill — CDP Input domain', () => {
       () => input,
     )
 
-    const runtime = buildRuntime(makeFillManifest('plain', '[data-agrune-key="plain"]'))
+    const runtime = buildRuntime(makeFillManifest('plain', '[data-testid="plain"]'))
     const snapshot = runtime.getSnapshot()
     const result = await runtime.fill({
       expectedVersion: snapshot.version,
@@ -123,7 +123,7 @@ describe('handleFill — CDP Input domain', () => {
 
   it('INPUT-03: masked tel input uses per-character dispatchKeyEvent', async () => {
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'phone')
+    input.setAttribute('data-testid', 'phone')
     input.type = 'tel'
     input.setAttribute('pattern', '\\d{3}-\\d{4}')
     input.setAttribute('inputmode', 'tel')
@@ -133,7 +133,7 @@ describe('handleFill — CDP Input domain', () => {
       () => input,
     )
 
-    const runtime = buildRuntime(makeFillManifest('phone', '[data-agrune-key="phone"]'))
+    const runtime = buildRuntime(makeFillManifest('phone', '[data-testid="phone"]'))
     const snapshot = runtime.getSnapshot()
     const result = await runtime.fill({
       expectedVersion: snapshot.version,
@@ -157,7 +157,7 @@ describe('handleFill — CDP Input domain', () => {
 
   it('INPUT-02: contenteditable element is accepted and receives insertText', async () => {
     const div = document.createElement('div')
-    div.setAttribute('data-agrune-key', 'note')
+    div.setAttribute('data-testid', 'note')
     div.setAttribute('contenteditable', 'true')
     div.getBoundingClientRect = () => mockRect()
     // jsdom does not auto-compute isContentEditable reliably.
@@ -170,7 +170,7 @@ describe('handleFill — CDP Input domain', () => {
       () => div,
     )
 
-    const runtime = buildRuntime(makeFillManifest('note', '[data-agrune-key="note"]'))
+    const runtime = buildRuntime(makeFillManifest('note', '[data-testid="note"]'))
     const snapshot = runtime.getSnapshot()
     const result = await runtime.fill({
       expectedVersion: snapshot.version,
@@ -188,7 +188,7 @@ describe('handleFill — CDP Input domain', () => {
 
   it('INPUT-04: clear=false skips selectAll; clear=true triggers selectAll command', async () => {
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'noclear')
+    input.setAttribute('data-testid', 'noclear')
     input.type = 'text'
     input.value = 'existing'
     input.getBoundingClientRect = () => mockRect()
@@ -197,7 +197,7 @@ describe('handleFill — CDP Input domain', () => {
       () => input,
     )
 
-    const runtime = buildRuntime(makeFillManifest('noclear', '[data-agrune-key="noclear"]'))
+    const runtime = buildRuntime(makeFillManifest('noclear', '[data-testid="noclear"]'))
     let snapshot = runtime.getSnapshot()
     const noClearResult = await runtime.fill({
       expectedVersion: snapshot.version,

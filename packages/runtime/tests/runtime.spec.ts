@@ -50,14 +50,14 @@ function makeManifest(): AgruneManifest {
           {
             desc: '로그인 버튼',
             name: '로그인',
-            selector: { css: '[data-agrune-key="login"]' },
+            selector: { css: '[data-testid="login"]' },
             actionKinds: ['click'],
             targetId: 'login',
           },
           {
             desc: '이메일 입력',
             name: '이메일',
-            selector: { css: '[data-agrune-key="email"]' },
+            selector: { css: '[data-testid="email"]' },
             actionKinds: ['fill'],
             targetId: 'email',
           },
@@ -77,7 +77,7 @@ function makeRepeatedTargetManifest(): AgruneManifest {
         targets: [
           {
             actionKinds: ['click'],
-            selector: { css: '[data-agrune-key="assignee-option"]' },
+            selector: { css: '[data-testid="assignee-option"]' },
             targetId: 'assignee-option',
           },
         ],
@@ -98,14 +98,14 @@ function makeOverlayFlowManifest(): AgruneManifest {
           {
             desc: '배경 로그인 버튼',
             name: '로그인',
-            selector: { css: '[data-agrune-key="login"]' },
+            selector: { css: '[data-testid="login"]' },
             actionKinds: ['click'],
             targetId: 'login',
           },
           {
             desc: '배경 이메일 입력',
             name: '이메일',
-            selector: { css: '[data-agrune-key="email"]' },
+            selector: { css: '[data-testid="email"]' },
             actionKinds: ['fill'],
             targetId: 'email',
           },
@@ -119,7 +119,7 @@ function makeOverlayFlowManifest(): AgruneManifest {
           {
             desc: '모달 확인 버튼',
             name: '확인',
-            selector: { css: '[data-agrune-key="confirm"]' },
+            selector: { css: '[data-testid="confirm"]' },
             actionKinds: ['click'],
             targetId: 'confirm',
           },
@@ -180,13 +180,11 @@ describe('page agent runtime', () => {
   it('getSnapshot은 visible/enabled/actionKind를 포함한다', () => {
     const button = document.createElement('button')
     button.textContent = '로그인'
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'email')
-    // Phase 17 REMOVE-01: legacy data-agrune-sensitive attribute 경로 제거됨.
-    // type=password heuristic 으로 대체하여 동일 sensitive 신호 검증.
+    input.setAttribute('data-testid', 'email')
     input.setAttribute('type', 'password')
     input.getBoundingClientRect = () => mockRect()
 
@@ -232,12 +230,12 @@ describe('page agent runtime', () => {
   it('getSnapshot은 비실행 가능 target도 상태와 함께 유지한다', () => {
     const button = document.createElement('button')
     button.textContent = '로그인'
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
     button.disabled = true
 
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'email')
+    input.setAttribute('data-testid', 'email')
     input.getBoundingClientRect = () => mockRect()
     input.style.display = 'none'
 
@@ -271,7 +269,7 @@ describe('page agent runtime', () => {
   it('오버레이에 가려진 target은 snapshot에 남지만 covered 상태가 된다', async () => {
     const button = document.createElement('button')
     button.textContent = '로그인'
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     const overlay = document.createElement('div')
@@ -302,10 +300,10 @@ describe('page agent runtime', () => {
     expect(result.error.code).toBe('NOT_VISIBLE')
   })
 
-  it('overlay flow가 active면 covered가 아니어도 배경 act/guide/fill을 막는다', async () => {
+  it('overlay flow가 active면 covered가 아니어도 배경 act/fill을 막는다', async () => {
     const login = document.createElement('button')
     login.textContent = '로그인'
-    login.setAttribute('data-agrune-key', 'login')
+    login.setAttribute('data-testid', 'login')
     login.getBoundingClientRect = () => ({
       ...mockRect(),
       bottom: 40,
@@ -314,7 +312,7 @@ describe('page agent runtime', () => {
     })
 
     const email = document.createElement('input')
-    email.setAttribute('data-agrune-key', 'email')
+    email.setAttribute('data-testid', 'email')
     email.value = 'user@example.com'
     email.getBoundingClientRect = () => ({
       ...mockRect(),
@@ -337,7 +335,7 @@ describe('page agent runtime', () => {
 
     const confirm = document.createElement('button')
     confirm.textContent = '확인'
-    confirm.setAttribute('data-agrune-key', 'confirm')
+    confirm.setAttribute('data-testid', 'confirm')
     confirm.getBoundingClientRect = () => ({
       ...mockRect(),
       bottom: 200,
@@ -385,13 +383,6 @@ describe('page agent runtime', () => {
     }
     expect(actResult.error.code).toBe('FLOW_BLOCKED')
 
-    const guideResult = await runtime.guide({ targetId: 'login', expectedVersion: snapshot.version })
-    expect(guideResult.ok).toBe(false)
-    if (guideResult.ok) {
-      throw new Error('expected runtime.guide to fail for flow-blocked background target')
-    }
-    expect(guideResult.error.code).toBe('FLOW_BLOCKED')
-
     const fillResult = await runtime.fill({
       targetId: 'email',
       value: 'next@example.com',
@@ -409,7 +400,7 @@ describe('page agent runtime', () => {
 
     const login = document.createElement('button')
     login.textContent = '로그인'
-    login.setAttribute('data-agrune-key', 'login')
+    login.setAttribute('data-testid', 'login')
     login.draggable = true
     login.getBoundingClientRect = () => ({
       ...mockRect(),
@@ -419,7 +410,7 @@ describe('page agent runtime', () => {
     })
 
     const email = document.createElement('input')
-    email.setAttribute('data-agrune-key', 'email')
+    email.setAttribute('data-testid', 'email')
     email.getBoundingClientRect = () => ({
       ...mockRect(),
       bottom: 120,
@@ -441,7 +432,7 @@ describe('page agent runtime', () => {
 
     const confirm = document.createElement('button')
     confirm.textContent = '확인'
-    confirm.setAttribute('data-agrune-key', 'confirm')
+    confirm.setAttribute('data-testid', 'confirm')
     confirm.addEventListener('click', () => {
       confirmed += 1
     })
@@ -499,7 +490,7 @@ describe('page agent runtime', () => {
   it('오로라와 커서는 에이전트 배치가 끝난 뒤에만 숨겨진다', async () => {
     vi.useFakeTimers()
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     // CDP path does not fire DOM click events in jsdom, so visual state
@@ -559,7 +550,7 @@ describe('page agent runtime', () => {
 
     try {
       const button = document.createElement('button')
-      button.setAttribute('data-agrune-key', 'login')
+      button.setAttribute('data-testid', 'login')
       button.getBoundingClientRect = () => mockRect()
       document.body.appendChild(button)
       ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
@@ -662,7 +653,7 @@ describe('page agent runtime', () => {
 
   it('act는 click 실행 후 최신 snapshot을 반환한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     // CDP path does not fire DOM click events in jsdom, so click listener side-effects
@@ -681,7 +672,7 @@ describe('page agent runtime', () => {
 
   it('act는 동적으로 추가된 overlay target을 즉시 snapshot에 반영하고 실행할 수 있다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     let dialog: HTMLDivElement | null = null
@@ -697,8 +688,6 @@ describe('page agent runtime', () => {
         dialog = document.createElement('div')
         dialog.setAttribute('role', 'dialog')
         dialog.setAttribute('aria-modal', 'true')
-        dialog.setAttribute('data-agrune-group', 'modal')
-        dialog.setAttribute('data-agrune-group-name', 'Modal')
         dialog.style.position = 'fixed'
         dialog.style.zIndex = '10'
         dialog.getBoundingClientRect = () =>
@@ -712,8 +701,7 @@ describe('page agent runtime', () => {
 
         confirmButton = document.createElement('button')
         confirmButton.textContent = '확인'
-        confirmButton.setAttribute('data-agrune-action', 'click')
-        confirmButton.setAttribute('data-agrune-key', 'confirm')
+        confirmButton.setAttribute('data-testid', 'confirm')
         confirmButton.getBoundingClientRect = () =>
           ({
             ...mockRect(),
@@ -741,8 +729,6 @@ describe('page agent runtime', () => {
       },
     )
 
-    // Phase 17 REMOVE-01: confirm target 은 manifest 에 미리 등록되어야 한다 —
-    // live-scan 경로 제거로 DOM 동적 추가만으로 snapshot 에 나타나지 않는다.
     const runtime = createPageAgentRuntime(makeOverlayFlowManifest(), { cdpPostMessage: mockCdpPostMessage })
     const snapshot = runtime.getSnapshot()
     const result = await runtime.act({ expectedVersion: snapshot.version, targetId: 'login' })
@@ -772,11 +758,11 @@ describe('page agent runtime', () => {
 
     expect(confirmResult.ok).toBe(true)
     // confirmed count not checked: CDP path does not fire DOM click events in jsdom
-  })
+  }, 10_000)
 
   it('act는 step 전환 뒤 다음 frame에서 주입된 overlay target도 settled snapshot에 반영한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     let dialog: HTMLDivElement | null = null
@@ -825,8 +811,7 @@ describe('page agent runtime', () => {
           document.body.appendChild(dialog)
 
           requestAnimationFrame(() => {
-            createButton?.setAttribute('data-agrune-action', 'click')
-            createButton?.setAttribute('data-agrune-key', 'create')
+            createButton?.setAttribute('data-testid', 'create')
           })
         }
         window.dispatchEvent(
@@ -839,7 +824,7 @@ describe('page agent runtime', () => {
       document.body.appendChild(button)
       ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(
         (_x: number, y: number) => {
-          if (createButton?.hasAttribute('data-agrune-action') && y >= 320 && y < 360) {
+          if (createButton && y >= 320 && y < 360) {
             return createButton
           }
           if (dialog) return dialog
@@ -847,8 +832,6 @@ describe('page agent runtime', () => {
         },
       )
 
-      // Phase 17 REMOVE-01: create target 은 manifest 에 미리 등록. live-scan
-      // 제거 후 DOM 에 data-agrune-* 속성이 나중에 붙어도 runtime 은 무시한다.
       const baseManifest = makeManifest()
       const manifestWithCreate: AgruneManifest = {
         ...baseManifest,
@@ -861,7 +844,7 @@ describe('page agent runtime', () => {
               {
                 targetId: 'create',
                 name: 'Create Task',
-                selector: { css: '[data-agrune-key="create"]' },
+                selector: { css: '[data-testid="create"]' },
                 actionKinds: ['click'],
               },
             ],
@@ -888,7 +871,7 @@ describe('page agent runtime', () => {
 
   it('act는 mousedown 기반 상호작용도 실행한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     // CDP path does not fire DOM mousedown/click events in jsdom;
@@ -906,7 +889,7 @@ describe('page agent runtime', () => {
 
   it('act는 스크롤 컨테이너 안에서 가려진 target도 scrollIntoView 후 실행한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
 
     const cover = document.createElement('div')
@@ -943,8 +926,7 @@ describe('page agent runtime', () => {
 
     const hiddenItem = document.createElement('button')
     hiddenItem.textContent = 'Tina Yamamoto'
-    hiddenItem.setAttribute('data-agrune-action', 'click')
-    hiddenItem.setAttribute('data-agrune-key', 'assignee-option')
+    hiddenItem.setAttribute('data-testid', 'assignee-option')
     hiddenItem.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -989,8 +971,7 @@ describe('page agent runtime', () => {
 
     const hiddenItem = document.createElement('button')
     hiddenItem.textContent = 'Tina Yamamoto'
-    hiddenItem.setAttribute('data-agrune-action', 'click')
-    hiddenItem.setAttribute('data-agrune-key', 'assignee-option')
+    hiddenItem.setAttribute('data-testid', 'assignee-option')
 
     let revealed = false
     hiddenItem.getBoundingClientRect = () =>
@@ -1026,7 +1007,7 @@ describe('page agent runtime', () => {
 
   it('act는 가운데가 열려 있으면 중심 좌표를 우선 클릭한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () =>
       ({
         x: 100,
@@ -1060,7 +1041,7 @@ describe('page agent runtime', () => {
 
   it('act는 가운데가 가려진 select item도 노출된 좌표로 pointerup을 보낸다', async () => {
     const item = document.createElement('div')
-    item.setAttribute('data-agrune-key', 'login')
+    item.setAttribute('data-testid', 'login')
     item.getBoundingClientRect = () =>
       ({
         x: 100,
@@ -1102,7 +1083,7 @@ describe('page agent runtime', () => {
 
     const button = document.createElement('button')
     button.textContent = '로그인'
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
     overlay.appendChild(button)
     document.body.appendChild(overlay)
@@ -1127,7 +1108,7 @@ describe('page agent runtime', () => {
   it('viewport 밖 target은 offscreen reason으로 표시된다', () => {
     const button = document.createElement('button')
     button.textContent = '로그인'
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1155,9 +1136,7 @@ describe('page agent runtime', () => {
 
   it('민감한 fill target은 sensitive reason으로 표시된다', () => {
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'email')
-    // Phase 17 REMOVE-01: legacy data-agrune-sensitive 제거 → type=password 로
-    // heuristic 경로를 타고 sensitive:true 결과를 얻는다.
+    input.setAttribute('data-testid', 'email')
     input.setAttribute('type', 'password')
     input.getBoundingClientRect = () => mockRect()
 
@@ -1181,7 +1160,7 @@ describe('page agent runtime', () => {
 
   it('fill은 CDP Input 도메인으로 insertText를 보낸다', async () => {
     const input = document.createElement('input')
-    input.setAttribute('data-agrune-key', 'email')
+    input.setAttribute('data-testid', 'email')
     input.getBoundingClientRect = () => mockRect()
 
     document.body.appendChild(input)
@@ -1222,7 +1201,7 @@ describe('page agent runtime', () => {
     const buttons = labels.map((label, index) => {
       const button = document.createElement('button')
       button.textContent = label
-      button.setAttribute('data-agrune-key', 'assignee-option')
+      button.setAttribute('data-testid', 'assignee-option')
       button.getBoundingClientRect = () =>
         ({
           ...mockRect(),
@@ -1276,11 +1255,8 @@ describe('page agent runtime', () => {
   })
 
   it('동일 targetId가 step 전환으로 다른 element를 가리켜도 manifest selector는 재해석된다', async () => {
-    // Phase 17 REMOVE-01: live descriptor 경로 제거됨. 이제 manifest selector 가
-    // 안정 class (.wizard-primary) 등 step 전환에 survive 하는 기준으로 작성되어야
-    // 동일 targetId 가 신규 DOM 노드로 re-resolve 된다. textContent 가 snapshot.name
-    // 으로 노출되므로 (manifest.name 미지정 시) 새 element 의 "Create Task" 가
-    // 관측된다.
+    // The selector is intentionally stable across the step transition, so the
+    // same targetId re-resolves to the new DOM node.
     const manifest: AgruneManifest = {
       version: 3,
       groups: [
@@ -1461,7 +1437,7 @@ describe('page agent runtime', () => {
     const buttons = labels.map((label, index) => {
       const button = document.createElement('button')
       button.textContent = label
-      button.setAttribute('data-agrune-key', 'assignee-option')
+      button.setAttribute('data-testid', 'assignee-option')
       button.getBoundingClientRect = () =>
         ({
           ...mockRect(),
@@ -1515,7 +1491,7 @@ describe('page agent runtime', () => {
 
   it('drag는 click target을 source/destination으로 사용해 pointer 기반 이동을 실행한다', async () => {
     const source = document.createElement('div')
-    source.setAttribute('data-agrune-key', 'card-1')
+    source.setAttribute('data-testid', 'card-1')
     source.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1524,7 +1500,7 @@ describe('page agent runtime', () => {
       }) as DOMRect
 
     const destination = document.createElement('div')
-    destination.setAttribute('data-agrune-key', 'column-done')
+    destination.setAttribute('data-testid', 'column-done')
     destination.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1549,14 +1525,14 @@ describe('page agent runtime', () => {
             {
               desc: '첫 번째 카드',
               name: 'card-1',
-              selector: { css: '[data-agrune-key="card-1"]' },
+              selector: { css: '[data-testid="card-1"]' },
               actionKinds: ['click'],
               targetId: 'card-1',
             },
             {
               desc: 'Done 컬럼',
               name: 'column-done',
-              selector: { css: '[data-agrune-key="column-done"]' },
+              selector: { css: '[data-testid="column-done"]' },
               actionKinds: ['click'],
               targetId: 'column-done',
             },
@@ -1591,7 +1567,7 @@ describe('page agent runtime', () => {
   it('drag는 pointerAnimation 설정 시 커서 오버레이를 표시한다', async () => {
     vi.useFakeTimers()
     const source = document.createElement('div')
-    source.setAttribute('data-agrune-key', 'card-1')
+    source.setAttribute('data-testid', 'card-1')
     source.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1600,7 +1576,7 @@ describe('page agent runtime', () => {
       }) as DOMRect
 
     const destination = document.createElement('div')
-    destination.setAttribute('data-agrune-key', 'column-done')
+    destination.setAttribute('data-testid', 'column-done')
     destination.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1632,14 +1608,14 @@ describe('page agent runtime', () => {
               {
                 desc: '첫 번째 카드',
                 name: 'card-1',
-                selector: { css: '[data-agrune-key="card-1"]' },
+                selector: { css: '[data-testid="card-1"]' },
                 actionKinds: ['click'],
                 targetId: 'card-1',
               },
               {
                 desc: 'Done 컬럼',
                 name: 'column-done',
-                selector: { css: '[data-agrune-key="column-done"]' },
+                selector: { css: '[data-testid="column-done"]' },
                 actionKinds: ['click'],
                 targetId: 'column-done',
               },
@@ -1679,7 +1655,7 @@ describe('page agent runtime', () => {
   it('draggable element는 HTML5 drag/drop 이벤트로 이동을 실행한다', async () => {
     const source = document.createElement('div')
     source.draggable = true
-    source.setAttribute('data-agrune-key', 'card-1')
+    source.setAttribute('data-testid', 'card-1')
     source.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1688,7 +1664,7 @@ describe('page agent runtime', () => {
       }) as DOMRect
 
     const destination = document.createElement('div')
-    destination.setAttribute('data-agrune-key', 'column-done')
+    destination.setAttribute('data-testid', 'column-done')
     destination.getBoundingClientRect = () =>
       ({
         ...mockRect(),
@@ -1714,14 +1690,14 @@ describe('page agent runtime', () => {
             {
               desc: '첫 번째 카드',
               name: 'card-1',
-              selector: { css: '[data-agrune-key="card-1"]' },
+              selector: { css: '[data-testid="card-1"]' },
               actionKinds: ['click'],
               targetId: 'card-1',
             },
             {
               desc: 'Done 컬럼',
               name: 'column-done',
-              selector: { css: '[data-agrune-key="column-done"]' },
+              selector: { css: '[data-testid="column-done"]' },
               actionKinds: ['click'],
               targetId: 'column-done',
             },
@@ -1744,7 +1720,7 @@ describe('page agent runtime', () => {
 
   it('expectedVersion이 다르면 STALE_SNAPSHOT 오류를 반환한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
     document.body.appendChild(button)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
@@ -1767,7 +1743,7 @@ describe('page agent runtime', () => {
 
   it('wait는 target 상태가 바뀌면 성공한다', async () => {
     const button = document.createElement('button')
-    button.setAttribute('data-agrune-key', 'login')
+    button.setAttribute('data-testid', 'login')
     button.getBoundingClientRect = () => mockRect()
     document.body.appendChild(button)
     ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)

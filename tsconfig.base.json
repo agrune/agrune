@@ -17,10 +17,8 @@
       "@agrune/runtime": ["packages/runtime/src/index.ts"],
       "@agrune/runtime/page-runtime": ["packages/runtime/src/page-runtime.ts"],
       "@agrune/browser": ["packages/browser/src/index.ts"],
-      "@agrune/devtools": ["packages/devtools/src/index.ts"],
       "@agrune/extension": ["packages/extension/src/content/index.ts"],
-      "@agrune/mcp": ["packages/mcp/src/index.ts"],
-      "@agrune/mcp/devtools-server": ["packages/mcp/src/devtools-server.ts"]
+      "@agrune/mcp": ["packages/mcp/src/index.ts"]
     }
   }
 }

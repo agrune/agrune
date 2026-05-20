@@ -73,7 +73,7 @@ describe('ManifestRepeat.containerSelector — 타입 레벨', () => {
     expect(repeat).toBeDefined()
   })
 
-  it('containerSelector는 SelectorLadder와 같은 타입 — role, text, testId, attr, css, fiber 중 1개 이상 허용', () => {
+  it('containerSelector는 SelectorLadder와 같은 타입 — role, text, testId, attr, css 중 1개 이상 허용', () => {
     const selectors: SelectorLadder[] = [
       { role: { name: 'list' } },
       { text: 'Posts' },

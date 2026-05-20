@@ -274,132 +274,6 @@ describe('assertNoHashClass / assertNoNthChild', () => {
   })
 })
 
-describe('validateManifest — fiber selector', () => {
-  it('accepts fiber-only selector (fiber as sole field)', () => {
-    const result = validateManifest({
-      version: 3,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click'],
-              selector: { fiber: { path: [{ componentName: 'Button', key: null, index: 0 }] } },
-            },
-          ],
-        },
-      ],
-    })
-    expect(result.ok).toBe(true)
-  })
-
-  it('rejects fiber.path as empty array', () => {
-    const result = validateManifest({
-      version: 3,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click'],
-              selector: { fiber: { path: [] } },
-            },
-          ],
-        },
-      ],
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('rejects fiber.path length > 8', () => {
-    const result = validateManifest({
-      version: 3,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click'],
-              selector: {
-                fiber: {
-                  path: Array.from({ length: 9 }, (_, i) => ({
-                    componentName: `C${i}`,
-                    key: null,
-                    index: i,
-                  })),
-                },
-              },
-            },
-          ],
-        },
-      ],
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('rejects fiber.path segment with negative index', () => {
-    const result = validateManifest({
-      version: 3,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click'],
-              selector: { fiber: { path: [{ componentName: 'Button', key: null, index: -1 }] } },
-            },
-          ],
-        },
-      ],
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('rejects fiber.path segment with non-string componentName', () => {
-    const result = validateManifest({
-      version: 3,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click'],
-              selector: { fiber: { path: [{ componentName: 42 as unknown as string, key: null, index: 0 }] } },
-            },
-          ],
-        },
-      ],
-    })
-    expect(result.ok).toBe(false)
-  })
-
-  it('JSON round-trip: manifest with fiber selector re-validates after serialize/deserialize', () => {
-    const manifest = {
-      version: 3 as const,
-      groups: [
-        {
-          groupId: 'g',
-          targets: [
-            {
-              targetId: 't',
-              actionKinds: ['click' as const],
-              selector: { fiber: { path: [{ componentName: 'Button', key: 'primary', index: 2 }] } },
-            },
-          ],
-        },
-      ],
-    }
-    const roundTripped = JSON.parse(JSON.stringify(manifest))
-    const result = validateManifest(roundTripped)
-    expect(result.ok).toBe(true)
-  })
-})
-
 describe('HASH_CLASS_PATTERN', () => {
   it('matches 8+ alphanumeric class with no hyphen suffix', () => {
     expect(HASH_CLASS_PATTERN.test('.abc12345xy')).toBe(true)
@@ -550,8 +424,8 @@ describe('validateManifest — keyFrom validation (Phase 15-03)', () => {
   })
 
   it('Test 8: CLI 회귀 — validateManifest ok:false는 기존 exit 1 배선으로 처리됨 (unit level 확인)', () => {
-    // manifest-validate-cli.ts는 이미 validateManifest 결과 ok:false → exit 1 배선 (11-05)
-    // 여기서는 unit level에서 validator 결과만 확인
+    // CLI wrapper was removed from the core MCP path; this unit check keeps
+    // the validator contract explicit for future tooling.
     const result = validateManifest(REPEAT_FIXTURE(''))
     expect(result.ok).toBe(false)
     // CLI는 이 result를 받아 exit 1 처리함 — 별도 E2E 없이 unit level에서 충분

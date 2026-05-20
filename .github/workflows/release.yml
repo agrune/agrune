@@ -23,7 +23,7 @@ jobs:
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in . packages/core packages/runtime packages/browser packages/mcp; do
+          for pkg in packages/cli packages/devtools; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -38,10 +38,8 @@ jobs:
       - name: Setup npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
-      - name: Publish @agrune/core
-        run: pnpm --filter @agrune/core publish --access public --no-git-checks
-        continue-on-error: true
+      - name: Publish agrune
+        run: pnpm --filter agrune publish --access public --no-git-checks
 
-      - name: Publish @agrune/runtime
-        run: pnpm --filter @agrune/runtime publish --access public --no-git-checks
-        continue-on-error: true
+      - name: Publish agrune-devtools
+        run: pnpm --filter agrune-devtools publish --access public --no-git-checks

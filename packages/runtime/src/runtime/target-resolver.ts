@@ -1,7 +1,7 @@
 /**
  * TargetResolver — CSS fallback selector ladder.
  *
- * Priority: fiber > role > text > testId > attr > css.
+ * Priority: role > text > testId > attr > css.
  * Hash classes (`/\.[a-zA-Z0-9]{8,}(?![a-zA-Z0-9-])/`) and `:nth-child(` are
  * rejected at resolve time via `assertNoHashClass` / `assertNoNthChild`.
  *
@@ -11,10 +11,7 @@
  *
  * Phase 11 — RESOLVE-02. MANIFEST-04 sensitive OR-only runtime portion
  * lives in `dom-utils.ts::isSensitive`.
- * Phase 13-01 — fiber-first branch via window.__agrune_identity__ bridge.
  */
-
-import type { FiberIdentityPath } from '@agrune/manifest'
 
 // ---------------------------------------------------------------------------
 // SelectorLadder type (local copy — Plan 03 will re-map to @agrune/core)
@@ -26,7 +23,6 @@ export interface SelectorLadder {
   testId?: string
   attr?: string
   css?: string
-  fiber?: { path: FiberIdentityPath }
 }
 
 // ---------------------------------------------------------------------------
@@ -201,16 +197,6 @@ export function resolveByLadder(
   ladder: SelectorLadder,
   doc: Document = document,
 ): HTMLElement[] {
-  if (ladder.fiber) {
-    const bridge = (globalThis as { __agrune_identity__?: { resolve?: (p: FiberIdentityPath) => HTMLElement | null } }).__agrune_identity__
-    if (bridge && typeof bridge.resolve === 'function') {
-      try {
-        const el = bridge.resolve(ladder.fiber.path)
-        if (el) return [el]
-      } catch { /* fallback */ }
-    }
-    // bridge 없음/null/throw → 아래 role/text/... 분기 fallback
-  }
   if (ladder.role) {
     const matched = resolveByRole(doc, ladder.role)
     if (matched.length > 0) return matched

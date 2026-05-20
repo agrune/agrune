@@ -22,7 +22,7 @@ test.describe('real user-flow: agrune_fill end-to-end', () => {
     harness = await createRealHarness({
       startUrl: 'http://127.0.0.1:5555/tricky-inputs.html',
     })
-    // Wait for the snapshot so resolveTabId() has a ready target.
+    // The fixture owns window.__agrune_manifest__; no MCP manifest-load tool is involved.
     await harness.driver.ensureReady()
   })
 

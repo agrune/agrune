@@ -9,15 +9,15 @@
 | File | Role |
 |---|---|
 | `index.html` | Vite entry — `<div id="root">` + CSS + `<script type="module" src="./App.tsx">` |
-| `App.tsx` | TodoMVC React 컴포넌트 (표준 new-todo input, toggle-all, todo 리스트, filter, clear-completed). `<AgruneDevtools manifest={m} mode="dev" />` root-import 1줄 포함 |
+| `App.tsx` | TodoMVC React 컴포넌트 (표준 new-todo input, toggle-all, todo 리스트, filter, clear-completed) |
 | `manifest.ts` | **수작업 reference manifest** — AI skill output이 닮아야 할 최종 형태. 8 static targets + 1 `defineRepeat` (todo rows) |
 | `README.md` | 이 파일 — 실행 방법 + RECORD-05 수락 체크리스트 |
 
 ## Important note
 
-**이 fixture는 `packages/e2e/` 워크스페이스 내에서 실행되지 않는다.** `@agrune/e2e`는 `react` / `react-dom` / `@agrune/react`를 devDep으로 갖지 않으며, `packages/e2e/tsconfig.json`의 `include`는 `tests/**`와 `playwright.config.ts`만 포함한다 (`fixtures/todomvc/**`는 typecheck 대상 아님).
+**이 fixture는 `packages/e2e/` 워크스페이스 내에서 실행되지 않는다.** `@agrune/e2e`는 `react` / `react-dom` 을 devDep으로 갖지 않으며, `packages/e2e/tsconfig.json`의 `include`는 `tests/**`와 `playwright.config.ts`만 포함한다 (`fixtures/todomvc/**`는 typecheck 대상 아님).
 
-실제 실행이 필요하면 별도 Vite + React 프로젝트에 복사 후 `pnpm add react react-dom @agrune/react`한 뒤 `vite` 실행. 현재 목적은 **구조 reference + 수동 AI skill 검증 대상**.
+실제 실행이 필요하면 별도 Vite + React 프로젝트에 복사 후 `pnpm add react react-dom`한 뒤 `vite` 실행. 현재 목적은 **구조 reference + 수동 AI skill 검증 대상**.
 
 ## 수동 실행 방법 (demo)
 
@@ -25,15 +25,15 @@
    ```
    pnpm create vite@latest todomvc-demo --template react-ts
    cd todomvc-demo
-   pnpm add @agrune/react @agrune/manifest
+   pnpm add @agrune/manifest
    cp /Users/chenjing/dev/agrune/agrune/packages/e2e/fixtures/todomvc/{App.tsx,manifest.ts,index.html} .
    pnpm dev
    ```
 
-2. 모노레포 터미널에서 agrune CLI 기동:
+2. 모노레포 터미널에서 agrune MCP server 확인:
    ```
-   pnpm --filter @agrune/mcp run build
-   pnpm --filter @agrune/mcp exec agrune --port 47654
+   pnpm --filter agrune run build
+   pnpm --filter agrune exec agrune --help
    ```
 
 3. Claude Code 또는 Codex CLI에서 이 프로젝트 디렉터리를 열고:
@@ -54,7 +54,7 @@ AI skill 출력이 다음을 모두 만족해야 pass:
   - 최소 `containerSelector: { css: '.todo-list' }` + `targets: [...]` + `keyFrom` + `strategy: 'dom'`
   - `keyFrom`이 `el.dataset.id` 또는 동등한 unique key 추출 표현식
 - [ ] 전체 9 target 정의 (static 6 + repeat 내부 3) 중 **≥ 7개 자동 생성 (≥ 77%)**
-- [ ] `pnpm exec agrune manifest validate src/manifest.ts` 통과 (build-linter 오류 없음):
+- [ ] Manifest schema/target shape 수동 검증 통과:
   - Hash class selector 없음
   - `:nth-child` 없음
   - 모든 target에 `actionKinds` ≥ 1

@@ -7,15 +7,15 @@ test.describe('overlay-modal interactions', () => {
 
   test('save click does not open modal', async ({ page }) => {
     await page.goto('http://127.0.0.1:5555/overlay-modal.html')
-    await page.click('[data-agrune-key="save-btn"]')
+    await page.click('#save')
     await expect(page.locator('#backdrop')).not.toBeVisible()
   })
 
   test('keep-editing closes modal without discard flag', async ({ page }) => {
     await page.goto('http://127.0.0.1:5555/overlay-modal.html')
-    await page.click('[data-agrune-key="cancel-btn"]')
+    await page.click('#cancel')
     await expect(page.locator('#backdrop')).toBeVisible()
-    await page.click('[data-agrune-key="modal-keep"]')
+    await page.click('#keep')
     await expect(page.locator('#backdrop')).not.toBeVisible()
     const flag = await page.evaluate(() => document.body.getAttribute('data-discarded'))
     expect(flag).toBeNull()
@@ -23,7 +23,7 @@ test.describe('overlay-modal interactions', () => {
 
   test('modal keyboard focus trapping smoke', async ({ page }) => {
     await page.goto('http://127.0.0.1:5555/overlay-modal.html')
-    await page.click('[data-agrune-key="cancel-btn"]')
+    await page.click('#cancel')
     const dialog = page.locator('[role="dialog"]')
     await expect(dialog).toBeVisible()
   })

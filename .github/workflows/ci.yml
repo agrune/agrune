@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   build-test:
-    name: build + typecheck + unit + lint:no-legacy
+    name: build + typecheck + unit
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -36,8 +36,19 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: Legacy data-agrune regression guard
-        run: pnpm lint:no-legacy
+      - name: Pack smoke test
+        run: |
+          rm -rf /tmp/agrune-pack-smoke
+          mkdir -p /tmp/agrune-pack-smoke/install
+          pnpm --filter agrune pack --pack-destination /tmp/agrune-pack-smoke
+          TARBALL=$(ls /tmp/agrune-pack-smoke/agrune-*.tgz | head -1)
+          npm install --prefix /tmp/agrune-pack-smoke/install --omit=dev "$TARBALL"
+          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune mcp --help
+          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --codex --local --dry-run
+          pnpm --filter agrune-devtools pack --pack-destination /tmp/agrune-pack-smoke
+          DEVTOOLS_TARBALL=$(ls /tmp/agrune-pack-smoke/agrune-devtools-*.tgz | head -1)
+          npm install --prefix /tmp/agrune-pack-smoke/install --omit=dev "$DEVTOOLS_TARBALL"
+          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune-devtools --help
 
   e2e:
     name: playwright e2e

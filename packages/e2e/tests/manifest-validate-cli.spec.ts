@@ -6,7 +6,8 @@ import { existsSync } from 'node:fs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolvePath(__dirname, '..', '..', '..')
-const CLI = resolvePath(REPO_ROOT, 'packages', 'mcp', 'dist', 'bin', 'agrune-mcp.js')
+const CLI = resolvePath(REPO_ROOT, 'packages', 'cli', 'bin', 'install.js')
+const BUNDLED_MCP = resolvePath(REPO_ROOT, 'packages', 'cli', 'vendor', 'mcp-dist', 'bin', 'agrune-mcp.js')
 const FIXTURE_DIR = resolvePath(__dirname, '..', 'fixtures')
 const GOOD_JSON = resolvePath(FIXTURE_DIR, 'validate-manifest-good.json')
 const MISSING_JSON = resolvePath(FIXTURE_DIR, 'validate-manifest-missing.json')
@@ -18,9 +19,9 @@ const TS_MANIFEST = resolvePath(FIXTURE_DIR, 'validate-manifest.ts')
 const FIXTURE_URL = 'http://127.0.0.1:5555/validate-test.html'
 
 test.beforeAll(() => {
-  if (!existsSync(CLI)) {
-    // Build mcp package if dist missing (Task 1 expected already built).
-    execFileSync('pnpm', ['--filter', '@agrune/mcp', 'run', 'build'], {
+  if (!existsSync(BUNDLED_MCP)) {
+    // Build the public agrune package surface if the bundled MCP dist is missing.
+    execFileSync('pnpm', ['--filter', 'agrune', 'run', 'build'], {
       cwd: REPO_ROOT,
       stdio: 'inherit',
     })
@@ -31,7 +32,7 @@ function runCli(args: string[]): { code: number; stdout: string; stderr: string 
   // Use spawnSync with a generous timeout (CLI spawns Playwright browser internally).
   // The webServer in playwright.config.ts serves fixtures on port 5555 so the
   // HTTP server is external to this process — spawnSync blocking is safe here.
-  const r = spawnSync(process.execPath, [CLI, ...args], {
+  const r = spawnSync(process.execPath, [CLI, 'mcp', ...args], {
     encoding: 'utf-8',
     timeout: 60_000,
   })
