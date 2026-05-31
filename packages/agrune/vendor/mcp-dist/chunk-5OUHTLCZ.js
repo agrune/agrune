@@ -1,3 +1,5 @@
+import { createRequire as __agruneCreateRequire } from "node:module";
+const require = __agruneCreateRequire(import.meta.url);
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -2985,7 +2987,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve.call(this, root, ref);
+      let _sch = resolve2.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a2 = root.localRefs) === null || _a2 === void 0 ? void 0 : _a2[ref];
         const { schemaId } = this.opts;
@@ -3012,7 +3014,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve(root, ref) {
+    function resolve2(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3587,7 +3589,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve(baseURI, relativeURI, options) {
+    function resolve2(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -3814,7 +3816,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve,
+      resolve: resolve2,
       resolveComponent,
       equal,
       serialize,
@@ -6802,6 +6804,10 @@ var require_dist = __commonJS({
     exports.default = formatsPlugin;
   }
 });
+
+// src/index.ts
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { dirname, resolve } from "path";
 
 // ../../node_modules/.pnpm/zod@4.3.6/node_modules/zod/v3/helpers/util.js
 var util;
@@ -27978,7 +27984,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error48) {
@@ -27995,7 +28001,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const earlyReject = (error48) => {
         reject(error48);
       };
@@ -28073,7 +28079,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve(parseResult.data);
+            resolve2(parseResult.data);
           }
         } catch (error48) {
           reject(error48);
@@ -28334,12 +28340,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve, interval);
+      const timeoutId = setTimeout(resolve2, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -29439,7 +29445,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -30001,7 +30007,7 @@ var EMPTY_COMPLETION_RESULT = {
   }
 };
 
-// src/target-id-normalizer.ts
+// ../core/dist/index.js
 var REPEATED_TARGET_KEY_DELIMITER = "__agrune_repeatKey_";
 var AgentTargetIdParseError = class extends Error {
   constructor(input, message) {
@@ -30027,7 +30033,7 @@ function normalizeAgentTargetId(input) {
   if (eqIdx < 0) {
     throw new AgentTargetIdParseError(
       input,
-      'Bracket must contain "=" to specify key (e.g. posts[postId=abc123].btn)'
+      'Bracket must contain "=" to specify key (e.g. posts[key=abc123].btn)'
     );
   }
   const value = bracketInner.slice(eqIdx + 1).trim();
@@ -30038,7 +30044,7 @@ function normalizeAgentTargetId(input) {
   if (!afterBracket.startsWith(".")) {
     throw new AgentTargetIdParseError(
       input,
-      'Expected "." after "]" to specify baseTargetId (e.g. posts[postId=abc].like_btn)'
+      'Expected "." after "]" to specify baseTargetId (e.g. posts[key=abc].like_btn)'
     );
   }
   const baseTargetId = afterBracket.slice(1);
@@ -30046,6 +30052,21 @@ function normalizeAgentTargetId(input) {
     throw new AgentTargetIdParseError(input, 'baseTargetId after "." cannot be empty');
   }
   return `${repeatId}${REPEATED_TARGET_KEY_DELIMITER}${value}.${baseTargetId}`;
+}
+function toAgentTargetRef(target) {
+  const delimiterIdx = target.targetId.indexOf(REPEATED_TARGET_KEY_DELIMITER);
+  if (delimiterIdx < 0) return target.targetId;
+  const repeatId = target.repeatInstance?.repeatId ?? target.targetId.slice(0, delimiterIdx);
+  const restStart = delimiterIdx + REPEATED_TARGET_KEY_DELIMITER.length;
+  const dotIdx = target.targetId.indexOf(".", restStart);
+  if (!repeatId || dotIdx <= restStart) return target.targetId;
+  const repeatKey = target.repeatInstance?.key ?? target.targetId.slice(restStart, dotIdx);
+  const baseTargetId = target.targetId.slice(dotIdx + 1);
+  if (!repeatKey || !baseTargetId) return target.targetId;
+  return `${repeatId}[key=${repeatKey}].${baseTargetId}`;
+}
+function createCommandError(code, message, details) {
+  return { code, message, details };
 }
 
 // src/mcp-tools.ts
@@ -30079,22 +30100,42 @@ function tryNormalizeTargetId(targetId) {
     throw err;
   }
 }
+function normalizeTargetIdOrSelector(targetId) {
+  try {
+    return normalizeAgentTargetId(targetId);
+  } catch (err) {
+    if (err instanceof AgentTargetIdParseError) return targetId;
+    throw err;
+  }
+}
 function registerAgruneTools(mcp, handleToolCall) {
   const optionalTabId = {
     tabId: external_exports3.number().optional().describe("Tab ID (omit for active tab)")
   };
+  const targetRef = external_exports3.string().describe("Exact target ref copied from browser_get_targets. Do not invent this value.");
+  const elementDescription = external_exports3.string().optional().describe("Human-readable element description used to describe the intended interaction");
+  const clickButton = external_exports3.enum(["left", "right", "middle"]).optional();
+  const clickModifiers = external_exports3.array(external_exports3.enum(["Alt", "Control", "ControlOrMeta", "Meta", "Shift"])).optional();
   const registerActTool = (toolName, action, description) => {
     mcp.tool(
       toolName,
       description,
       {
-        targetId: external_exports3.string().describe("Exact targetId copied from browser_get_targets. Do not invent this value."),
+        element: elementDescription,
+        target: targetRef,
+        ...toolName === "browser_click" ? {
+          button: clickButton.describe("Mouse button to click. Defaults to left."),
+          doubleClick: external_exports3.boolean().optional().describe("Perform a double click instead of a single click."),
+          modifiers: clickModifiers.describe("Modifier keys to press during the click.")
+        } : {},
         ...optionalTabId
       },
       async (args) => {
-        const n = tryNormalizeTargetId(args.targetId);
+        const n = tryNormalizeTargetId(args.target);
         if (!n.ok) return n.result;
-        return toMcpToolResult(await handleToolCall(toolName, { ...args, targetId: n.normalized, action }));
+        const { target: _target, element: _element, ...rest } = args;
+        const effectiveAction = toolName === "browser_click" && args.doubleClick === true ? "dblclick" : action;
+        return toMcpToolResult(await handleToolCall(toolName, { ...rest, targetId: n.normalized, action: effectiveAction }));
       }
     );
   };
@@ -30113,10 +30154,252 @@ function registerAgruneTools(mcp, handleToolCall) {
     async (args) => toMcpToolResult(await handleToolCall("browser_open_tab", args))
   );
   mcp.tool(
-    "browser_get_targets",
-    'Get manifest-defined actionable targets for the active browser context. Default returns group summaries. Use groupId/groupIds to expand specific groups, or mode="full" to return all targetIds.',
+    "browser_tabs",
+    "List, create, close, or select a browser tab using Playwright-style index arguments.",
     {
-      groupId: external_exports3.string().optional().describe("Expand a group to get its targetIds"),
+      action: external_exports3.enum(["list", "new", "close", "select"]).describe("Operation to perform"),
+      url: external_exports3.string().url().optional().describe("URL to navigate to in the new tab, used for new."),
+      index: external_exports3.number().int().min(0).optional().describe("Tab index, used for close/select. If omitted for close, current tab is closed.")
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_tabs", args))
+  );
+  mcp.tool(
+    "browser_close",
+    "Close the page",
+    {},
+    async (args) => toMcpToolResult(await handleToolCall("browser_close", args))
+  );
+  mcp.tool(
+    "browser_navigate",
+    "Navigate to a URL",
+    {
+      url: external_exports3.string().url().describe("The URL to navigate to")
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_navigate", args))
+  );
+  mcp.tool(
+    "browser_navigate_back",
+    "Go back to the previous page in the history",
+    {},
+    async (args) => toMcpToolResult(await handleToolCall("browser_navigate_back", args))
+  );
+  mcp.tool(
+    "browser_resize",
+    "Resize the browser window",
+    {
+      width: external_exports3.number().int().positive().describe("Width of the browser window"),
+      height: external_exports3.number().int().positive().describe("Height of the browser window")
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_resize", args))
+  );
+  mcp.tool(
+    "browser_take_screenshot",
+    "Capture screenshot of current page",
+    {
+      filename: external_exports3.string().optional().describe("File name to save the screenshot to. Defaults to `page-{timestamp}.{png|jpeg}` if not specified."),
+      fullPage: external_exports3.boolean().optional().describe("When true, takes a screenshot of the full scrollable page, instead of the currently visible viewport. Cannot be used with element screenshots."),
+      element: elementDescription,
+      target: targetRef.optional().describe("Exact target element reference from the page snapshot, or a unique element selector"),
+      type: external_exports3.enum(["png", "jpeg"]).optional().describe("Image format for the screenshot. Default is png.")
+    },
+    async (args) => {
+      const { target, element: _element, ...rest } = args;
+      if (typeof target === "string") {
+        return toMcpToolResult(await handleToolCall("browser_take_screenshot", { ...rest, targetId: normalizeTargetIdOrSelector(target) }));
+      }
+      return toMcpToolResult(await handleToolCall("browser_take_screenshot", rest));
+    }
+  );
+  mcp.tool(
+    "browser_evaluate",
+    "Evaluate JavaScript expression on page or element",
+    {
+      element: elementDescription,
+      filename: external_exports3.string().optional().describe("Filename to save the result to. If not provided, result is returned as text."),
+      function: external_exports3.string().describe("() => { /* code */ } or (element) => { /* code */ } when element is provided"),
+      target: targetRef.optional().describe("Exact target element reference from the page snapshot, or a unique element selector")
+    },
+    async (args) => {
+      const { target, element: _element, ...rest } = args;
+      if (typeof target === "string") {
+        return toMcpToolResult(await handleToolCall("browser_evaluate", { ...rest, targetId: normalizeTargetIdOrSelector(target) }));
+      }
+      return toMcpToolResult(await handleToolCall("browser_evaluate", rest));
+    }
+  );
+  mcp.tool(
+    "browser_run_code_unsafe",
+    "Run a Playwright code snippet. Unsafe: executes arbitrary JavaScript in the MCP server process and is RCE-equivalent.",
+    {
+      code: external_exports3.string().optional().describe("A JavaScript function containing Playwright code to execute. It will be invoked with a single argument, page."),
+      filename: external_exports3.string().optional().describe("Load code from the specified file. If both code and filename are provided, code will be ignored.")
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_run_code_unsafe", args))
+  );
+  mcp.tool(
+    "browser_console_messages",
+    "Returns all console messages",
+    {
+      all: external_exports3.boolean().optional().describe("Return all console messages since the beginning of the session, not just since the last navigation. Defaults to false."),
+      filename: external_exports3.string().optional().describe("Filename to save the console messages to. If not provided, messages are returned as text."),
+      level: external_exports3.enum(["debug", "info", "warning", "error"]).optional().describe('Level of the console messages to return. Each level includes the messages of more severe levels. Defaults to "info".'),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_console_messages", args))
+  );
+  mcp.tool(
+    "browser_network_requests",
+    "Returns a numbered list of network requests since loading the page. Use browser_network_request with the number to get full details.",
+    {
+      filename: external_exports3.string().optional().describe("Filename to save the network requests to. If not provided, requests are returned as text."),
+      filter: external_exports3.string().optional().describe('Only return requests whose URL matches this regexp (e.g. "/api/.*user").'),
+      static: external_exports3.boolean().optional().describe("Whether to include successful static resources like images, fonts, scripts, etc. Defaults to false."),
+      all: external_exports3.boolean().optional().describe("Return all requests since the beginning of the session, not just since the last navigation. Defaults to false."),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_network_requests", args))
+  );
+  mcp.tool(
+    "browser_network_request",
+    "Returns full details (headers and body) of a single network request, or a single part if `part` is set. Use the number from browser_network_requests.",
+    {
+      filename: external_exports3.string().optional().describe("Filename to save the result to. If not provided, output is returned as text."),
+      index: external_exports3.number().int().positive().describe("1-based index of the request, as printed by browser_network_requests."),
+      part: external_exports3.enum(["request-headers", "request-body", "response-headers", "response-body"]).optional().describe("Return only this part of the request. Omit to return full details."),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_network_request", args))
+  );
+  mcp.tool(
+    "browser_press_key",
+    "Press a key on the keyboard",
+    {
+      key: external_exports3.string().describe("Name of the key to press or a character to generate, such as `ArrowLeft` or `a`"),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_press_key", args))
+  );
+  mcp.tool(
+    "browser_type",
+    "Type text into editable element",
+    {
+      element: elementDescription,
+      target: targetRef,
+      text: external_exports3.string().describe("Text to type into the element"),
+      slowly: external_exports3.boolean().optional().describe("Whether to type one character at a time. Useful for triggering key handlers in the page. By default entire text is filled in at once."),
+      submit: external_exports3.boolean().optional().describe("Whether to submit entered text (press Enter after)"),
+      ...optionalTabId
+    },
+    async (args) => {
+      const n = tryNormalizeTargetId(args.target);
+      if (!n.ok) return n.result;
+      const { target: _target, element: _element, ...rest } = args;
+      return toMcpToolResult(await handleToolCall("browser_type", { ...rest, targetId: n.normalized }));
+    }
+  );
+  mcp.tool(
+    "browser_select_option",
+    "Select an option in a dropdown",
+    {
+      element: elementDescription,
+      target: targetRef,
+      values: external_exports3.array(external_exports3.string()).min(1).describe("Array of values to select in the dropdown. This can be a single value or multiple values."),
+      ...optionalTabId
+    },
+    async (args) => {
+      const n = tryNormalizeTargetId(args.target);
+      if (!n.ok) return n.result;
+      const { target: _target, element: _element, ...rest } = args;
+      return toMcpToolResult(await handleToolCall("browser_select_option", { ...rest, targetId: n.normalized }));
+    }
+  );
+  mcp.tool(
+    "browser_fill_form",
+    "Fill multiple form fields",
+    {
+      fields: external_exports3.array(external_exports3.object({
+        name: external_exports3.string().describe("Human-readable field name"),
+        element: elementDescription,
+        target: targetRef,
+        type: external_exports3.enum(["textbox", "checkbox", "radio", "combobox", "slider"]).describe("Type of the field"),
+        value: external_exports3.union([external_exports3.string(), external_exports3.boolean(), external_exports3.number()]).describe("Value to fill in the field")
+      })).min(1).describe("Fields to fill in"),
+      ...optionalTabId
+    },
+    async (args) => {
+      const fields = [];
+      for (const field of args.fields) {
+        const n = tryNormalizeTargetId(field.target);
+        if (!n.ok) return n.result;
+        const { target: _target, element: _element, ...rest2 } = field;
+        fields.push({ ...rest2, targetId: n.normalized });
+      }
+      const { fields: _fields, ...rest } = args;
+      return toMcpToolResult(await handleToolCall("browser_fill_form", { ...rest, fields }));
+    }
+  );
+  mcp.tool(
+    "browser_file_upload",
+    "Upload one or multiple files",
+    {
+      paths: external_exports3.array(external_exports3.string()).optional().describe("The absolute paths to the files to upload. If omitted, file chooser is cancelled."),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_file_upload", args))
+  );
+  mcp.tool(
+    "browser_drop",
+    'Drop files or MIME-typed data onto an element, as if dragged from outside the page. At least one of "paths" or "data" must be provided.',
+    {
+      element: elementDescription,
+      target: targetRef,
+      paths: external_exports3.array(external_exports3.string()).optional().describe("Absolute paths to files to drop onto the element."),
+      data: external_exports3.record(external_exports3.string(), external_exports3.string()).optional().describe("Data to drop, as a map of MIME type to string value."),
+      ...optionalTabId
+    },
+    async (args) => {
+      const n = tryNormalizeTargetId(args.target);
+      if (!n.ok) return n.result;
+      const { target: _target, element: _element, ...rest } = args;
+      return toMcpToolResult(await handleToolCall("browser_drop", { ...rest, targetId: n.normalized }));
+    }
+  );
+  mcp.tool(
+    "browser_handle_dialog",
+    "Handle a dialog",
+    {
+      accept: external_exports3.boolean().describe("Whether to accept the dialog."),
+      promptText: external_exports3.string().optional().describe("The text of the prompt in case of a prompt dialog."),
+      ...optionalTabId
+    },
+    async (args) => toMcpToolResult(await handleToolCall("browser_handle_dialog", args))
+  );
+  mcp.tool(
+    "browser_snapshot",
+    "Capture an accessibility-style snapshot of the current page with Agrune target refs.",
+    {
+      boxes: external_exports3.boolean().optional().describe("Include each element bounding box. Agrune snapshots include target center and size when available."),
+      depth: external_exports3.number().int().positive().optional().describe("Limit snapshot depth. Accepted for Playwright compatibility."),
+      filename: external_exports3.string().optional().describe("Filename to save snapshot to. If not provided, snapshot is returned as text."),
+      target: targetRef.optional().describe("Exact target element reference from the page snapshot."),
+      includeTextContent: external_exports3.boolean().optional().describe("Include visible text content"),
+      ...optionalTabId
+    },
+    async (args) => {
+      const { target, ...rest } = args;
+      if (typeof target === "string") {
+        const n = tryNormalizeTargetId(target);
+        if (!n.ok) return n.result;
+        return toMcpToolResult(await handleToolCall("browser_snapshot", { ...rest, targetId: n.normalized }));
+      }
+      return toMcpToolResult(await handleToolCall("browser_snapshot", rest));
+    }
+  );
+  mcp.tool(
+    "browser_get_targets",
+    'Get a Playwright-style snapshot of manifest-defined actionable targets. Default returns group refs. Use groupId/groupIds to expand specific groups, or mode="full" to return all target refs.',
+    {
+      groupId: external_exports3.string().optional().describe("Expand a group to get its target refs"),
       groupIds: external_exports3.array(external_exports3.string()).optional().describe("Expand multiple groups"),
       mode: external_exports3.enum(["outline", "full"]).optional().describe("outline (default): group summary; full: all targets"),
       includeTextContent: external_exports3.boolean().optional().describe("Include text content"),
@@ -30127,22 +30410,22 @@ function registerAgruneTools(mcp, handleToolCall) {
   registerActTool(
     "browser_click",
     "click",
-    "Click one actionable target. First call browser_get_targets, copy the exact targetId, then call browser_click with that targetId."
+    "Click one actionable target. First call browser_get_targets, copy the exact ref, then call browser_click with that target."
   );
   registerActTool(
     "browser_double_click",
     "dblclick",
-    "Double-click one actionable target. Use only when browser_get_targets shows dblclick in actionKinds or the user explicitly asks for a double-click."
+    "Double-click one actionable target. Use only when the user explicitly asks for a double-click or the target semantics require it."
   );
   registerActTool(
     "browser_right_click",
     "contextmenu",
-    "Right-click one actionable target to open its context menu. Use only when browser_get_targets shows contextmenu in actionKinds or the user asks for a context menu."
+    "Right-click one actionable target to open its context menu. Use only when the user asks for a context menu."
   );
   registerActTool(
     "browser_hover",
     "hover",
-    "Hover one actionable target. Use when hover reveals UI or browser_get_targets shows hover in actionKinds."
+    "Hover one actionable target. Use when hover reveals UI."
   );
   registerActTool(
     "browser_long_press",
@@ -30151,9 +30434,10 @@ function registerAgruneTools(mcp, handleToolCall) {
   );
   mcp.tool(
     "browser_fill",
-    "Fill an input/textarea/contenteditable with a value by targetId. When ok:true is returned, do not re-snapshot to verify.",
+    "Fill an input/textarea/contenteditable with a value by target. When ok:true is returned, do not re-snapshot to verify.",
     {
-      targetId: external_exports3.string().describe("Target ID"),
+      element: elementDescription,
+      target: targetRef,
       value: external_exports3.string().describe("Value to fill"),
       clear: external_exports3.boolean().optional().describe("If true (default), clear existing value first."),
       strategy: external_exports3.enum(["insert", "keystroke", "auto"]).optional().describe(
@@ -30162,37 +30446,47 @@ function registerAgruneTools(mcp, handleToolCall) {
       ...optionalTabId
     },
     async (args) => {
-      const n = tryNormalizeTargetId(args.targetId);
+      const n = tryNormalizeTargetId(args.target);
       if (!n.ok) return n.result;
-      return toMcpToolResult(await handleToolCall("browser_fill", { ...args, targetId: n.normalized }));
+      const { target: _target, element: _element, ...rest } = args;
+      return toMcpToolResult(await handleToolCall("browser_fill", { ...rest, targetId: n.normalized }));
     }
   );
   mcp.tool(
     "browser_drag",
-    "Drag a source target to a destination. Use destinationTargetId for target-to-target drag, or destinationCoords for coordinate-based placement. For canvas groups, coords are in canvas space (auto-converted). Use relativeTo to position relative to another target. Returns movedTarget with final position.",
+    "Drag a source target to a destination. Use startTarget/endTarget for target-to-target drag, or destinationCoords for coordinate-based placement. For canvas groups, coords are in canvas space (auto-converted). Returns movedTarget with final position.",
     {
-      sourceTargetId: external_exports3.string().describe("Source target ID"),
-      destinationTargetId: external_exports3.string().optional().describe("Destination target ID"),
+      startElement: elementDescription.describe("Human-readable source element description"),
+      startTarget: targetRef.describe("Exact source target ref copied from browser_get_targets"),
+      endElement: elementDescription.describe("Human-readable destination element description"),
+      endTarget: targetRef.optional().describe("Exact destination target ref copied from browser_get_targets"),
       destinationCoords: external_exports3.union([
         external_exports3.object({
           x: external_exports3.number().describe("X coordinate (canvas space for canvas groups)"),
           y: external_exports3.number().describe("Y coordinate")
         }),
         external_exports3.object({
-          relativeTo: external_exports3.string().describe("Reference target ID"),
+          relativeTo: external_exports3.string().describe("Reference target ref"),
           dx: external_exports3.number().describe("X offset from reference target center"),
           dy: external_exports3.number().describe("Y offset from reference target center")
         })
       ]).optional().describe("Destination: absolute coords or relative to another target"),
-      placement: external_exports3.enum(["before", "inside", "after"]).optional().describe("Drop placement (only with destinationTargetId)"),
+      placement: external_exports3.enum(["before", "inside", "after"]).optional().describe("Drop placement (only with endTarget)"),
       ...optionalTabId
     },
     async (args) => {
-      const ns = tryNormalizeTargetId(args.sourceTargetId);
+      const ns = tryNormalizeTargetId(args.startTarget);
       if (!ns.ok) return ns.result;
-      const normalizedArgs = { ...args, sourceTargetId: ns.normalized };
-      if (typeof args.destinationTargetId === "string") {
-        const nd = tryNormalizeTargetId(args.destinationTargetId);
+      const {
+        startTarget: _startTarget,
+        endTarget,
+        startElement: _startElement,
+        endElement: _endElement,
+        ...rest
+      } = args;
+      const normalizedArgs = { ...rest, sourceTargetId: ns.normalized };
+      if (typeof endTarget === "string") {
+        const nd = tryNormalizeTargetId(endTarget);
         if (!nd.ok) return nd.result;
         normalizedArgs.destinationTargetId = nd.normalized;
       }
@@ -30201,9 +30495,9 @@ function registerAgruneTools(mcp, handleToolCall) {
   );
   mcp.tool(
     "browser_pointer",
-    "Execute a low-level pointer/wheel event sequence. Use targetId from a snapshot when possible; use coords only for canvas or freeform interactions.",
+    "Execute a low-level pointer/wheel event sequence. Use target from a snapshot when possible; use coords only for canvas or freeform interactions.",
     {
-      targetId: external_exports3.string().optional().describe("Target ID"),
+      target: targetRef.optional().describe("Exact target ref copied from browser_get_targets"),
       coords: external_exports3.object({
         x: external_exports3.number().describe("Viewport X coordinate"),
         y: external_exports3.number().describe("Viewport Y coordinate")
@@ -30241,27 +30535,37 @@ function registerAgruneTools(mcp, handleToolCall) {
       ...optionalTabId
     },
     async (args) => {
-      if (typeof args.targetId === "string") {
-        const n = tryNormalizeTargetId(args.targetId);
+      if (typeof args.target === "string") {
+        const n = tryNormalizeTargetId(args.target);
         if (!n.ok) return n.result;
-        return toMcpToolResult(await handleToolCall("browser_pointer", { ...args, targetId: n.normalized }));
+        const { target: _target, ...rest } = args;
+        return toMcpToolResult(await handleToolCall("browser_pointer", { ...rest, targetId: n.normalized }));
       }
       return toMcpToolResult(await handleToolCall("browser_pointer", args));
     }
   );
   mcp.tool(
     "browser_wait_for",
-    "Wait for target state change.",
+    "Wait for text to appear or disappear or a specified time to pass.",
     {
-      targetId: external_exports3.string().describe("Target ID"),
-      state: external_exports3.enum(["visible", "hidden", "enabled", "disabled"]).describe("Desired state"),
+      target: targetRef.optional().describe("Exact target ref copied from browser_get_targets"),
+      state: external_exports3.enum(["visible", "hidden", "enabled", "disabled"]).optional().describe("Desired target state"),
+      text: external_exports3.string().optional().describe("The text to wait for"),
+      textGone: external_exports3.string().optional().describe("The text to wait for to disappear"),
+      time: external_exports3.number().nonnegative().optional().describe("The time to wait in seconds"),
       timeoutMs: external_exports3.number().optional().describe("Timeout ms (default: 10000)"),
       ...optionalTabId
     },
     async (args) => {
-      const n = tryNormalizeTargetId(args.targetId);
-      if (!n.ok) return n.result;
-      return toMcpToolResult(await handleToolCall("browser_wait_for", { ...args, targetId: n.normalized }));
+      const { target, time: time3, ...rest } = args;
+      const normalizedArgs = { ...rest };
+      if (typeof time3 === "number") normalizedArgs.timeMs = time3 * 1e3;
+      if (typeof target === "string") {
+        const n = tryNormalizeTargetId(target);
+        if (!n.ok) return n.result;
+        normalizedArgs.targetId = n.normalized;
+      }
+      return toMcpToolResult(await handleToolCall("browser_wait_for", normalizedArgs));
     }
   );
   mcp.tool(
@@ -30321,11 +30625,11 @@ function toPublicSessionMeta(session, opts) {
 }
 function toPublicTarget(target, includeTextContent) {
   return {
-    targetId: target.targetId,
+    ref: toAgentTargetRef(target),
     groupId: target.groupId,
     name: target.name,
     description: target.description,
-    actionKinds: target.actionKinds,
+    ...targetDomResolved(target) === false ? { unresolved: true } : {},
     ...target.reason !== "ready" ? { reason: target.reason } : {},
     ...target.sensitive ? { sensitive: true } : {},
     ...includeTextContent && target.textContent ? { textContent: target.textContent } : {},
@@ -30371,7 +30675,6 @@ function toPublicGroups(targets, snapshotGroups) {
     groupName: group.groupName,
     groupDesc: group.groupDesc,
     targetCount: group.targets.length,
-    actionKinds: [...new Set(group.targets.flatMap((target) => target.actionKinds))],
     sampleTargetNames: group.targets.map((target) => target.name).filter((name) => name.length > 0).slice(0, 3),
     ...metaMap.has(group.groupId) ? { meta: metaMap.get(group.groupId) } : {}
   }));
@@ -30380,15 +30683,117 @@ function toPublicSnapshot(snapshot, options = {}) {
   const activeContext = getActiveContext(snapshot);
   const requestedGroupIds = new Set(options.groupIds ?? []);
   const includeTargets = requestedGroupIds.size > 0 || options.mode === "full";
-  const expandedTargets = requestedGroupIds.size > 0 ? activeContext.targets.filter((target) => requestedGroupIds.has(target.groupId)) : activeContext.targets;
+  const unresolvedTargets = snapshot.targets.filter((target) => targetDomResolved(target) === false);
+  const targetPool = includeTargets ? uniqueTargets(activeContext.context === "overlay" ? [...activeContext.targets, ...unresolvedTargets] : snapshot.targets) : activeContext.targets;
+  const expandedTargets = requestedGroupIds.size > 0 ? targetPool.filter((target) => requestedGroupIds.has(target.groupId)) : targetPool;
   return {
     version: snapshot.version,
     url: snapshot.url,
     title: snapshot.title,
     context: activeContext.context,
-    ...requestedGroupIds.size === 0 ? { groups: toPublicGroups(activeContext.targets, snapshot.groups) } : {},
+    ...requestedGroupIds.size === 0 ? { groups: toPublicGroups(targetPool, snapshot.groups) } : {},
     ...includeTargets ? { targets: expandedTargets.map((t) => toPublicTarget(t, options.includeTextContent ?? false)) } : {}
   };
+}
+function targetDomResolved(target) {
+  return target.domResolved;
+}
+function uniqueTargets(targets) {
+  const seen = /* @__PURE__ */ new Set();
+  const result = [];
+  for (const target of targets) {
+    if (seen.has(target.targetId)) continue;
+    seen.add(target.targetId);
+    result.push(target);
+  }
+  return result;
+}
+function formatPublicSnapshot(snapshot) {
+  const lines = [
+    "### Page",
+    `- Page URL: ${snapshot.url}`,
+    `- Page Title: ${snapshot.title}`,
+    `- Agrune Context: ${snapshot.context}`,
+    `- Snapshot Version: ${snapshot.version}`
+  ];
+  if (snapshot.session) {
+    lines.push(`- Tab ID: ${snapshot.session.tabId}`);
+  }
+  lines.push("### Snapshot", "```yaml");
+  if (snapshot.targets && snapshot.targets.length > 0) {
+    lines.push(...formatTargetTree(snapshot.targets, snapshot.groups));
+  } else if (snapshot.groups && snapshot.groups.length > 0) {
+    lines.push(...snapshot.groups.flatMap(formatGroup));
+  } else {
+    lines.push("- none");
+  }
+  lines.push("```");
+  return lines.join("\n");
+}
+function formatGroup(group) {
+  const name = group.groupName || group.groupId;
+  const lines = [`- group ${quote(name)} [ref=${group.groupId}]:`];
+  if (group.groupDesc) lines.push(`  - description: ${quote(group.groupDesc)}`);
+  lines.push(`  - targets: ${group.targetCount}`);
+  if (group.sampleTargetNames.length > 0) {
+    lines.push(`  - samples: ${group.sampleTargetNames.map(quote).join(", ")}`);
+  }
+  return lines;
+}
+function formatTargetTree(targets, snapshotGroups = []) {
+  const targetsByGroup = /* @__PURE__ */ new Map();
+  for (const target of targets) {
+    const groupTargets = targetsByGroup.get(target.groupId);
+    if (groupTargets) {
+      groupTargets.push(target);
+    } else {
+      targetsByGroup.set(target.groupId, [target]);
+    }
+  }
+  const labels = new Map(snapshotGroups.map((group) => [group.groupId, group.groupName || group.groupId]));
+  return Array.from(targetsByGroup.entries()).flatMap(([groupId, groupTargets]) => {
+    const lines = [`- group ${quote(labels.get(groupId) || groupId)} [ref=${groupId}]:`];
+    for (const target of groupTargets) {
+      lines.push(...formatTarget(target, 2));
+    }
+    return lines;
+  });
+}
+function formatTarget(target, indent) {
+  const pad = " ".repeat(indent);
+  const childPad = " ".repeat(indent + 2);
+  const label = target.name || target.ref;
+  const state = [
+    target.unresolved ? "unresolved" : "",
+    target.reason ? `reason=${target.reason}` : "",
+    target.sensitive ? "sensitive" : ""
+  ].filter(Boolean);
+  const stateText = state.length > 0 ? ` [${state.join(" ")}]` : "";
+  const lines = [`${pad}- target ${quote(label)} [ref=${target.ref}]${stateText}:`];
+  if (target.description) lines.push(`${childPad}- description: ${quote(target.description)}`);
+  if (target.textContent) lines.push(`${childPad}- text: ${quote(compactText(target.textContent))}`);
+  const box = formatBox(target);
+  if (box) lines.push(`${childPad}- box: ${box}`);
+  return lines;
+}
+function formatBox(target) {
+  if (!target.center && !target.size && !target.coordSpace) return null;
+  const parts = [];
+  if (target.center) parts.push(`center=(${round(target.center.x)},${round(target.center.y)})`);
+  if (target.size) parts.push(`size=(${round(target.size.w)}x${round(target.size.h)})`);
+  if (target.coordSpace) parts.push(`coordSpace=${target.coordSpace}`);
+  return parts.join(", ");
+}
+function compactText(value) {
+  const compacted = value.replace(/\s+/g, " ").trim();
+  if (compacted.length <= 160) return compacted;
+  return `${compacted.slice(0, 157)}...`;
+}
+function quote(value) {
+  return JSON.stringify(value);
+}
+function round(value) {
+  return Math.round(value * 100) / 100;
 }
 function toPublicCommandResult(result) {
   if (result.ok) {
@@ -30508,8 +30913,8 @@ var HitlController = class {
     if (!this.state.paused) return;
     this.state = { ...this.state, pendingTool: tool };
     this.broadcast();
-    const decision = await new Promise((resolve) => {
-      this.waiters.push(resolve);
+    const decision = await new Promise((resolve2) => {
+      this.waiters.push(resolve2);
     });
     if (decision === "skip") {
       throw new HitlSkipError(tool);
@@ -30553,8 +30958,306 @@ function getToolDefinitions() {
       }
     },
     {
+      name: "browser_tabs",
+      description: "List, create, close, or select a browser tab with Playwright-compatible index-based arguments.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            enum: ["list", "new", "close", "select"],
+            description: "Tab action to perform."
+          },
+          url: { type: "string", description: 'URL to open when action is "new".' },
+          index: { type: "number", description: "Zero-based tab index from browser_tabs list output." }
+        },
+        required: ["action"]
+      }
+    },
+    {
+      name: "browser_close",
+      description: "Close the current active browser page.",
+      inputSchema: {
+        type: "object",
+        properties: {}
+      }
+    },
+    {
+      name: "browser_navigate",
+      description: "Navigate the current active browser page to a URL.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          url: { type: "string", description: "The URL to navigate to." }
+        },
+        required: ["url"]
+      }
+    },
+    {
+      name: "browser_navigate_back",
+      description: "Go back to the previous page in the current active browser page history.",
+      inputSchema: {
+        type: "object",
+        properties: {}
+      }
+    },
+    {
+      name: "browser_resize",
+      description: "Resize the browser viewport.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          width: { type: "number", description: "Viewport width in CSS pixels." },
+          height: { type: "number", description: "Viewport height in CSS pixels." }
+        },
+        required: ["width", "height"]
+      }
+    },
+    {
+      name: "browser_take_screenshot",
+      description: "Capture a screenshot of the current page or a target element.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          filename: { type: "string", description: "File name to save the screenshot to. Defaults to a timestamped file." },
+          fullPage: { type: "boolean", description: "Capture the full scrollable page instead of the visible viewport." },
+          element: { type: "string", description: "Human-readable element description used to describe the intended screenshot target." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+          type: { type: "string", enum: ["png", "jpeg"], description: "Image format for the screenshot. Default is png." }
+        }
+      }
+    },
+    {
+      name: "browser_evaluate",
+      description: "Evaluate JavaScript in the current page or on a target element.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          filename: { type: "string", description: "File name to save the evaluation result to." },
+          function: {
+            type: "string",
+            description: "JavaScript function or expression to evaluate. Use (element) => ... when target is provided."
+          },
+          target: { type: "string", description: "Exact target element reference from the page snapshot." }
+        },
+        required: ["function"]
+      }
+    },
+    {
+      name: "browser_run_code_unsafe",
+      description: "Run arbitrary Playwright code against the current page in the MCP server process.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: {
+            type: "string",
+            description: "JavaScript function to invoke with the Playwright page, e.g. async (page) => { ... }."
+          },
+          filename: {
+            type: "string",
+            description: "File containing the JavaScript function to run. When provided, code is ignored."
+          }
+        }
+      }
+    },
+    {
+      name: "browser_console_messages",
+      description: "Return console and page error messages from the active page.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          all: { type: "boolean", description: "Return all messages since page creation instead of just current navigation." },
+          filename: { type: "string", description: "File name to save the console messages to." },
+          level: {
+            type: "string",
+            enum: ["debug", "info", "warning", "error"],
+            description: "Minimum console message level. Default: info."
+          }
+        }
+      }
+    },
+    {
+      name: "browser_network_requests",
+      description: "Return network requests from the active page.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          all: { type: "boolean", description: "Return all requests since page creation instead of just current navigation." },
+          filename: { type: "string", description: "File name to save the network requests to." },
+          filter: { type: "string", description: "Only return requests whose URL matches this regexp or substring." },
+          static: { type: "boolean", description: "Include successful static resources such as images, fonts, and scripts." }
+        }
+      }
+    },
+    {
+      name: "browser_network_request",
+      description: "Return details or a single part for one network request.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          filename: { type: "string", description: "File name to save the network request detail to." },
+          index: { type: "number", description: "1-based request index from browser_network_requests." },
+          part: {
+            type: "string",
+            enum: ["request-headers", "request-body", "response-headers", "response-body"],
+            description: "Return only this part of the request."
+          }
+        },
+        required: ["index"]
+      }
+    },
+    {
+      name: "browser_press_key",
+      description: "Press a keyboard key in the active page.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          key: { type: "string", description: "Name of the key to press or a character to generate." }
+        },
+        required: ["key"]
+      }
+    },
+    {
+      name: "browser_type",
+      description: "Type text into an editable target.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+          text: { type: "string", description: "Text to type into the target." },
+          slowly: { type: "boolean", description: "Type one character at a time." },
+          submit: { type: "boolean", description: "Press Enter after typing." }
+        },
+        required: ["target", "text"]
+      }
+    },
+    {
+      name: "browser_select_option",
+      description: "Select one or more options in a dropdown.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+          values: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of option values to select."
+          }
+        },
+        required: ["target", "values"]
+      }
+    },
+    {
+      name: "browser_fill_form",
+      description: "Fill multiple form fields.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          fields: {
+            type: "array",
+            description: "Fields to fill in.",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string", description: "Human-readable field name." },
+                element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+                target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+                type: { type: "string", enum: ["textbox", "checkbox", "radio", "combobox", "slider"], description: "Type of the field." },
+                value: {
+                  oneOf: [
+                    { type: "string" },
+                    { type: "boolean" },
+                    { type: "number" }
+                  ],
+                  description: "Value to fill in the field."
+                }
+              },
+              required: ["name", "target", "type", "value"]
+            }
+          }
+        },
+        required: ["fields"]
+      }
+    },
+    {
+      name: "browser_file_upload",
+      description: "Upload one or multiple files to the pending file chooser.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          paths: {
+            type: "array",
+            items: { type: "string" },
+            description: "Absolute paths to files to upload. If omitted, the file chooser is cancelled."
+          }
+        }
+      }
+    },
+    {
+      name: "browser_drop",
+      description: "Drop files or MIME data onto a target element.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+          paths: {
+            type: "array",
+            items: { type: "string" },
+            description: "Absolute paths to files to drop onto the element."
+          },
+          data: {
+            type: "object",
+            additionalProperties: { type: "string" },
+            description: "MIME type to string value map to include in the drop payload."
+          }
+        },
+        required: ["target"]
+      }
+    },
+    {
+      name: "browser_handle_dialog",
+      description: "Handle a JavaScript dialog opened by a prior action.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          accept: { type: "boolean", description: "Whether to accept the dialog." },
+          promptText: { type: "string", description: "Text to enter for prompt dialogs." }
+        },
+        required: ["accept"]
+      }
+    },
+    {
+      name: "browser_snapshot",
+      description: "Capture an accessibility-style snapshot of the current page with Agrune target refs.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          tabId: { type: "number", description: "Browser tab ID. Defaults to the active session." },
+          boxes: { type: "boolean", description: "Include target bounds when available." },
+          depth: { type: "number", description: "Accepted for Playwright compatibility." },
+          filename: { type: "string", description: "File name to save the snapshot to." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
+          includeTextContent: { type: "boolean", description: "Include visible text content of each target element." }
+        }
+      }
+    },
+    {
       name: "browser_get_targets",
-      description: 'Get manifest-defined actionable targets for the active browser context. By default returns group summaries only; use groupId/groupIds or mode="full" to expand targetIds.',
+      description: 'Get a Playwright-style snapshot of manifest-defined actionable targets. By default returns group refs; use groupId/groupIds or mode="full" to expand target refs.',
       inputSchema: {
         type: "object",
         properties: {
@@ -30579,50 +31282,61 @@ function getToolDefinitions() {
     },
     {
       name: "browser_click",
-      description: "Click one actionable target. First call browser_get_targets and copy the exact targetId.",
+      description: "Click one actionable target. First call browser_get_targets and copy the exact target ref.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Exact targetId copied from browser_get_targets. Do not invent this value." }
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." },
+          button: { type: "string", enum: ["left", "right", "middle"], description: "Mouse button to click. Defaults to left." },
+          doubleClick: { type: "boolean", description: "Perform a double click instead of a single click." },
+          modifiers: {
+            type: "array",
+            description: "Modifier keys to press during the click.",
+            items: { type: "string", enum: ["Alt", "Control", "ControlOrMeta", "Meta", "Shift"] }
+          }
         },
-        required: ["targetId"]
+        required: ["target"]
       }
     },
     {
       name: "browser_double_click",
-      description: "Double-click one actionable target. Use only when actionKinds includes dblclick or the user explicitly asks for a double-click.",
+      description: "Double-click one actionable target. Use only when the user explicitly asks for a double-click or the target semantics require it.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Exact targetId copied from browser_get_targets. Do not invent this value." }
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." }
         },
-        required: ["targetId"]
+        required: ["target"]
       }
     },
     {
       name: "browser_right_click",
-      description: "Right-click one actionable target to open its context menu. Use only when actionKinds includes contextmenu or the user asks for a context menu.",
+      description: "Right-click one actionable target to open its context menu. Use only when the user asks for a context menu.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Exact targetId copied from browser_get_targets. Do not invent this value." }
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." }
         },
-        required: ["targetId"]
+        required: ["target"]
       }
     },
     {
       name: "browser_hover",
-      description: "Hover one actionable target. Use when hover reveals UI or actionKinds includes hover.",
+      description: "Hover one actionable target. Use when hover reveals UI.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Exact targetId copied from browser_get_targets. Do not invent this value." }
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." }
         },
-        required: ["targetId"]
+        required: ["target"]
       }
     },
     {
@@ -30632,19 +31346,21 @@ function getToolDefinitions() {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Exact targetId copied from browser_get_targets. Do not invent this value." }
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." }
         },
-        required: ["targetId"]
+        required: ["target"]
       }
     },
     {
       name: "browser_fill",
-      description: "Fill an input element with a value. The element is identified by its targetId from the page snapshot.",
+      description: "Fill an input element with a value. The element is identified by its target ref from the page snapshot.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "The target input element ID from the page snapshot." },
+          element: { type: "string", description: "Human-readable element description used to describe the intended interaction." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets. Do not invent this value." },
           value: { type: "string", description: "The value to fill into the input element." },
           clear: {
             type: "boolean",
@@ -30656,7 +31372,7 @@ function getToolDefinitions() {
             description: 'Input method. "insert" is fastest. "keystroke" sends typed key events for masked inputs. "auto" detects masked inputs and selects automatically. Defaults to "auto".'
           }
         },
-        required: ["targetId", "value"]
+        required: ["target", "value"]
       }
     },
     {
@@ -30666,8 +31382,10 @@ function getToolDefinitions() {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          sourceTargetId: { type: "string", description: "The source element ID to drag." },
-          destinationTargetId: { type: "string", description: "The destination element ID to drop onto." },
+          startElement: { type: "string", description: "Human-readable source element description." },
+          startTarget: { type: "string", description: "Exact source target ref copied from browser_get_targets." },
+          endElement: { type: "string", description: "Human-readable destination element description." },
+          endTarget: { type: "string", description: "Exact destination target ref copied from browser_get_targets." },
           destinationCoords: {
             type: "object",
             description: "Destination coordinates, either absolute canvas coordinates or offsets relative to another target."
@@ -30678,17 +31396,17 @@ function getToolDefinitions() {
             description: "Drop placement relative to the destination element."
           }
         },
-        required: ["sourceTargetId"]
+        required: ["startTarget"]
       }
     },
     {
       name: "browser_pointer",
-      description: "Execute a low-level pointer/wheel event sequence. Use targetId from a snapshot when possible; use coords only for canvas or freeform interactions.",
+      description: "Execute a low-level pointer/wheel event sequence. Use target from a snapshot when possible; use coords only for canvas or freeform interactions.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "Target ID." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
           coords: {
             type: "object",
             description: "Viewport coordinates to find element via elementFromPoint.",
@@ -30708,20 +31426,22 @@ function getToolDefinitions() {
     },
     {
       name: "browser_wait_for",
-      description: "Wait for a target element to reach a specific state (e.g., visible, hidden, enabled, disabled).",
+      description: "Wait for a target state, text to appear/disappear, or a duration.",
       inputSchema: {
         type: "object",
         properties: {
           tabId: { type: "number", description: "Browser tab ID. Defaults to the first active session." },
-          targetId: { type: "string", description: "The target element ID from the page snapshot." },
+          target: { type: "string", description: "Exact target ref copied from browser_get_targets." },
           state: {
             type: "string",
             enum: ["visible", "hidden", "enabled", "disabled"],
             description: "The state to wait for."
           },
+          text: { type: "string", description: "Text to wait for." },
+          textGone: { type: "string", description: "Text to wait for to disappear." },
+          time: { type: "number", description: "Time to wait in seconds." },
           timeoutMs: { type: "number", description: "Timeout in milliseconds. Defaults to 30000." }
-        },
-        required: ["targetId", "state"]
+        }
       }
     },
     {
@@ -30779,7 +31499,7 @@ function createMcpServer(driver) {
     if (!driver.isConnected()) {
       await driver.connect();
     }
-    if (name !== "browser_update_config" && name !== "browser_open_tab") {
+    if (!canRunWithoutReadySnapshot(name)) {
       const readyError = await driver.ensureReady();
       if (readyError) return { text: readyError, isError: true };
     }
@@ -30817,6 +31537,63 @@ function createMcpServer(driver) {
           return errorText("INVALID_COMMAND", error48 instanceof Error ? error48.message : String(error48));
         }
       }
+      case "browser_tabs": {
+        return handleBrowserTabs(driver, args);
+      }
+      case "browser_close": {
+        return handleBrowserClose(driver);
+      }
+      case "browser_navigate": {
+        return handleBrowserNavigate(driver, args);
+      }
+      case "browser_navigate_back": {
+        return handleBrowserNavigateBack(driver);
+      }
+      case "browser_resize": {
+        return handleBrowserResize(driver, args);
+      }
+      case "browser_take_screenshot": {
+        return handleBrowserTakeScreenshot(driver, args);
+      }
+      case "browser_evaluate": {
+        return handleBrowserEvaluate(driver, args);
+      }
+      case "browser_run_code_unsafe": {
+        return handleBrowserRunCodeUnsafe(driver, args);
+      }
+      case "browser_console_messages": {
+        return handleBrowserConsoleMessages(driver, args);
+      }
+      case "browser_network_requests": {
+        return handleBrowserNetworkRequests(driver, args);
+      }
+      case "browser_network_request": {
+        return handleBrowserNetworkRequest(driver, args);
+      }
+      case "browser_press_key": {
+        return handleBrowserPressKey(driver, args);
+      }
+      case "browser_type": {
+        return handleBrowserType(driver, args);
+      }
+      case "browser_select_option": {
+        return handleBrowserSelectOption(driver, args);
+      }
+      case "browser_fill_form": {
+        return handleBrowserFillForm(driver, args);
+      }
+      case "browser_file_upload": {
+        return handleBrowserFileUpload(driver, args);
+      }
+      case "browser_drop": {
+        return handleBrowserDrop(driver, args);
+      }
+      case "browser_handle_dialog": {
+        return handleBrowserHandleDialog(driver, args);
+      }
+      case "browser_snapshot": {
+        return handleBrowserSnapshot(driver, args);
+      }
       case "browser_get_targets": {
         if (tabId == null) return { text: "No active sessions.", isError: true };
         const snapshot = driver.getSnapshot(tabId);
@@ -30825,7 +31602,7 @@ function createMcpServer(driver) {
           ...toPublicSnapshot(snapshot, resolveSnapshotOptions(args)),
           session: buildSessionMeta(driver, tabId, false)
         };
-        return { text: JSON.stringify(payload, null, 2) };
+        return { text: formatPublicSnapshot(payload) };
       }
       case "browser_click":
       case "browser_double_click":
@@ -30843,6 +31620,10 @@ function createMcpServer(driver) {
           kind: resolveRuntimeCommandKind(name),
           ...args
         };
+        if (name === "browser_wait_for" && typeof command.time === "number") {
+          command.timeMs = command.time * 1e3;
+          delete command.time;
+        }
         delete command.tabId;
         const result = await driver.execute(tabId, command);
         const publicResult = toPublicCommandResult(result);
@@ -30987,6 +31768,837 @@ function resolveRuntimeCommandKind(toolName) {
       return toolName;
   }
 }
+function isTabManagementTool(name) {
+  return name === "browser_list_tabs" || name === "browser_open_tab" || name === "browser_focus_tab" || name === "browser_tabs" || name === "browser_close" || name === "browser_navigate" || name === "browser_navigate_back" || name === "browser_resize" || name === "browser_take_screenshot" || name === "browser_evaluate" || name === "browser_run_code_unsafe" || name === "browser_console_messages" || name === "browser_network_requests" || name === "browser_network_request" || name === "browser_press_key";
+}
+function canRunWithoutReadySnapshot(name) {
+  return isTabManagementTool(name) || name === "browser_update_config" || name === "browser_handle_dialog";
+}
+async function handleBrowserTabs(driver, args) {
+  const action = typeof args.action === "string" ? args.action : "";
+  switch (action) {
+    case "list":
+      return { text: JSON.stringify(listIndexedSessions(driver), null, 2) };
+    case "new":
+      return openBrowserTab(driver, args.url);
+    case "select":
+      return selectBrowserTabByIndex(driver, args.index);
+    case "close":
+      return closeBrowserTabByIndex(driver, args.index);
+    default:
+      return errorText("INVALID_COMMAND", "browser_tabs requires action: list, new, close, or select.");
+  }
+}
+async function openBrowserTab(driver, url2) {
+  if (typeof url2 !== "string" || url2.trim().length === 0) {
+    return errorText("INVALID_COMMAND", 'browser_tabs action "new" requires url (string).');
+  }
+  if (typeof driver.openTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support openTab.");
+  }
+  try {
+    const opened = await driver.openTab(url2);
+    const sessions = listIndexedSessions(driver);
+    const session = sessions.find((s) => s.tabId === opened.tabId);
+    const payload = {
+      ok: true,
+      index: session?.index ?? null,
+      tabId: opened.tabId,
+      url: opened.url,
+      title: opened.title,
+      session: session ? toPublicSessionMeta(session, {
+        wasActive: false,
+        becameActive: session.active === true
+      }) : null
+    };
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to open tab.");
+  }
+}
+async function selectBrowserTabByIndex(driver, index) {
+  const resolved = resolveIndexedSession(driver, index, "select");
+  if (!resolved.ok) return resolved.result;
+  try {
+    const focusResult = await driver.focusSession(resolved.session.tabId);
+    const refreshed = driver.listSessions().find((s) => s.tabId === resolved.session.tabId) ?? resolved.session;
+    const sessionMeta = toPublicSessionMeta(refreshed, {
+      wasActive: resolved.session.active === true,
+      becameActive: focusResult.becameActive && resolved.session.active !== true
+    });
+    const payload = {
+      ok: true,
+      index: resolved.index,
+      session: sessionMeta
+    };
+    if (focusResult.cdpFocusError) {
+      payload.cdpFocusError = focusResult.cdpFocusError;
+    }
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to select tab.");
+  }
+}
+async function closeBrowserTabByIndex(driver, index) {
+  if (typeof driver.closeTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support closeTab.");
+  }
+  let tabId;
+  let resolvedIndex = null;
+  if (index !== void 0) {
+    const resolved = resolveIndexedSession(driver, index, "close");
+    if (!resolved.ok) return resolved.result;
+    tabId = resolved.session.tabId;
+    resolvedIndex = resolved.index;
+  }
+  try {
+    const result = await driver.closeTab(tabId);
+    return {
+      text: JSON.stringify({
+        ok: true,
+        index: resolvedIndex,
+        tabId: result.tabId,
+        closed: result.closed,
+        remaining: listIndexedSessions(driver)
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to close tab.");
+  }
+}
+async function handleBrowserClose(driver) {
+  if (typeof driver.closeTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support closeTab.");
+  }
+  try {
+    const result = await driver.closeTab();
+    return {
+      text: JSON.stringify({
+        ok: true,
+        tabId: result.tabId,
+        closed: result.closed,
+        remaining: listIndexedSessions(driver)
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to close tab.");
+  }
+}
+async function handleBrowserNavigate(driver, args) {
+  if (typeof args.url !== "string" || args.url.trim().length === 0) {
+    return errorText("INVALID_COMMAND", "browser_navigate requires url (string).");
+  }
+  if (typeof driver.navigateTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support navigateTab.");
+  }
+  try {
+    const result = await driver.navigateTab(void 0, args.url);
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "navigate",
+        tabId: result.tabId,
+        url: result.url,
+        title: result.title,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to navigate.");
+  }
+}
+async function handleBrowserNavigateBack(driver) {
+  if (typeof driver.navigateBack !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support navigateBack.");
+  }
+  try {
+    const result = await driver.navigateBack();
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "navigateBack",
+        tabId: result.tabId,
+        url: result.url,
+        title: result.title,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to navigate back.");
+  }
+}
+async function handleBrowserResize(driver, args) {
+  if (typeof driver.resizeTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support resizeTab.");
+  }
+  const width = args.width;
+  const height = args.height;
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+    return errorText("INVALID_COMMAND", "browser_resize requires positive integer width and height.");
+  }
+  try {
+    const result = await driver.resizeTab(void 0, width, height);
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "resize",
+        tabId: result.tabId,
+        width: result.width,
+        height: result.height,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to resize browser.");
+  }
+}
+async function handleBrowserTakeScreenshot(driver, args) {
+  if (typeof driver.screenshotTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support screenshotTab.");
+  }
+  const type = resolveScreenshotType(args.type);
+  if (type === "invalid") {
+    return errorText("INVALID_COMMAND", "browser_take_screenshot type must be one of: png, jpeg.");
+  }
+  const filename = resolveScreenshotFilename(args.filename, type);
+  if (!filename) {
+    return errorText("INVALID_COMMAND", "browser_take_screenshot filename must be a non-empty string.");
+  }
+  const targetId = typeof args.targetId === "string" && args.targetId.length > 0 ? args.targetId : void 0;
+  const fullPage = args.fullPage === true;
+  if (targetId && fullPage) {
+    return errorText("INVALID_COMMAND", "Element screenshots cannot use fullPage.");
+  }
+  if (targetId) {
+    const readyError = await driver.ensureReady();
+    if (readyError) return { text: readyError, isError: true };
+  }
+  try {
+    const result = await driver.screenshotTab(void 0, filename, {
+      fullPage,
+      ...targetId ? { targetId } : {},
+      ...type ? { type } : {}
+    });
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "screenshot",
+        tabId: result.tabId,
+        path: result.path,
+        type: result.type,
+        fullPage: result.fullPage,
+        ...targetId ? { target: targetId } : {},
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to take screenshot.");
+  }
+}
+async function handleBrowserEvaluate(driver, args) {
+  if (typeof driver.evaluateTab !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support evaluateTab.");
+  }
+  const source = args.function;
+  if (typeof source !== "string" || source.trim().length === 0) {
+    return errorText("INVALID_COMMAND", "browser_evaluate requires function (string).");
+  }
+  const filename = resolveEvaluateFilename(args.filename);
+  if (filename === false) {
+    return errorText("INVALID_COMMAND", "browser_evaluate filename must be a non-empty string.");
+  }
+  const targetId = typeof args.targetId === "string" && args.targetId.length > 0 ? args.targetId : void 0;
+  if (targetId) {
+    const readyError = await driver.ensureReady();
+    if (readyError) return { text: readyError, isError: true };
+  }
+  try {
+    const result = await driver.evaluateTab(void 0, source, {
+      ...targetId ? { targetId } : {}
+    });
+    const payload = {
+      ok: true,
+      action: "evaluate",
+      tabId: result.tabId,
+      result: result.result,
+      ...result.undefinedResult ? { undefinedResult: true } : {},
+      ...targetId ? { target: targetId } : {},
+      session: buildSessionMeta(driver, result.tabId, false) ?? null
+    };
+    if (filename) {
+      const outputPath = resolve(filename);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, formatEvaluationResultForFile(result.result));
+      payload.path = outputPath;
+    }
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to evaluate JavaScript.");
+  }
+}
+async function handleBrowserRunCodeUnsafe(driver, args) {
+  if (typeof driver.runCodeUnsafe !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support browser_run_code_unsafe.");
+  }
+  const source = await resolveRunCodeUnsafeSource(args);
+  if (!source.ok) return source.result;
+  try {
+    const result = await driver.runCodeUnsafe(args.tabId, source.source);
+    const payload = {
+      ok: true,
+      action: "run_code_unsafe",
+      tabId: result.tabId,
+      result: result.result,
+      ...result.undefinedResult ? { undefinedResult: true } : {},
+      ...source.filename ? { filename: source.filename } : {},
+      session: buildSessionMeta(driver, result.tabId, false) ?? null
+    };
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to run Playwright code.");
+  }
+}
+async function handleBrowserConsoleMessages(driver, args) {
+  if (typeof driver.consoleMessages !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support consoleMessages.");
+  }
+  const level = resolveConsoleLevel(args.level);
+  if (level === "invalid") {
+    return errorText("INVALID_COMMAND", "browser_console_messages level must be one of: debug, info, warning, error.");
+  }
+  const filename = resolveEvaluateFilename(args.filename);
+  if (filename === false) {
+    return errorText("INVALID_COMMAND", "browser_console_messages filename must be a non-empty string.");
+  }
+  try {
+    const messages = driver.consoleMessages(typeof args.tabId === "number" ? args.tabId : void 0, {
+      ...level ? { level } : {},
+      all: args.all === true
+    });
+    const payload = {
+      ok: true,
+      action: "console.messages",
+      messages
+    };
+    if (filename) {
+      const outputPath = resolve(filename);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `${JSON.stringify(messages, null, 2)}
+`);
+      payload.path = outputPath;
+    }
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to read console messages.");
+  }
+}
+async function handleBrowserNetworkRequests(driver, args) {
+  if (typeof driver.networkRequests !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support networkRequests.");
+  }
+  const filename = resolveEvaluateFilename(args.filename);
+  if (filename === false) {
+    return errorText("INVALID_COMMAND", "browser_network_requests filename must be a non-empty string.");
+  }
+  try {
+    const requests = driver.networkRequests(typeof args.tabId === "number" ? args.tabId : void 0, {
+      ...typeof args.filter === "string" ? { filter: args.filter } : {},
+      includeStatic: args.static === true,
+      all: args.all === true
+    });
+    const payload = {
+      ok: true,
+      action: "network.requests",
+      requests
+    };
+    if (filename) {
+      const outputPath = resolve(filename);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `${JSON.stringify(requests, null, 2)}
+`);
+      payload.path = outputPath;
+    }
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to read network requests.");
+  }
+}
+async function handleBrowserNetworkRequest(driver, args) {
+  if (typeof driver.networkRequestDetail !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support networkRequestDetail.");
+  }
+  if (!Number.isInteger(args.index) || args.index <= 0) {
+    return errorText("INVALID_COMMAND", "browser_network_request requires a positive integer index.");
+  }
+  const part = resolveNetworkRequestPart(args.part);
+  if (part === "invalid") {
+    return errorText("INVALID_COMMAND", "browser_network_request part must be one of: request-headers, request-body, response-headers, response-body.");
+  }
+  const filename = resolveEvaluateFilename(args.filename);
+  if (filename === false) {
+    return errorText("INVALID_COMMAND", "browser_network_request filename must be a non-empty string.");
+  }
+  try {
+    const detail = await driver.networkRequestDetail(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      args.index,
+      part
+    );
+    const payload = {
+      ok: true,
+      action: "network.request",
+      ...detail
+    };
+    if (filename) {
+      const outputPath = resolve(filename);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, `${JSON.stringify(detail, null, 2)}
+`);
+      payload.path = outputPath;
+    }
+    return { text: JSON.stringify(payload, null, 2) };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to read network request.");
+  }
+}
+async function handleBrowserPressKey(driver, args) {
+  if (typeof driver.pressKey !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support pressKey.");
+  }
+  if (typeof args.key !== "string" || args.key.length === 0) {
+    return errorText("INVALID_COMMAND", "browser_press_key requires key (string).");
+  }
+  try {
+    const result = await driver.pressKey(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      args.key
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "press",
+        tabId: result.tabId,
+        key: result.key,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to press key.");
+  }
+}
+async function handleBrowserType(driver, args) {
+  if (typeof driver.typeText !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support typeText.");
+  }
+  if (typeof args.targetId !== "string" || args.targetId.length === 0) {
+    return errorText("INVALID_TARGET", "browser_type requires target.");
+  }
+  if (typeof args.text !== "string" || args.text.length === 0) {
+    return errorText("INVALID_COMMAND", "browser_type requires text (string).");
+  }
+  try {
+    const result = await driver.typeText(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      args.targetId,
+      args.text,
+      {
+        slowly: args.slowly === true,
+        submit: args.submit === true
+      }
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "type",
+        tabId: result.tabId,
+        target: result.targetId,
+        text: result.text,
+        submitted: result.submitted,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to type text.");
+  }
+}
+async function handleBrowserSelectOption(driver, args) {
+  if (typeof driver.selectOptions !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support selectOptions.");
+  }
+  if (typeof args.targetId !== "string" || args.targetId.length === 0) {
+    return errorText("INVALID_TARGET", "browser_select_option requires target.");
+  }
+  if (!Array.isArray(args.values) || args.values.length === 0 || args.values.some((value) => typeof value !== "string")) {
+    return errorText("INVALID_COMMAND", "browser_select_option requires non-empty string values.");
+  }
+  try {
+    const result = await driver.selectOptions(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      args.targetId,
+      args.values
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "select",
+        tabId: result.tabId,
+        target: result.targetId,
+        values: result.values,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to select option.");
+  }
+}
+async function handleBrowserFillForm(driver, args) {
+  if (typeof driver.fillForm !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support fillForm.");
+  }
+  const fields = parseFillFormFields(args.fields);
+  if (!fields.ok) return fields.result;
+  try {
+    const result = await driver.fillForm(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      fields.fields
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "fill-form",
+        tabId: result.tabId,
+        fields: result.fields.map((field) => ({
+          ...field.name ? { name: field.name } : {},
+          target: field.targetId,
+          type: field.type
+        })),
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to fill form.");
+  }
+}
+function parseFillFormFields(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return {
+      ok: false,
+      result: errorText("INVALID_COMMAND", "browser_fill_form requires a non-empty fields array.")
+    };
+  }
+  const fields = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const raw = value[index];
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      return {
+        ok: false,
+        result: errorText("INVALID_COMMAND", `browser_fill_form field ${index} must be an object.`)
+      };
+    }
+    const field = raw;
+    if (field.name !== void 0 && typeof field.name !== "string") {
+      return {
+        ok: false,
+        result: errorText("INVALID_COMMAND", `browser_fill_form field ${index} name must be a string.`)
+      };
+    }
+    if (typeof field.targetId !== "string" || field.targetId.length === 0) {
+      return {
+        ok: false,
+        result: errorText("INVALID_TARGET", `browser_fill_form field ${index} requires target.`)
+      };
+    }
+    if (!isFillFormFieldType(field.type)) {
+      return {
+        ok: false,
+        result: errorText("INVALID_COMMAND", `browser_fill_form field ${index} type must be one of: textbox, checkbox, radio, combobox, slider.`)
+      };
+    }
+    if (!isFillFormFieldValue(field.value)) {
+      return {
+        ok: false,
+        result: errorText("INVALID_COMMAND", `browser_fill_form field ${index} value must be a string, boolean, or number.`)
+      };
+    }
+    fields.push({
+      ...typeof field.name === "string" ? { name: field.name } : {},
+      targetId: field.targetId,
+      type: field.type,
+      value: field.value
+    });
+  }
+  return { ok: true, fields };
+}
+function isFillFormFieldType(value) {
+  return value === "textbox" || value === "checkbox" || value === "radio" || value === "combobox" || value === "slider";
+}
+function isFillFormFieldValue(value) {
+  return typeof value === "string" || typeof value === "boolean" || typeof value === "number";
+}
+async function handleBrowserFileUpload(driver, args) {
+  if (typeof driver.fileUpload !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support fileUpload.");
+  }
+  if (args.paths !== void 0 && (!Array.isArray(args.paths) || args.paths.some((path) => typeof path !== "string"))) {
+    return errorText("INVALID_COMMAND", "browser_file_upload paths must be an array of strings.");
+  }
+  try {
+    const result = await driver.fileUpload(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      Array.isArray(args.paths) ? args.paths : []
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "file-upload",
+        tabId: result.tabId,
+        paths: result.paths,
+        cancelled: result.cancelled,
+        fileChooser: result.fileChooser,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to upload files.");
+  }
+}
+async function handleBrowserDrop(driver, args) {
+  if (typeof driver.drop !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support drop.");
+  }
+  if (typeof args.targetId !== "string" || args.targetId.length === 0) {
+    return errorText("INVALID_TARGET", "browser_drop requires target.");
+  }
+  const data = parseDropData(args.data);
+  if (!data.ok) return data.result;
+  if (args.paths !== void 0 && (!Array.isArray(args.paths) || args.paths.some((path) => typeof path !== "string"))) {
+    return errorText("INVALID_COMMAND", "browser_drop paths must be an array of strings.");
+  }
+  const paths = Array.isArray(args.paths) ? args.paths : [];
+  if (Object.keys(data.data).length === 0 && paths.length === 0) {
+    return errorText("INVALID_COMMAND", "browser_drop requires at least one of: data, paths.");
+  }
+  try {
+    const result = await driver.drop(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      args.targetId,
+      data.data,
+      paths
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "drop",
+        tabId: result.tabId,
+        target: result.targetId,
+        paths: result.paths,
+        dataTypes: result.dataTypes,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to drop data.");
+  }
+}
+function parseDropData(value) {
+  if (value === void 0) return { ok: true, data: {} };
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      ok: false,
+      result: errorText("INVALID_COMMAND", "browser_drop data must be an object with string values.")
+    };
+  }
+  for (const item of Object.values(value)) {
+    if (typeof item !== "string") {
+      return {
+        ok: false,
+        result: errorText("INVALID_COMMAND", "browser_drop data must be an object with string values.")
+      };
+    }
+  }
+  return { ok: true, data: value };
+}
+async function handleBrowserHandleDialog(driver, args) {
+  if (typeof driver.handleDialog !== "function") {
+    return errorText("INVALID_COMMAND", "Driver does not support handleDialog.");
+  }
+  if (typeof args.accept !== "boolean") {
+    return errorText("INVALID_COMMAND", "browser_handle_dialog requires accept (boolean).");
+  }
+  if (args.promptText !== void 0 && typeof args.promptText !== "string") {
+    return errorText("INVALID_COMMAND", "browser_handle_dialog promptText must be a string.");
+  }
+  try {
+    const result = await driver.handleDialog(
+      typeof args.tabId === "number" ? args.tabId : void 0,
+      {
+        accept: args.accept,
+        ...typeof args.promptText === "string" ? { promptText: args.promptText } : {}
+      }
+    );
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "dialog.handle",
+        tabId: result.tabId,
+        armed: result.armed,
+        dialog: result.dialog,
+        session: buildSessionMeta(driver, result.tabId, false) ?? null
+      }, null, 2)
+    };
+  } catch (error48) {
+    return commandErrorText(error48, "Failed to handle dialog.");
+  }
+}
+async function handleBrowserSnapshot(driver, args) {
+  const tabId = driver.resolveTabId(args.tabId);
+  if (tabId == null) return { text: "No active sessions.", isError: true };
+  const snapshot = driver.getSnapshot(tabId);
+  if (!snapshot) return { text: `No snapshot available for tab ${tabId}.`, isError: true };
+  const targetIdResult = snapshotTargetIdArg(args);
+  if (targetIdResult && typeof targetIdResult !== "string") return targetIdResult;
+  const targetId = typeof targetIdResult === "string" ? targetIdResult : void 0;
+  let scopedSnapshot = snapshot;
+  if (targetId) {
+    const scoped = snapshotForTarget(snapshot, targetId);
+    if (!scoped) {
+      return errorText("TARGET_NOT_FOUND", `target not found: ${targetId}`, { target: targetId, targetId });
+    }
+    scopedSnapshot = scoped;
+  }
+  const payload = {
+    ...toPublicSnapshot(scopedSnapshot, {
+      mode: "full",
+      ...args.includeTextContent === true ? { includeTextContent: true } : {}
+    }),
+    session: buildSessionMeta(driver, tabId, false)
+  };
+  const text = formatPublicSnapshot(payload);
+  const filename = resolveEvaluateFilename(args.filename);
+  if (filename === false) {
+    return errorText("INVALID_COMMAND", "browser_snapshot filename must be a non-empty string.");
+  }
+  if (filename) {
+    const outputPath = resolve(filename);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, text);
+    return {
+      text: JSON.stringify({
+        ok: true,
+        action: "snapshot",
+        tabId,
+        path: outputPath,
+        session: buildSessionMeta(driver, tabId, false) ?? null
+      }, null, 2)
+    };
+  }
+  return { text };
+}
+function snapshotTargetIdArg(args) {
+  const raw = typeof args.target === "string" && args.target.length > 0 ? args.target : typeof args.targetId === "string" && args.targetId.length > 0 ? args.targetId : void 0;
+  if (!raw) return void 0;
+  try {
+    return normalizeAgentTargetId(raw);
+  } catch (error48) {
+    if (error48 instanceof AgentTargetIdParseError) {
+      return errorText("INVALID_TARGET", error48.message, { target: raw });
+    }
+    throw error48;
+  }
+}
+function snapshotForTarget(snapshot, targetId) {
+  const target = snapshot.targets.find((candidate) => candidate.targetId === targetId);
+  if (!target) return null;
+  return {
+    ...snapshot,
+    groups: snapshot.groups.filter((group) => group.groupId === target.groupId),
+    targets: [target]
+  };
+}
+function listIndexedSessions(driver) {
+  return driver.listSessions().map((session, index) => ({
+    index,
+    ...toPublicSession(session)
+  }));
+}
+function resolveScreenshotType(value) {
+  if (value === void 0) return void 0;
+  if (value === "png" || value === "jpeg") return value;
+  return "invalid";
+}
+function resolveScreenshotFilename(value, type) {
+  if (value === void 0) return defaultScreenshotFilename(type);
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  return null;
+}
+function defaultScreenshotFilename(type) {
+  const suffix = type === "jpeg" ? "jpg" : "png";
+  return `.agrune/runs/${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-")}/screenshot.${suffix}`;
+}
+function resolveEvaluateFilename(value) {
+  if (value === void 0) return void 0;
+  if (typeof value === "string" && value.trim().length > 0) return value;
+  return false;
+}
+async function resolveRunCodeUnsafeSource(args) {
+  if (args.filename !== void 0) {
+    if (typeof args.filename !== "string" || args.filename.trim().length === 0) {
+      return { ok: false, result: errorText("INVALID_COMMAND", "browser_run_code_unsafe filename must be a non-empty string.") };
+    }
+    const filename = resolve(args.filename);
+    try {
+      return { ok: true, source: await readFile(filename, "utf8"), filename };
+    } catch (error48) {
+      const message = error48 instanceof Error ? error48.message : String(error48);
+      return { ok: false, result: errorText("INVALID_COMMAND", `Failed to read browser_run_code_unsafe filename: ${message}`) };
+    }
+  }
+  if (typeof args.code !== "string" || args.code.trim().length === 0) {
+    return { ok: false, result: errorText("INVALID_COMMAND", "browser_run_code_unsafe requires code or filename.") };
+  }
+  return { ok: true, source: args.code };
+}
+function resolveConsoleLevel(value) {
+  if (value === void 0) return void 0;
+  if (value === "debug" || value === "info" || value === "warning" || value === "error") return value;
+  return "invalid";
+}
+function resolveNetworkRequestPart(value) {
+  if (value === void 0) return void 0;
+  if (value === "request-headers" || value === "request-body" || value === "response-headers" || value === "response-body") {
+    return value;
+  }
+  return "invalid";
+}
+function formatEvaluationResultForFile(result) {
+  if (typeof result === "string") return result;
+  return `${JSON.stringify(result, null, 2)}
+`;
+}
+function resolveIndexedSession(driver, index, action) {
+  if (typeof index !== "number" || !Number.isInteger(index) || index < 0) {
+    return {
+      ok: false,
+      result: errorText("TAB_NOT_FOUND", `browser_tabs action "${action}" requires a valid tab index.`)
+    };
+  }
+  const sessions = driver.listSessions();
+  const session = sessions[index];
+  if (!session) {
+    return {
+      ok: false,
+      result: errorText("TAB_NOT_FOUND", `No tab exists at index ${index}.`, { index })
+    };
+  }
+  return { ok: true, index, session };
+}
+function commandErrorText(error48, fallbackMessage) {
+  const shape = error48;
+  if (shape && typeof shape.code === "string") {
+    return errorText(shape.code, shape.message ?? fallbackMessage, shape.details);
+  }
+  return errorText("INVALID_COMMAND", error48 instanceof Error ? error48.message : String(error48));
+}
 function resolveSnapshotOptions(args) {
   const groupIds = /* @__PURE__ */ new Set();
   if (typeof args.groupId === "string" && args.groupId.trim()) groupIds.add(args.groupId.trim());
@@ -31051,6 +32663,7 @@ export {
   __commonJS,
   __toESM,
   JSONRPCMessageSchema,
+  createCommandError,
   registerAgruneTools,
   CommandBroker,
   HitlSkipError,
@@ -31058,4 +32671,4 @@ export {
   getToolDefinitions,
   createMcpServer
 };
-//# sourceMappingURL=chunk-M4GUW4PK.js.map
+//# sourceMappingURL=chunk-5OUHTLCZ.js.map

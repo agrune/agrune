@@ -309,6 +309,7 @@ export class CdpRuntimeInjector {
 
     await this.connection.send('Page.enable', {}, sessionId).catch(() => {})
     await this.connection.send('Runtime.enable', {}, sessionId)
+    await this.connection.send('Network.enable', {}, sessionId).catch(() => {})
     await this.connection.send('Runtime.addBinding', { name: 'agrune_send' }, sessionId)
     await this.connection.send(
       'Page.addScriptToEvaluateOnNewDocument',

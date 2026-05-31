@@ -215,6 +215,22 @@ describe('step loop — happy path', () => {
     runner.dispose()
   })
 
+  it('Playwright-only macro action is rejected by the page runtime runner', async () => {
+    const inputEl = makeElement()
+    const runner = new MacroRunner(makeMacroRunnerDeps({ input: inputEl }))
+    const macro = makeMacro({
+      steps: [makeStep({ targetId: 'input', action: 'type', value: 'Ada' })],
+    })
+    const result = await runner.run(macro, {})
+    expect(result.status).toBe('step-error')
+    if (result.status === 'step-error') {
+      expect(result.error).toContain('not supported by the page runtime runner')
+    }
+    expect(getMockedHandleAct()).not.toHaveBeenCalled()
+    expect(getMockedHandleFill()).not.toHaveBeenCalled()
+    runner.dispose()
+  })
+
   it('step.value with {{email}} interpolated from params', async () => {
     const emailEl = makeElement()
     const runner = new MacroRunner(makeMacroRunnerDeps({ email: emailEl }))

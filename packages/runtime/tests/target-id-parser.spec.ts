@@ -12,12 +12,15 @@
  */
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import {
+  collectDescriptors,
+  makeSnapshot,
   parseRuntimeTargetId,
   resolveRuntimeTarget,
   REPEATED_TARGET_KEY_DELIMITER,
   REPEATED_TARGET_ID_DELIMITER,
 } from '../src/runtime/snapshot'
 import type { TargetDescriptor } from '../src/runtime/snapshot'
+import type { AgruneManifest } from '../src/types'
 
 // ---------------------------------------------------------------------------
 // dom-utils mock
@@ -252,6 +255,43 @@ describe('withDescriptor — REPEAT_INDEX_OUT_OF_RANGE 발동', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) {
       expect(result.error.code).toBe('TARGET_NOT_FOUND')
+    }
+  })
+
+  it('manifest target은 있지만 DOM element가 없으면 selector-unresolved detail을 반환한다', async () => {
+    const { withDescriptor } = await import('../src/runtime/command-handlers')
+    const manifest: AgruneManifest = {
+      version: 3,
+      groups: [{
+        groupId: 'main',
+        targets: [
+          { targetId: 'save_button', actionKinds: ['click'], selector: { css: '[data-testid="missing-save"]' } },
+        ],
+      }],
+    }
+    const descriptors = collectDescriptors(manifest)
+    const snapshot = makeSnapshot(descriptors, { version: 0, signature: null, latest: null })
+    const deps = {
+      captureSnapshot: () => snapshot,
+      captureSettledSnapshot: async () => snapshot,
+      getDescriptors: () => descriptors,
+      resolveExecutionConfig: () => ({} as never),
+      queue: { enqueue: (_fn: () => Promise<unknown>) => _fn() } as never,
+      eventSequences: {} as never,
+    }
+
+    const result = await withDescriptor(deps, 'cmd3', 'save_button', undefined, async () => {
+      return { ok: true, commandId: 'cmd3', snapshot } as never
+    })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error.code).toBe('TARGET_NOT_FOUND')
+      expect(result.error.details).toMatchObject({
+        manifestTarget: true,
+        targetLookup: 'selector-unresolved',
+        baseTargetId: 'save_button',
+      })
     }
   })
 })

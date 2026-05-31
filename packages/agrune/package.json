@@ -9,11 +9,13 @@
     "README.md"
   ],
   "scripts": {
-    "build": "pnpm --filter @agrune/runtime run build && pnpm --filter @agrune/mcp run build && node scripts/copy-mcp-dist.cjs",
+    "build": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build && pnpm --filter @agrune/runtime run build && pnpm --filter @agrune/browser run build && pnpm --filter @agrune/mcp run build && node scripts/copy-mcp-dist.cjs",
     "prepack": "pnpm run build",
     "test": "node --test tests/*.test.cjs"
   },
-  "dependencies": {},
+  "dependencies": {
+    "playwright": "^1.59.1"
+  },
   "publishConfig": {
     "access": "public"
   },

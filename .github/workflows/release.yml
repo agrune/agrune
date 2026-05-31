@@ -23,7 +23,7 @@ jobs:
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in packages/cli packages/devtools; do
+          for pkg in packages/agrune; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -40,6 +40,3 @@ jobs:
 
       - name: Publish agrune
         run: pnpm --filter agrune publish --access public --no-git-checks
-
-      - name: Publish agrune-devtools
-        run: pnpm --filter agrune-devtools publish --access public --no-git-checks

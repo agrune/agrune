@@ -43,12 +43,8 @@ jobs:
           pnpm --filter agrune pack --pack-destination /tmp/agrune-pack-smoke
           TARBALL=$(ls /tmp/agrune-pack-smoke/agrune-*.tgz | head -1)
           npm install --prefix /tmp/agrune-pack-smoke/install --omit=dev "$TARBALL"
-          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune mcp --help
-          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --codex --local --dry-run
-          pnpm --filter agrune-devtools pack --pack-destination /tmp/agrune-pack-smoke
-          DEVTOOLS_TARBALL=$(ls /tmp/agrune-pack-smoke/agrune-devtools-*.tgz | head -1)
-          npm install --prefix /tmp/agrune-pack-smoke/install --omit=dev "$DEVTOOLS_TARBALL"
-          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune-devtools --help
+          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --help
+          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --version
 
   e2e:
     name: playwright e2e

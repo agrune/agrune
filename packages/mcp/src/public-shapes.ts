@@ -6,6 +6,7 @@ import type {
   PageTarget,
   Session,
 } from '@agrune/core'
+import { toAgentTargetRef } from './target-id-normalizer'
 
 export interface PublicSession {
   tabId: number
@@ -21,19 +22,18 @@ export interface PublicSnapshotGroup {
   groupName?: string
   groupDesc?: string
   targetCount: number
-  actionKinds: PageTarget['actionKinds'][number][]
   sampleTargetNames: string[]
   meta?: unknown
 }
 
 export interface PublicSnapshotTarget {
-  targetId: string
+  ref: string
   groupId: string
   name: string
   description: string
-  actionKinds: PageTarget['actionKinds']
   reason?: PageTarget['reason']
   sensitive?: boolean
+  unresolved?: boolean
   textContent?: string
   center?: { x: number; y: number }
   size?: { w: number; h: number }
@@ -54,6 +54,10 @@ export interface PublicSnapshot {
   context: 'page' | 'overlay'
   groups?: PublicSnapshotGroup[]
   targets?: PublicSnapshotTarget[]
+}
+
+export type PublicSnapshotDocument = PublicSnapshot & {
+  session?: PublicSessionMeta | null
 }
 
 export type PublicCommandResult =
@@ -113,11 +117,11 @@ export function toPublicSessionMeta(
 
 function toPublicTarget(target: PageTarget, includeTextContent: boolean): PublicSnapshotTarget {
   return {
-    targetId: target.targetId,
+    ref: toAgentTargetRef(target),
     groupId: target.groupId,
     name: target.name,
     description: target.description,
-    actionKinds: target.actionKinds,
+    ...(targetDomResolved(target) === false ? { unresolved: true } : {}),
     ...(target.reason !== 'ready' ? { reason: target.reason } : {}),
     ...(target.sensitive ? { sensitive: true } : {}),
     ...(includeTextContent && target.textContent ? { textContent: target.textContent } : {}),
@@ -176,7 +180,6 @@ function toPublicGroups(targets: PageTarget[], snapshotGroups: PageSnapshotGroup
     groupName: group.groupName,
     groupDesc: group.groupDesc,
     targetCount: group.targets.length,
-    actionKinds: [...new Set(group.targets.flatMap(target => target.actionKinds))],
     sampleTargetNames: group.targets
       .map(target => target.name)
       .filter(name => name.length > 0)
@@ -192,19 +195,141 @@ export function toPublicSnapshot(
   const activeContext = getActiveContext(snapshot)
   const requestedGroupIds = new Set(options.groupIds ?? [])
   const includeTargets = requestedGroupIds.size > 0 || options.mode === 'full'
+  const unresolvedTargets = snapshot.targets.filter(target => targetDomResolved(target) === false)
+  const targetPool = includeTargets
+    ? uniqueTargets(activeContext.context === 'overlay'
+        ? [...activeContext.targets, ...unresolvedTargets]
+        : snapshot.targets)
+    : activeContext.targets
   const expandedTargets =
     requestedGroupIds.size > 0
-      ? activeContext.targets.filter(target => requestedGroupIds.has(target.groupId))
-      : activeContext.targets
+      ? targetPool.filter(target => requestedGroupIds.has(target.groupId))
+      : targetPool
 
   return {
     version: snapshot.version,
     url: snapshot.url,
     title: snapshot.title,
     context: activeContext.context,
-    ...(requestedGroupIds.size === 0 ? { groups: toPublicGroups(activeContext.targets, snapshot.groups) } : {}),
+    ...(requestedGroupIds.size === 0 ? { groups: toPublicGroups(targetPool, snapshot.groups) } : {}),
     ...(includeTargets ? { targets: expandedTargets.map(t => toPublicTarget(t, options.includeTextContent ?? false)) } : {}),
   }
+}
+
+function targetDomResolved(target: PageTarget): boolean | undefined {
+  return (target as PageTarget & { domResolved?: boolean }).domResolved
+}
+
+function uniqueTargets(targets: PageTarget[]): PageTarget[] {
+  const seen = new Set<string>()
+  const result: PageTarget[] = []
+  for (const target of targets) {
+    if (seen.has(target.targetId)) continue
+    seen.add(target.targetId)
+    result.push(target)
+  }
+  return result
+}
+
+export function formatPublicSnapshot(snapshot: PublicSnapshotDocument): string {
+  const lines = [
+    '### Page',
+    `- Page URL: ${snapshot.url}`,
+    `- Page Title: ${snapshot.title}`,
+    `- Agrune Context: ${snapshot.context}`,
+    `- Snapshot Version: ${snapshot.version}`,
+  ]
+
+  if (snapshot.session) {
+    lines.push(`- Tab ID: ${snapshot.session.tabId}`)
+  }
+
+  lines.push('### Snapshot', '```yaml')
+
+  if (snapshot.targets && snapshot.targets.length > 0) {
+    lines.push(...formatTargetTree(snapshot.targets, snapshot.groups))
+  } else if (snapshot.groups && snapshot.groups.length > 0) {
+    lines.push(...snapshot.groups.flatMap(formatGroup))
+  } else {
+    lines.push('- none')
+  }
+
+  lines.push('```')
+  return lines.join('\n')
+}
+
+function formatGroup(group: PublicSnapshotGroup): string[] {
+  const name = group.groupName || group.groupId
+  const lines = [`- group ${quote(name)} [ref=${group.groupId}]:`]
+  if (group.groupDesc) lines.push(`  - description: ${quote(group.groupDesc)}`)
+  lines.push(`  - targets: ${group.targetCount}`)
+  if (group.sampleTargetNames.length > 0) {
+    lines.push(`  - samples: ${group.sampleTargetNames.map(quote).join(', ')}`)
+  }
+  return lines
+}
+
+function formatTargetTree(targets: PublicSnapshotTarget[], snapshotGroups: PublicSnapshotGroup[] = []): string[] {
+  const targetsByGroup = new Map<string, PublicSnapshotTarget[]>()
+  for (const target of targets) {
+    const groupTargets = targetsByGroup.get(target.groupId)
+    if (groupTargets) {
+      groupTargets.push(target)
+    } else {
+      targetsByGroup.set(target.groupId, [target])
+    }
+  }
+
+  const labels = new Map(snapshotGroups.map(group => [group.groupId, group.groupName || group.groupId]))
+
+  return Array.from(targetsByGroup.entries()).flatMap(([groupId, groupTargets]) => {
+    const lines = [`- group ${quote(labels.get(groupId) || groupId)} [ref=${groupId}]:`]
+    for (const target of groupTargets) {
+      lines.push(...formatTarget(target, 2))
+    }
+    return lines
+  })
+}
+
+function formatTarget(target: PublicSnapshotTarget, indent: number): string[] {
+  const pad = ' '.repeat(indent)
+  const childPad = ' '.repeat(indent + 2)
+  const label = target.name || target.ref
+  const state = [
+    target.unresolved ? 'unresolved' : '',
+    target.reason ? `reason=${target.reason}` : '',
+    target.sensitive ? 'sensitive' : '',
+  ].filter(Boolean)
+  const stateText = state.length > 0 ? ` [${state.join(' ')}]` : ''
+  const lines = [`${pad}- target ${quote(label)} [ref=${target.ref}]${stateText}:`]
+  if (target.description) lines.push(`${childPad}- description: ${quote(target.description)}`)
+  if (target.textContent) lines.push(`${childPad}- text: ${quote(compactText(target.textContent))}`)
+  const box = formatBox(target)
+  if (box) lines.push(`${childPad}- box: ${box}`)
+  return lines
+}
+
+function formatBox(target: PublicSnapshotTarget): string | null {
+  if (!target.center && !target.size && !target.coordSpace) return null
+  const parts = []
+  if (target.center) parts.push(`center=(${round(target.center.x)},${round(target.center.y)})`)
+  if (target.size) parts.push(`size=(${round(target.size.w)}x${round(target.size.h)})`)
+  if (target.coordSpace) parts.push(`coordSpace=${target.coordSpace}`)
+  return parts.join(', ')
+}
+
+function compactText(value: string): string {
+  const compacted = value.replace(/\s+/g, ' ').trim()
+  if (compacted.length <= 160) return compacted
+  return `${compacted.slice(0, 157)}...`
+}
+
+function quote(value: string): string {
+  return JSON.stringify(value)
+}
+
+function round(value: number): number {
+  return Math.round(value * 100) / 100
 }
 
 export function toPublicCommandResult(result: CommandResult): PublicCommandResult {

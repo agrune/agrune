@@ -2,7 +2,18 @@ import { z } from 'zod'
 
 // ─── TypeScript Types ─────────────────────────────────────────────────────────
 
-export type ActionKind = 'click' | 'fill' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
+export type ActionKind =
+  | 'click'
+  | 'fill'
+  | 'dblclick'
+  | 'contextmenu'
+  | 'hover'
+  | 'longpress'
+  | 'type'
+  | 'press'
+  | 'select'
+  | 'upload'
+  | 'drop'
 
 /**
  * AtLeastOne<T> — T의 키 중 최소 1개는 반드시 존재해야 하는 타입 helper.
@@ -82,7 +93,19 @@ export interface AgruneManifest {
 
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
-export const ActionKindSchema = z.enum(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+export const ActionKindSchema = z.enum([
+  'click',
+  'fill',
+  'dblclick',
+  'contextmenu',
+  'hover',
+  'longpress',
+  'type',
+  'press',
+  'select',
+  'upload',
+  'drop',
+])
 
 export const SelectorLadderSchema = z
   .object({

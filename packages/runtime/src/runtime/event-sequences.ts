@@ -1,16 +1,21 @@
 import type { CdpClient } from './cdp-client'
 
 export interface Coords { x: number; y: number }
+export type MouseButton = 'left' | 'middle' | 'right'
+export interface MouseActionOptions {
+  button?: MouseButton
+  modifiers?: number
+}
 
 export interface EventSequences {
-  click(coords: Coords): Promise<void>
-  dblclick(coords: Coords): Promise<void>
-  contextmenu(coords: Coords): Promise<void>
+  click(coords: Coords, options?: MouseActionOptions): Promise<void>
+  dblclick(coords: Coords, options?: MouseActionOptions): Promise<void>
+  contextmenu(coords: Coords, options?: MouseActionOptions): Promise<void>
   hover(coords: Coords): Promise<void>
   longpress(coords: Coords): Promise<void>
-  mousePressed(coords: Coords, button?: 'left' | 'right'): Promise<void>
+  mousePressed(coords: Coords, button?: MouseButton): Promise<void>
   mouseMoved(coords: Coords, buttons?: number): Promise<void>
-  mouseReleased(coords: Coords, button?: 'left' | 'right'): Promise<void>
+  mouseReleased(coords: Coords, button?: MouseButton): Promise<void>
   pointerDrag(src: Coords, dst: Coords, steps: Coords[]): Promise<void>
   wheel(coords: Coords, deltaY: number, ctrlKey?: boolean): Promise<void>
   htmlDrag(src: Coords, dst: Coords): Promise<void>
@@ -56,20 +61,25 @@ export function createEventSequences(cdp: CdpClient): EventSequences {
     send('Input.dispatchMouseEvent', { type, x, y, ...extra })
 
   return {
-    async click(coords) {
-      await mouse('mouseMoved', coords.x, coords.y)
-      await mouse('mousePressed', coords.x, coords.y, { button: 'left', clickCount: 1 })
-      await mouse('mouseReleased', coords.x, coords.y, { button: 'left', clickCount: 1 })
+    async click(coords, options = {}) {
+      const button = options.button ?? 'left'
+      const eventOptions = { button, clickCount: 1, ...(options.modifiers != null ? { modifiers: options.modifiers } : {}) }
+      await mouse('mouseMoved', coords.x, coords.y, options.modifiers != null ? { modifiers: options.modifiers } : undefined)
+      await mouse('mousePressed', coords.x, coords.y, eventOptions)
+      await mouse('mouseReleased', coords.x, coords.y, eventOptions)
     },
-    async dblclick(coords) {
-      await mouse('mousePressed', coords.x, coords.y, { button: 'left', clickCount: 1 })
-      await mouse('mouseReleased', coords.x, coords.y, { button: 'left', clickCount: 1 })
-      await mouse('mousePressed', coords.x, coords.y, { button: 'left', clickCount: 2 })
-      await mouse('mouseReleased', coords.x, coords.y, { button: 'left', clickCount: 2 })
+    async dblclick(coords, options = {}) {
+      const button = options.button ?? 'left'
+      const modifiers = options.modifiers != null ? { modifiers: options.modifiers } : {}
+      await mouse('mousePressed', coords.x, coords.y, { button, clickCount: 1, ...modifiers })
+      await mouse('mouseReleased', coords.x, coords.y, { button, clickCount: 1, ...modifiers })
+      await mouse('mousePressed', coords.x, coords.y, { button, clickCount: 2, ...modifiers })
+      await mouse('mouseReleased', coords.x, coords.y, { button, clickCount: 2, ...modifiers })
     },
-    async contextmenu(coords) {
-      await mouse('mousePressed', coords.x, coords.y, { button: 'right', clickCount: 1 })
-      await mouse('mouseReleased', coords.x, coords.y, { button: 'right', clickCount: 1 })
+    async contextmenu(coords, options = {}) {
+      const modifiers = options.modifiers != null ? { modifiers: options.modifiers } : {}
+      await mouse('mousePressed', coords.x, coords.y, { button: 'right', clickCount: 1, ...modifiers })
+      await mouse('mouseReleased', coords.x, coords.y, { button: 'right', clickCount: 1, ...modifiers })
     },
     async hover(coords) {
       await mouse('mouseMoved', coords.x, coords.y)

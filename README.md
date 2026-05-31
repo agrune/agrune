@@ -12,7 +12,7 @@ This repo is currently optimized for the local-agent demo path:
 4. The page-owned manifest produces a compact actionable snapshot.
 5. The agent controls the page by target IDs from that snapshot.
 
-There is no user-facing installer flow right now. `npx agrune@latest` runs the MCP server directly. Do not add an `mcp` subcommand, skill installer, manifest-load tool, or separate user CLI until that product path is explicitly reintroduced.
+The CLI-first product path has been reintroduced. The published `agrune` package still runs the MCP server today, while `@agrune/cli` is the internal Playwright daemon prototype for the new CLI surface.
 
 ## MCP Config
 
@@ -70,17 +70,36 @@ npx agrune@latest --user-data-dir ~/.agrune/browser-profile
 | --- | --- |
 | `browser_list_tabs` | List attached browser tabs. |
 | `browser_open_tab` | Open a URL in the managed browser and make it active. |
+| `browser_tabs` | Playwright-style tab list/new/select/close actions. |
+| `browser_close` | Close the active browser page. |
 | `browser_focus_tab` | Switch the active tab. |
+| `browser_navigate` | Navigate the active page to a URL. |
+| `browser_navigate_back` | Go back in the active page history. |
+| `browser_resize` | Resize the active page viewport. |
+| `browser_take_screenshot` | Save a page or target screenshot. |
+| `browser_evaluate` | Evaluate JavaScript on the page or a target. |
+| `browser_run_code_unsafe` | Run arbitrary Playwright code against the active page. |
+| `browser_console_messages` | Read console and page error messages. |
+| `browser_network_requests` | List captured network requests. |
+| `browser_network_request` | Read full details or one part of a network request. |
+| `browser_press_key` | Press a keyboard key in the active page. |
+| `browser_type` | Type text into an editable target. |
+| `browser_select_option` | Select one or more dropdown values. |
+| `browser_fill_form` | Fill multiple form fields. |
+| `browser_file_upload` | Upload files to a pending file chooser. |
+| `browser_drop` | Drop files or MIME data onto a target. |
+| `browser_handle_dialog` | Accept or dismiss a pending JavaScript dialog. |
+| `browser_snapshot` | Capture a full target-ref snapshot of the active page. |
 | `browser_get_targets` | Return compact groups or expanded manifest-defined targets. |
-| `browser_click` | Click a target ID. |
-| `browser_double_click` | Double-click a target ID. |
-| `browser_right_click` | Right-click a target ID. |
-| `browser_hover` | Hover a target ID. |
-| `browser_long_press` | Long-press a target ID. |
-| `browser_fill` | Fill an input target ID. |
+| `browser_click` | Click a target ref. |
+| `browser_double_click` | Double-click a target ref. |
+| `browser_right_click` | Right-click a target ref. |
+| `browser_hover` | Hover a target ref. |
+| `browser_long_press` | Long-press a target ref. |
+| `browser_fill` | Fill an input target ref. |
 | `browser_drag` | Drag a target to another target or coordinates. |
 | `browser_pointer` | Low-level pointer/wheel events for canvas/freeform work. |
-| `browser_wait_for` | Wait for target state. |
+| `browser_wait_for` | Wait for target state, text, text disappearance, or time. |
 | `browser_read` | Extract visible page content as markdown. |
 | `browser_update_config` | Update visual/runtime options when explicitly requested. |
 
@@ -91,6 +110,7 @@ Agents should not need to read manifest files, load manifests manually, use CSS 
 | Package | Path | Role | Published |
 | --- | --- | --- | --- |
 | `agrune` | `packages/agrune` | Public npm package whose default bin runs the MCP server. | Yes |
+| `@agrune/cli` | `packages/cli` | Internal CLI and local Playwright daemon prototype. | No |
 | `@agrune/mcp` | `packages/mcp` | Internal MCP server source bundled into `agrune`. | No |
 | `@agrune/browser` | `packages/browser` | Internal CDP driver, Chrome launcher, runtime injector. | No |
 | `@agrune/runtime` | `packages/runtime` | Internal page runtime and target resolver. | No |

@@ -266,6 +266,37 @@ describe('page agent runtime', () => {
     )
   })
 
+  it('manifest에 있지만 DOM에서 resolve되지 않는 target도 hidden 상태로 유지한다', () => {
+    const button = document.createElement('button')
+    button.textContent = '로그인'
+    button.setAttribute('data-testid', 'login')
+    button.getBoundingClientRect = () => mockRect()
+    document.body.append(button)
+    ;(document.elementFromPoint as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => button)
+
+    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const snapshot = runtime.getSnapshot()
+
+    expect(snapshot.groups).toEqual([
+      expect.objectContaining({
+        groupId: 'auth',
+        targetIds: ['email', 'login'],
+      }),
+    ])
+    expect(snapshot.targets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          targetId: 'email',
+          visible: false,
+          inViewport: false,
+          enabled: false,
+          actionableNow: false,
+          reason: 'hidden',
+        }),
+      ]),
+    )
+  })
+
   it('오버레이에 가려진 target은 snapshot에 남지만 covered 상태가 된다', async () => {
     const button = document.createElement('button')
     button.textContent = '로그인'
@@ -1770,5 +1801,56 @@ describe('page agent runtime', () => {
         targetId: 'login',
       }),
     )
+  })
+
+  it('wait는 text가 나타나면 성공한다', async () => {
+    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+
+    setTimeout(() => {
+      const status = document.createElement('div')
+      status.textContent = 'Ready'
+      document.body.appendChild(status)
+    }, 25)
+
+    const result = await runtime.wait({
+      text: 'Ready',
+      timeoutMs: 300,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error('expected runtime.wait text to succeed')
+    }
+    expect(result.result).toEqual(expect.objectContaining({ text: 'Ready' }))
+  })
+
+  it('wait는 textGone이 처음부터 가시 텍스트에 없으면 즉시 성공한다', async () => {
+    const hidden = document.createElement('div')
+    hidden.style.display = 'none'
+    hidden.textContent = 'Loading'
+    document.body.appendChild(hidden)
+
+    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const result = await runtime.wait({
+      textGone: 'Loading',
+      timeoutMs: 50,
+    })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error('expected runtime.wait textGone to succeed')
+    }
+    expect(result.result).toEqual(expect.objectContaining({ textGone: 'Loading' }))
+  })
+
+  it('wait는 timeMs 동안 대기한다', async () => {
+    const runtime = createPageAgentRuntime(makeManifest(), { cdpPostMessage: mockCdpPostMessage })
+    const result = await runtime.wait({ timeMs: 1 })
+
+    expect(result.ok).toBe(true)
+    if (!result.ok) {
+      throw new Error('expected runtime.wait timeMs to succeed')
+    }
+    expect(result.result).toEqual(expect.objectContaining({ timeMs: 1 }))
   })
 })

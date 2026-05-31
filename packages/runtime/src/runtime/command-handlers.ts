@@ -56,6 +56,9 @@ import { getCursorMeta } from './cursors/index'
 import type { EventSequences, Coords } from './event-sequences'
 import type { ActionQueue } from './action-queue'
 
+type ClickButton = 'left' | 'middle' | 'right'
+type ClickModifier = 'Alt' | 'Control' | 'ControlOrMeta' | 'Meta' | 'Shift'
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -361,8 +364,10 @@ export async function withDescriptor(
     )
   }
 
-  const resolvedTarget = resolveRuntimeTarget(deps.getDescriptors(), targetId)
+  const descriptors = deps.getDescriptors()
+  const resolvedTarget = resolveRuntimeTarget(descriptors, targetId)
   if (!resolvedTarget) {
+    const lookupDetails = manifestTargetLookupDetails(descriptors, targetId)
     // Phase 15-03: repeat key 기반 lookup 실패 → REPEAT_INDEX_OUT_OF_RANGE
     const parsed = parseRuntimeTargetId(targetId)
     if (parsed.repeatId && parsed.repeatKey) {
@@ -372,9 +377,10 @@ export async function withDescriptor(
         `repeat "${parsed.repeatId}": key "${parsed.repeatKey}" not found in current snapshot.`,
         currentSnapshot,
         targetId,
+        lookupDetails,
       )
     }
-    return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${targetId}`, currentSnapshot, targetId)
+    return buildErrorResult(commandId, 'TARGET_NOT_FOUND', `target not found: ${targetId}`, currentSnapshot, targetId, lookupDetails)
   }
 
   return effect(resolvedTarget.descriptor, resolvedTarget.element, currentSnapshot)
@@ -388,14 +394,61 @@ export async function handleWait(
   deps: CommandHandlerDeps,
   input: {
     commandId?: string
-    targetId: string
-    state: WaitState
+    targetId?: string
+    state?: WaitState
+    text?: string
+    textGone?: string
+    timeMs?: number
     timeoutMs?: number
   },
 ): Promise<CommandResult> {
+  const modeCount = [
+    typeof input.targetId === 'string' && input.targetId.length > 0,
+    typeof input.text === 'string' && input.text.length > 0,
+    typeof input.textGone === 'string' && input.textGone.length > 0,
+    typeof input.timeMs === 'number',
+  ].filter(Boolean).length
+  if (modeCount !== 1) {
+    const snapshot = deps.captureSnapshot()
+    return buildErrorResult(
+      input.commandId ?? 'wait',
+      'INVALID_COMMAND',
+      'wait requires exactly one of: targetId, text, textGone, timeMs',
+      snapshot,
+    )
+  }
+
+  if (typeof input.timeMs === 'number') {
+    if (input.timeMs < 0) {
+      const snapshot = deps.captureSnapshot()
+      return buildErrorResult(input.commandId ?? 'wait:time', 'INVALID_COMMAND', 'timeMs must be non-negative', snapshot)
+    }
+    await sleep(input.timeMs)
+    return buildSuccessResult(input.commandId ?? 'wait:time', deps.captureSnapshot(), {
+      timeMs: input.timeMs,
+    })
+  }
+
   const timeoutMs =
     typeof input.timeoutMs === 'number' && input.timeoutMs > 0 ? input.timeoutMs : 5_000
   const startedAt = Date.now()
+  if (typeof input.text === 'string') {
+    return waitForTextMatch(deps, input.commandId ?? 'wait:text', input.text, true, startedAt, timeoutMs)
+  }
+  if (typeof input.textGone === 'string') {
+    return waitForTextMatch(deps, input.commandId ?? 'wait:textGone', input.textGone, false, startedAt, timeoutMs)
+  }
+
+  if (typeof input.targetId !== 'string' || typeof input.state !== 'string') {
+    const snapshot = deps.captureSnapshot()
+    return buildErrorResult(
+      input.commandId ?? 'wait',
+      'INVALID_COMMAND',
+      'target waits require targetId and state',
+      snapshot,
+    )
+  }
+
   const { baseTargetId } = parseRuntimeTargetId(input.targetId)
   const descriptor = deps.getDescriptors().find(entry => entry.target.targetId === baseTargetId)
 
@@ -449,6 +502,60 @@ export async function handleWait(
 
     await sleep(50)
   }
+}
+
+async function waitForTextMatch(
+  deps: CommandHandlerDeps,
+  commandId: string,
+  text: string,
+  shouldExist: boolean,
+  startedAt: number,
+  timeoutMs: number,
+): Promise<CommandResult> {
+  for (;;) {
+    const snapshot = deps.captureSnapshot()
+    const found = visibleDocumentText().includes(text)
+    if (found === shouldExist) {
+      return buildSuccessResult(commandId, snapshot, shouldExist ? { text } : { textGone: text })
+    }
+
+    if (Date.now() - startedAt >= timeoutMs) {
+      return buildErrorResult(
+        commandId,
+        'TIMEOUT',
+        shouldExist ? `wait timed out for text: ${text}` : `wait timed out for text to disappear: ${text}`,
+        snapshot,
+      )
+    }
+
+    await sleep(50)
+  }
+}
+
+function visibleDocumentText(): string {
+  const root = document.body
+  if (!root) return ''
+  const parts: string[] = []
+
+  const visit = (node: Node): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.textContent ?? '')
+      return
+    }
+    if (!(node instanceof Element)) return
+    const style = window.getComputedStyle(node)
+    if (
+      style.display === 'none' ||
+      style.visibility === 'hidden' ||
+      node.getAttribute('aria-hidden') === 'true'
+    ) {
+      return
+    }
+    for (const child of node.childNodes) visit(child)
+  }
+
+  visit(root)
+  return parts.join(' ')
 }
 
 // ---------------------------------------------------------------------------
@@ -827,6 +934,9 @@ export async function handleAct(
     commandId?: string
     targetId: string
     action?: 'click' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
+    button?: ClickButton
+    doubleClick?: boolean
+    modifiers?: ClickModifier[]
     expectedVersion?: number
     config?: Partial<AgruneRuntimeConfig>
   },
@@ -841,7 +951,9 @@ export async function handleAct(
       return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support act: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
     }
 
-    const action = input.action ?? 'click'
+    const action = input.doubleClick === true && (input.action === undefined || input.action === 'click')
+      ? 'dblclick'
+      : input.action ?? 'click'
 
     if (!descriptor.actionKinds.includes(action as ActionKind)) {
       return buildErrorResult(input.commandId ?? input.targetId, 'INVALID_TARGET', `target does not support action "${action}": ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId)
@@ -869,12 +981,16 @@ export async function handleAct(
     }
 
     const coords = toCoords(getInteractablePoint(element))
+    const mouseOptions = {
+      ...(input.button ? { button: input.button } : {}),
+      ...(input.modifiers ? { modifiers: clickModifiersToCdp(input.modifiers) } : {}),
+    }
 
     const cdpActionForType = (c: Coords): Promise<void> => {
       switch (action) {
-        case 'click': return deps.eventSequences.click(c)
-        case 'dblclick': return deps.eventSequences.dblclick(c)
-        case 'contextmenu': return deps.eventSequences.contextmenu(c)
+        case 'click': return deps.eventSequences.click(c, mouseOptions)
+        case 'dblclick': return deps.eventSequences.dblclick(c, mouseOptions)
+        case 'contextmenu': return deps.eventSequences.contextmenu(c, mouseOptions)
         case 'hover': return deps.eventSequences.hover(c)
         case 'longpress': return deps.eventSequences.longpress(c)
       }
@@ -899,8 +1015,34 @@ export async function handleAct(
     return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
       actionKind: action,
       targetId: input.targetId,
+      ...(input.button ? { button: input.button } : {}),
+      ...(input.modifiers ? { modifiers: input.modifiers } : {}),
     })
   })
+}
+
+function clickModifiersToCdp(modifiers: ClickModifier[]): number {
+  let mask = 0
+  for (const modifier of modifiers) {
+    switch (modifier) {
+      case 'Alt':
+        mask |= 1
+        break
+      case 'Control':
+        mask |= 2
+        break
+      case 'Meta':
+        mask |= 4
+        break
+      case 'Shift':
+        mask |= 8
+        break
+      case 'ControlOrMeta':
+        mask |= navigator.platform.toLowerCase().includes('mac') ? 4 : 2
+        break
+    }
+  }
+  return mask
 }
 
 // ---------------------------------------------------------------------------
@@ -916,6 +1058,45 @@ function findTargetIdForElement(
     if (elements.includes(element)) return d.target.targetId
   }
   return null
+}
+
+function manifestTargetLookupDetails(
+  descriptors: TargetDescriptor[],
+  targetId: string,
+): Record<string, unknown> {
+  const parsed = parseRuntimeTargetId(targetId)
+  if (parsed.repeatId && parsed.repeatKey) {
+    const exactDescriptor = descriptors.find(descriptor =>
+      descriptor.repeatInstance?.repeatId === parsed.repeatId &&
+      descriptor.repeatInstance?.key === parsed.repeatKey &&
+      descriptor.target.targetId === parsed.baseTargetId,
+    )
+    const repeatTargetDeclared = descriptors.some(descriptor =>
+      descriptor.repeatInstance?.repeatId === parsed.repeatId &&
+      descriptor.target.targetId === parsed.baseTargetId,
+    )
+    return {
+      baseTargetId: parsed.baseTargetId,
+      manifestTarget: exactDescriptor != null || repeatTargetDeclared,
+      repeatId: parsed.repeatId,
+      repeatKey: parsed.repeatKey,
+      targetLookup: exactDescriptor
+        ? 'selector-unresolved'
+        : repeatTargetDeclared
+          ? 'repeat-key-missing'
+          : 'not-declared',
+    }
+  }
+
+  const descriptor = descriptors.find(entry =>
+    entry.target.targetId === parsed.baseTargetId &&
+    entry.repeatInstance == null,
+  )
+  return {
+    baseTargetId: parsed.baseTargetId,
+    manifestTarget: descriptor != null,
+    targetLookup: descriptor ? 'selector-unresolved' : 'not-declared',
+  }
 }
 
 function buildMovedTarget(

@@ -25,6 +25,15 @@ describe('EventSequences', () => {
     expect(cdp.sendCdpEvent).toHaveBeenNthCalledWith(3, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: 100, y: 200, button: 'left', clickCount: 1 })
   })
 
+  it('click: forwards button and modifier options', async () => {
+    const cdp = mockCdpClient()
+    const seq = createEventSequences(cdp)
+    await seq.click({ x: 100, y: 200 }, { button: 'middle', modifiers: 9 })
+    expect(cdp.sendCdpEvent).toHaveBeenNthCalledWith(1, 'Input.dispatchMouseEvent', { type: 'mouseMoved', x: 100, y: 200, modifiers: 9 })
+    expect(cdp.sendCdpEvent).toHaveBeenNthCalledWith(2, 'Input.dispatchMouseEvent', { type: 'mousePressed', x: 100, y: 200, button: 'middle', clickCount: 1, modifiers: 9 })
+    expect(cdp.sendCdpEvent).toHaveBeenNthCalledWith(3, 'Input.dispatchMouseEvent', { type: 'mouseReleased', x: 100, y: 200, button: 'middle', clickCount: 1, modifiers: 9 })
+  })
+
   it('dblclick: sends 4 events with clickCount 1 then 2', async () => {
     const cdp = mockCdpClient()
     const seq = createEventSequences(cdp)

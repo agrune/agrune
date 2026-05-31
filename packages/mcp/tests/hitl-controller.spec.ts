@@ -5,7 +5,7 @@ describe('HitlController', () => {
   it('starts unpaused and awaitGate resolves immediately', async () => {
     const hitl = new HitlController()
     expect(hitl.getState().paused).toBe(false)
-    await expect(hitl.awaitGate('agrune_act')).resolves.toBeUndefined()
+    await expect(hitl.awaitGate('browser_click')).resolves.toBeUndefined()
   })
 
   it('pause then resume emits state changes', async () => {
@@ -21,7 +21,7 @@ describe('HitlController', () => {
     const hitl = new HitlController()
     hitl.pause()
     let settled = false
-    const p = hitl.awaitGate('agrune_fill').then(() => { settled = true })
+    const p = hitl.awaitGate('browser_fill').then(() => { settled = true })
     await Promise.resolve()
     expect(settled).toBe(false)
     hitl.resume()
@@ -32,9 +32,9 @@ describe('HitlController', () => {
   it('sets pendingTool while a call is waiting', async () => {
     const hitl = new HitlController()
     hitl.pause()
-    const p = hitl.awaitGate('agrune_click')
+    const p = hitl.awaitGate('browser_click')
     await Promise.resolve()
-    expect(hitl.getState().pendingTool).toBe('agrune_click')
+    expect(hitl.getState().pendingTool).toBe('browser_click')
     hitl.resume()
     await p
   })
@@ -42,7 +42,7 @@ describe('HitlController', () => {
   it('skip rejects the current call with HitlSkipError and remains paused', async () => {
     const hitl = new HitlController()
     hitl.pause()
-    const p = hitl.awaitGate('agrune_fill')
+    const p = hitl.awaitGate('browser_fill')
     await Promise.resolve()
     hitl.skip()
     await expect(p).rejects.toBeInstanceOf(HitlSkipError)
@@ -52,13 +52,13 @@ describe('HitlController', () => {
   it('step lets exactly one call through then re-pauses', async () => {
     const hitl = new HitlController()
     hitl.pause()
-    const p1 = hitl.awaitGate('agrune_act')
+    const p1 = hitl.awaitGate('browser_click')
     await Promise.resolve()
     hitl.step()
     await p1
     // second call should still be blocked
     let second = false
-    const p2 = hitl.awaitGate('agrune_act').then(() => { second = true })
+    const p2 = hitl.awaitGate('browser_click').then(() => { second = true })
     await Promise.resolve()
     expect(second).toBe(false)
     hitl.resume()
@@ -68,7 +68,7 @@ describe('HitlController', () => {
   it('HitlSkipError carries code HITL_SKIPPED', async () => {
     const hitl = new HitlController()
     hitl.pause()
-    const p = hitl.awaitGate('agrune_drag')
+    const p = hitl.awaitGate('browser_drag')
     await Promise.resolve()
     hitl.skip()
     try {

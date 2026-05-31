@@ -823,7 +823,7 @@ var __agrune_runtime__ = (() => {
   }
 
   // src/runtime/snapshot.ts
-  var VALID_ACTIONS = /* @__PURE__ */ new Set(["click", "fill", "dblclick", "contextmenu", "hover", "longpress"]);
+  var VALID_ACTIONS = /* @__PURE__ */ new Set(["click", "fill", "select", "upload", "drop", "dblclick", "contextmenu", "hover", "longpress"]);
   var ACT_COMPATIBLE_KINDS = /* @__PURE__ */ new Set(["click", "dblclick", "contextmenu", "hover", "longpress"]);
   var DOM_SETTLE_TIMEOUT_MS = 320;
   var DOM_SETTLE_QUIET_WINDOW_MS = 48;
@@ -1064,6 +1064,7 @@ var __agrune_runtime__ = (() => {
       inViewport: state.inViewport,
       covered: state.covered,
       actionableNow: state.actionableNow,
+      domResolved: true,
       overlay: state.overlay,
       textContent,
       valuePreview,
@@ -1077,20 +1078,53 @@ var __agrune_runtime__ = (() => {
       ...descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}
     };
   }
+  function captureMissingTarget(descriptor, targetId) {
+    return {
+      actionKinds: descriptor.actionKinds,
+      actionableNow: false,
+      covered: false,
+      domResolved: false,
+      description: descriptor.target.desc ?? "",
+      enabled: false,
+      groupId: descriptor.groupId,
+      groupName: descriptor.groupName,
+      groupDesc: descriptor.groupDesc,
+      inViewport: false,
+      name: descriptor.target.name ?? descriptor.target.targetId,
+      overlay: false,
+      reason: "hidden",
+      selector: descriptor.target.selector,
+      sensitive: descriptor.target.sensitive === true,
+      sourceFile: descriptor.target.sourceFile ?? "",
+      sourceLine: descriptor.target.sourceLine ?? 0,
+      sourceColumn: descriptor.target.sourceColumn ?? 0,
+      targetId,
+      visible: false,
+      valuePreview: null,
+      ...descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}
+    };
+  }
   function makeSnapshot(descriptors, store) {
     const targets = descriptors.flatMap((descriptor) => {
       const elements = findElements(descriptor);
       if (descriptor.repeatInstance) {
+        const targetId = toRuntimeTargetId(descriptor.target.targetId, {
+          repeatId: descriptor.repeatInstance.repeatId,
+          key: descriptor.repeatInstance.key
+        });
+        if (elements.length === 0) {
+          return [captureMissingTarget(descriptor, targetId)];
+        }
         return elements.map(
           (element) => captureTarget(
             descriptor,
             element,
-            toRuntimeTargetId(descriptor.target.targetId, {
-              repeatId: descriptor.repeatInstance.repeatId,
-              key: descriptor.repeatInstance.key
-            })
+            targetId
           )
         );
+      }
+      if (elements.length === 0) {
+        return [captureMissingTarget(descriptor, toRuntimeTargetId(descriptor.target.targetId, 0, 1))];
       }
       return elements.map(
         (element, index) => captureTarget(
@@ -1164,6 +1198,7 @@ var __agrune_runtime__ = (() => {
         actionKinds: target.actionKinds,
         actionableNow: target.actionableNow,
         covered: target.covered,
+        domResolved: targetDomResolved(target),
         enabled: target.enabled,
         inViewport: target.inViewport,
         reason: target.reason,
@@ -1209,6 +1244,9 @@ var __agrune_runtime__ = (() => {
   function findSnapshotTarget(snapshot, targetId) {
     return snapshot.targets.find((target) => target.targetId === targetId);
   }
+  function targetDomResolved(target) {
+    return target.domResolved;
+  }
   function buildFlowBlockedResult(commandId, snapshot, targetId) {
     return buildErrorResult(
       commandId,
@@ -1218,12 +1256,13 @@ var __agrune_runtime__ = (() => {
       targetId
     );
   }
-  function buildErrorResult(commandId, code, message, snapshot, targetId) {
+  function buildErrorResult(commandId, code, message, snapshot, targetId, details = {}) {
     return {
       commandId,
       error: createCommandError(code, message, {
         snapshotVersion: snapshot.version,
-        targetId
+        targetId,
+        ...details
       }),
       ok: false,
       snapshotVersion: snapshot.version,
@@ -2325,8 +2364,10 @@ ${el.textContent ?? ""}
         targetId
       );
     }
-    const resolvedTarget = resolveRuntimeTarget(deps.getDescriptors(), targetId);
+    const descriptors = deps.getDescriptors();
+    const resolvedTarget = resolveRuntimeTarget(descriptors, targetId);
     if (!resolvedTarget) {
+      const lookupDetails = manifestTargetLookupDetails(descriptors, targetId);
       const parsed = parseRuntimeTargetId(targetId);
       if (parsed.repeatId && parsed.repeatKey) {
         return buildErrorResult(
@@ -2334,16 +2375,57 @@ ${el.textContent ?? ""}
           "REPEAT_INDEX_OUT_OF_RANGE",
           `repeat "${parsed.repeatId}": key "${parsed.repeatKey}" not found in current snapshot.`,
           currentSnapshot,
-          targetId
+          targetId,
+          lookupDetails
         );
       }
-      return buildErrorResult(commandId, "TARGET_NOT_FOUND", `target not found: ${targetId}`, currentSnapshot, targetId);
+      return buildErrorResult(commandId, "TARGET_NOT_FOUND", `target not found: ${targetId}`, currentSnapshot, targetId, lookupDetails);
     }
     return effect(resolvedTarget.descriptor, resolvedTarget.element, currentSnapshot);
   }
   async function handleWait(deps, input) {
+    const modeCount = [
+      typeof input.targetId === "string" && input.targetId.length > 0,
+      typeof input.text === "string" && input.text.length > 0,
+      typeof input.textGone === "string" && input.textGone.length > 0,
+      typeof input.timeMs === "number"
+    ].filter(Boolean).length;
+    if (modeCount !== 1) {
+      const snapshot = deps.captureSnapshot();
+      return buildErrorResult(
+        input.commandId ?? "wait",
+        "INVALID_COMMAND",
+        "wait requires exactly one of: targetId, text, textGone, timeMs",
+        snapshot
+      );
+    }
+    if (typeof input.timeMs === "number") {
+      if (input.timeMs < 0) {
+        const snapshot = deps.captureSnapshot();
+        return buildErrorResult(input.commandId ?? "wait:time", "INVALID_COMMAND", "timeMs must be non-negative", snapshot);
+      }
+      await sleep(input.timeMs);
+      return buildSuccessResult(input.commandId ?? "wait:time", deps.captureSnapshot(), {
+        timeMs: input.timeMs
+      });
+    }
     const timeoutMs = typeof input.timeoutMs === "number" && input.timeoutMs > 0 ? input.timeoutMs : 5e3;
     const startedAt = Date.now();
+    if (typeof input.text === "string") {
+      return waitForTextMatch(deps, input.commandId ?? "wait:text", input.text, true, startedAt, timeoutMs);
+    }
+    if (typeof input.textGone === "string") {
+      return waitForTextMatch(deps, input.commandId ?? "wait:textGone", input.textGone, false, startedAt, timeoutMs);
+    }
+    if (typeof input.targetId !== "string" || typeof input.state !== "string") {
+      const snapshot = deps.captureSnapshot();
+      return buildErrorResult(
+        input.commandId ?? "wait",
+        "INVALID_COMMAND",
+        "target waits require targetId and state",
+        snapshot
+      );
+    }
     const { baseTargetId } = parseRuntimeTargetId(input.targetId);
     const descriptor = deps.getDescriptors().find((entry) => entry.target.targetId === baseTargetId);
     if (!descriptor) {
@@ -2387,6 +2469,43 @@ ${el.textContent ?? ""}
       }
       await sleep(50);
     }
+  }
+  async function waitForTextMatch(deps, commandId, text, shouldExist, startedAt, timeoutMs) {
+    for (; ; ) {
+      const snapshot = deps.captureSnapshot();
+      const found = visibleDocumentText().includes(text);
+      if (found === shouldExist) {
+        return buildSuccessResult(commandId, snapshot, shouldExist ? { text } : { textGone: text });
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        return buildErrorResult(
+          commandId,
+          "TIMEOUT",
+          shouldExist ? `wait timed out for text: ${text}` : `wait timed out for text to disappear: ${text}`,
+          snapshot
+        );
+      }
+      await sleep(50);
+    }
+  }
+  function visibleDocumentText() {
+    const root = document.body;
+    if (!root) return "";
+    const parts = [];
+    const visit = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        parts.push(node.textContent ?? "");
+        return;
+      }
+      if (!(node instanceof Element)) return;
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden" || node.getAttribute("aria-hidden") === "true") {
+        return;
+      }
+      for (const child of node.childNodes) visit(child);
+    };
+    visit(root);
+    return parts.join(" ");
   }
   async function handleRead(deps, input) {
     const root = input.selector ? document.querySelector(input.selector) : document.body;
@@ -2631,7 +2750,7 @@ ${el.textContent ?? ""}
       if (!descriptor.actionKinds.some((k) => ACT_COMPATIBLE_KINDS.has(k))) {
         return buildErrorResult(input.commandId ?? input.targetId, "INVALID_TARGET", `target does not support act: ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
-      const action = input.action ?? "click";
+      const action = input.doubleClick === true && (input.action === void 0 || input.action === "click") ? "dblclick" : input.action ?? "click";
       if (!descriptor.actionKinds.includes(action)) {
         return buildErrorResult(input.commandId ?? input.targetId, "INVALID_TARGET", `target does not support action "${action}": ${descriptor.target.targetId}`, snapshot, descriptor.target.targetId);
       }
@@ -2653,14 +2772,18 @@ ${el.textContent ?? ""}
         await sleep(config.clickDelayMs);
       }
       const coords = toCoords(getInteractablePoint(element));
+      const mouseOptions = {
+        ...input.button ? { button: input.button } : {},
+        ...input.modifiers ? { modifiers: clickModifiersToCdp(input.modifiers) } : {}
+      };
       const cdpActionForType = (c) => {
         switch (action) {
           case "click":
-            return deps.eventSequences.click(c);
+            return deps.eventSequences.click(c, mouseOptions);
           case "dblclick":
-            return deps.eventSequences.dblclick(c);
+            return deps.eventSequences.dblclick(c, mouseOptions);
           case "contextmenu":
-            return deps.eventSequences.contextmenu(c);
+            return deps.eventSequences.contextmenu(c, mouseOptions);
           case "hover":
             return deps.eventSequences.hover(c);
           case "longpress":
@@ -2683,9 +2806,60 @@ ${el.textContent ?? ""}
       const nextSnapshot = await deps.captureSettledSnapshot(2);
       return buildSuccessResult(input.commandId ?? input.targetId, nextSnapshot, {
         actionKind: action,
-        targetId: input.targetId
+        targetId: input.targetId,
+        ...input.button ? { button: input.button } : {},
+        ...input.modifiers ? { modifiers: input.modifiers } : {}
       });
     });
+  }
+  function clickModifiersToCdp(modifiers) {
+    let mask = 0;
+    for (const modifier of modifiers) {
+      switch (modifier) {
+        case "Alt":
+          mask |= 1;
+          break;
+        case "Control":
+          mask |= 2;
+          break;
+        case "Meta":
+          mask |= 4;
+          break;
+        case "Shift":
+          mask |= 8;
+          break;
+        case "ControlOrMeta":
+          mask |= navigator.platform.toLowerCase().includes("mac") ? 4 : 2;
+          break;
+      }
+    }
+    return mask;
+  }
+  function manifestTargetLookupDetails(descriptors, targetId) {
+    const parsed = parseRuntimeTargetId(targetId);
+    if (parsed.repeatId && parsed.repeatKey) {
+      const exactDescriptor = descriptors.find(
+        (descriptor2) => descriptor2.repeatInstance?.repeatId === parsed.repeatId && descriptor2.repeatInstance?.key === parsed.repeatKey && descriptor2.target.targetId === parsed.baseTargetId
+      );
+      const repeatTargetDeclared = descriptors.some(
+        (descriptor2) => descriptor2.repeatInstance?.repeatId === parsed.repeatId && descriptor2.target.targetId === parsed.baseTargetId
+      );
+      return {
+        baseTargetId: parsed.baseTargetId,
+        manifestTarget: exactDescriptor != null || repeatTargetDeclared,
+        repeatId: parsed.repeatId,
+        repeatKey: parsed.repeatKey,
+        targetLookup: exactDescriptor ? "selector-unresolved" : repeatTargetDeclared ? "repeat-key-missing" : "not-declared"
+      };
+    }
+    const descriptor = descriptors.find(
+      (entry) => entry.target.targetId === parsed.baseTargetId && entry.repeatInstance == null
+    );
+    return {
+      baseTargetId: parsed.baseTargetId,
+      manifestTarget: descriptor != null,
+      targetLookup: descriptor ? "selector-unresolved" : "not-declared"
+    };
   }
   function buildMovedTarget(element, targetId) {
     const domRect = element.getBoundingClientRect();
@@ -3035,6 +3209,13 @@ ${el.textContent ?? ""}
   }
 
   // src/runtime/macro-runner.ts
+  var RUNTIME_ACT_ACTIONS = /* @__PURE__ */ new Set([
+    "click",
+    "dblclick",
+    "contextmenu",
+    "hover",
+    "longpress"
+  ]);
   function interpolateParams(template, params) {
     return template.replace(
       /\{\{(\w+)\}\}/g,
@@ -3098,11 +3279,16 @@ ${el.textContent ?? ""}
               targetId: step.targetId,
               value
             });
-          } else {
+          } else if (isRuntimeActAction(step.action)) {
             commandResult = await handleAct(this.deps.commandHandlerDeps, {
               targetId: step.targetId,
               action: step.action
             });
+          } else {
+            commandResult = {
+              ok: false,
+              error: { message: `macro action "${step.action}" is not supported by the page runtime runner` }
+            };
           }
         } catch (err) {
           this.consecutiveFailures++;
@@ -3187,6 +3373,9 @@ ${el.textContent ?? ""}
       }
     }
   };
+  function isRuntimeActAction(action) {
+    return RUNTIME_ACT_ACTIONS.has(action);
+  }
 
   // src/runtime/cdp-client.ts
   var CDP_TIMEOUT_MS = 5e3;
@@ -3269,20 +3458,25 @@ ${el.textContent ?? ""}
     const send = cdp.sendCdpEvent.bind(cdp);
     const mouse = (type, x, y, extra) => send("Input.dispatchMouseEvent", { type, x, y, ...extra });
     return {
-      async click(coords) {
-        await mouse("mouseMoved", coords.x, coords.y);
-        await mouse("mousePressed", coords.x, coords.y, { button: "left", clickCount: 1 });
-        await mouse("mouseReleased", coords.x, coords.y, { button: "left", clickCount: 1 });
+      async click(coords, options = {}) {
+        const button = options.button ?? "left";
+        const eventOptions = { button, clickCount: 1, ...options.modifiers != null ? { modifiers: options.modifiers } : {} };
+        await mouse("mouseMoved", coords.x, coords.y, options.modifiers != null ? { modifiers: options.modifiers } : void 0);
+        await mouse("mousePressed", coords.x, coords.y, eventOptions);
+        await mouse("mouseReleased", coords.x, coords.y, eventOptions);
       },
-      async dblclick(coords) {
-        await mouse("mousePressed", coords.x, coords.y, { button: "left", clickCount: 1 });
-        await mouse("mouseReleased", coords.x, coords.y, { button: "left", clickCount: 1 });
-        await mouse("mousePressed", coords.x, coords.y, { button: "left", clickCount: 2 });
-        await mouse("mouseReleased", coords.x, coords.y, { button: "left", clickCount: 2 });
+      async dblclick(coords, options = {}) {
+        const button = options.button ?? "left";
+        const modifiers = options.modifiers != null ? { modifiers: options.modifiers } : {};
+        await mouse("mousePressed", coords.x, coords.y, { button, clickCount: 1, ...modifiers });
+        await mouse("mouseReleased", coords.x, coords.y, { button, clickCount: 1, ...modifiers });
+        await mouse("mousePressed", coords.x, coords.y, { button, clickCount: 2, ...modifiers });
+        await mouse("mouseReleased", coords.x, coords.y, { button, clickCount: 2, ...modifiers });
       },
-      async contextmenu(coords) {
-        await mouse("mousePressed", coords.x, coords.y, { button: "right", clickCount: 1 });
-        await mouse("mouseReleased", coords.x, coords.y, { button: "right", clickCount: 1 });
+      async contextmenu(coords, options = {}) {
+        const modifiers = options.modifiers != null ? { modifiers: options.modifiers } : {};
+        await mouse("mousePressed", coords.x, coords.y, { button: "right", clickCount: 1, ...modifiers });
+        await mouse("mouseReleased", coords.x, coords.y, { button: "right", clickCount: 1, ...modifiers });
       },
       async hover(coords) {
         await mouse("mouseMoved", coords.x, coords.y);

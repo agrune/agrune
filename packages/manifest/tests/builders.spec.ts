@@ -15,10 +15,10 @@ describe('defineTarget', () => {
   it('accepts multiple action kinds', () => {
     const t = defineTarget({
       targetId: 'multi',
-      actionKinds: ['click', 'hover', 'dblclick'],
+      actionKinds: ['click', 'hover', 'dblclick', 'type', 'press', 'select', 'upload', 'drop'],
       selector: { css: 'button.primary' },
     })
-    expect(t.actionKinds).toEqual(['click', 'hover', 'dblclick'])
+    expect(t.actionKinds).toEqual(['click', 'hover', 'dblclick', 'type', 'press', 'select', 'upload', 'drop'])
   })
 
   it('accepts sensitive: true', () => {

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>drop fixture</title>
+    <style>
+      #drop-zone {
+        width: 260px;
+        min-height: 80px;
+        border: 1px solid #888;
+        padding: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="drop-zone">Drop here</div>
+    <p id="status">idle</p>
+
+    <script>
+      window.__agrune_manifest__ = {
+        version: 3,
+        groups: [
+          {
+            groupId: 'drop',
+            name: 'Drop',
+            targets: [
+              {
+                targetId: 'drop-zone',
+                name: 'Drop zone',
+                desc: 'External drop zone',
+                actionKinds: ['drop'],
+                selector: { css: '#drop-zone' }
+              }
+            ]
+          }
+        ]
+      }
+
+      const zone = document.querySelector('#drop-zone')
+      zone.addEventListener('dragover', event => event.preventDefault())
+      zone.addEventListener('drop', event => {
+        event.preventDefault()
+        const files = Array.from(event.dataTransfer.files)
+        Promise.all(files.map(file => file.text())).then(texts => {
+          document.querySelector('#status').textContent = [
+            'drop:' + event.dataTransfer.getData('text/plain'),
+            event.dataTransfer.getData('text/uri-list'),
+            files.map(file => file.name).join(','),
+            texts.join(',')
+          ].join('|')
+        })
+      })
+    </script>
+  </body>
+</html>

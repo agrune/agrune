@@ -24,6 +24,16 @@ export interface MacroRunnerDeps {
   onSensitiveStep?: (i: number, step: MacroStep) => void
 }
 
+type RuntimeActAction = 'click' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
+
+const RUNTIME_ACT_ACTIONS = new Set<MacroStep['action']>([
+  'click',
+  'dblclick',
+  'contextmenu',
+  'hover',
+  'longpress',
+])
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -129,11 +139,16 @@ export class MacroRunner {
             targetId: step.targetId,
             value,
           })
-        } else {
+        } else if (isRuntimeActAction(step.action)) {
           commandResult = await handleAct(this.deps.commandHandlerDeps, {
             targetId: step.targetId,
             action: step.action,
           })
+        } else {
+          commandResult = {
+            ok: false,
+            error: { message: `macro action "${step.action}" is not supported by the page runtime runner` },
+          }
         }
       } catch (err) {
         this.consecutiveFailures++
@@ -242,4 +257,8 @@ export class MacroRunner {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }
   }
+}
+
+function isRuntimeActAction(action: MacroStep['action']): action is RuntimeActAction {
+  return RUNTIME_ACT_ACTIONS.has(action)
 }

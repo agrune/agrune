@@ -43,7 +43,7 @@ test.describe('real user-flow: Chrome crash → self-heal', () => {
     h.driver.onRecoveryEvent(e => events.push(e))
 
     // Baseline: a benign tool call succeeds before the crash.
-    const beforeCrash = await h.call('agrune_sessions')
+    const beforeCrash = await h.call('browser_list_tabs')
     expect(beforeCrash.isError).toBeFalsy()
 
     // Forcibly kill the underlying Chrome process via its PID.
@@ -71,15 +71,15 @@ test.describe('real user-flow: Chrome crash → self-heal', () => {
     let sawAcceptableError = false
 
     while (Date.now() < deadline) {
-      const res = await h.call('agrune_snapshot', {})
+      const res = await h.call('browser_get_targets', {})
       lastResponse = res
       const parsed = res.parsed as
         | { ok?: boolean; result?: { recovered?: boolean }; error?: { code?: string } }
         | { url?: string; title?: string }
         | null
 
-      // Acceptable success: recovered:true flag surfaced on the snapshot payload.
-      // (Only emitted by agrune_act/fill/... results, not agrune_snapshot — so
+      // Acceptable success: recovered:true flag surfaced on a command payload.
+      // (Only emitted by browser_click/fill/... results, not browser_get_targets — so
       // we also probe the driver state directly.)
       if (parsed && typeof parsed === 'object' && 'result' in parsed) {
         const p = parsed as { ok?: boolean; result?: { recovered?: boolean } }

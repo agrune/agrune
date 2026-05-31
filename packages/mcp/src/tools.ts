@@ -30,9 +30,307 @@ export function getToolDefinitions(): ToolDefinition[] {
       },
     },
     {
+      name: 'browser_tabs',
+      description: 'List, create, close, or select a browser tab with Playwright-compatible index-based arguments.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['list', 'new', 'close', 'select'],
+            description: 'Tab action to perform.',
+          },
+          url: { type: 'string', description: 'URL to open when action is "new".' },
+          index: { type: 'number', description: 'Zero-based tab index from browser_tabs list output.' },
+        },
+        required: ['action'],
+      },
+    },
+    {
+      name: 'browser_close',
+      description: 'Close the current active browser page.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'browser_navigate',
+      description: 'Navigate the current active browser page to a URL.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'The URL to navigate to.' },
+        },
+        required: ['url'],
+      },
+    },
+    {
+      name: 'browser_navigate_back',
+      description: 'Go back to the previous page in the current active browser page history.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'browser_resize',
+      description: 'Resize the browser viewport.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          width: { type: 'number', description: 'Viewport width in CSS pixels.' },
+          height: { type: 'number', description: 'Viewport height in CSS pixels.' },
+        },
+        required: ['width', 'height'],
+      },
+    },
+    {
+      name: 'browser_take_screenshot',
+      description: 'Capture a screenshot of the current page or a target element.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          filename: { type: 'string', description: 'File name to save the screenshot to. Defaults to a timestamped file.' },
+          fullPage: { type: 'boolean', description: 'Capture the full scrollable page instead of the visible viewport.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended screenshot target.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+          type: { type: 'string', enum: ['png', 'jpeg'], description: 'Image format for the screenshot. Default is png.' },
+        },
+      },
+    },
+    {
+      name: 'browser_evaluate',
+      description: 'Evaluate JavaScript in the current page or on a target element.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          filename: { type: 'string', description: 'File name to save the evaluation result to.' },
+          function: {
+            type: 'string',
+            description: 'JavaScript function or expression to evaluate. Use (element) => ... when target is provided.',
+          },
+          target: { type: 'string', description: 'Exact target element reference from the page snapshot.' },
+        },
+        required: ['function'],
+      },
+    },
+    {
+      name: 'browser_run_code_unsafe',
+      description: 'Run arbitrary Playwright code against the current page in the MCP server process.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          code: {
+            type: 'string',
+            description: 'JavaScript function to invoke with the Playwright page, e.g. async (page) => { ... }.',
+          },
+          filename: {
+            type: 'string',
+            description: 'File containing the JavaScript function to run. When provided, code is ignored.',
+          },
+        },
+      },
+    },
+    {
+      name: 'browser_console_messages',
+      description: 'Return console and page error messages from the active page.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          all: { type: 'boolean', description: 'Return all messages since page creation instead of just current navigation.' },
+          filename: { type: 'string', description: 'File name to save the console messages to.' },
+          level: {
+            type: 'string',
+            enum: ['debug', 'info', 'warning', 'error'],
+            description: 'Minimum console message level. Default: info.',
+          },
+        },
+      },
+    },
+    {
+      name: 'browser_network_requests',
+      description: 'Return network requests from the active page.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          all: { type: 'boolean', description: 'Return all requests since page creation instead of just current navigation.' },
+          filename: { type: 'string', description: 'File name to save the network requests to.' },
+          filter: { type: 'string', description: 'Only return requests whose URL matches this regexp or substring.' },
+          static: { type: 'boolean', description: 'Include successful static resources such as images, fonts, and scripts.' },
+        },
+      },
+    },
+    {
+      name: 'browser_network_request',
+      description: 'Return details or a single part for one network request.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          filename: { type: 'string', description: 'File name to save the network request detail to.' },
+          index: { type: 'number', description: '1-based request index from browser_network_requests.' },
+          part: {
+            type: 'string',
+            enum: ['request-headers', 'request-body', 'response-headers', 'response-body'],
+            description: 'Return only this part of the request.',
+          },
+        },
+        required: ['index'],
+      },
+    },
+    {
+      name: 'browser_press_key',
+      description: 'Press a keyboard key in the active page.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          key: { type: 'string', description: 'Name of the key to press or a character to generate.' },
+        },
+        required: ['key'],
+      },
+    },
+    {
+      name: 'browser_type',
+      description: 'Type text into an editable target.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+          text: { type: 'string', description: 'Text to type into the target.' },
+          slowly: { type: 'boolean', description: 'Type one character at a time.' },
+          submit: { type: 'boolean', description: 'Press Enter after typing.' },
+        },
+        required: ['target', 'text'],
+      },
+    },
+    {
+      name: 'browser_select_option',
+      description: 'Select one or more options in a dropdown.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+          values: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of option values to select.',
+          },
+        },
+        required: ['target', 'values'],
+      },
+    },
+    {
+      name: 'browser_fill_form',
+      description: 'Fill multiple form fields.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          fields: {
+            type: 'array',
+            description: 'Fields to fill in.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', description: 'Human-readable field name.' },
+                element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+                target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+                type: { type: 'string', enum: ['textbox', 'checkbox', 'radio', 'combobox', 'slider'], description: 'Type of the field.' },
+                value: {
+                  oneOf: [
+                    { type: 'string' },
+                    { type: 'boolean' },
+                    { type: 'number' },
+                  ],
+                  description: 'Value to fill in the field.',
+                },
+              },
+              required: ['name', 'target', 'type', 'value'],
+            },
+          },
+        },
+        required: ['fields'],
+      },
+    },
+    {
+      name: 'browser_file_upload',
+      description: 'Upload one or multiple files to the pending file chooser.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          paths: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Absolute paths to files to upload. If omitted, the file chooser is cancelled.',
+          },
+        },
+      },
+    },
+    {
+      name: 'browser_drop',
+      description: 'Drop files or MIME data onto a target element.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+          paths: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Absolute paths to files to drop onto the element.',
+          },
+          data: {
+            type: 'object',
+            additionalProperties: { type: 'string' },
+            description: 'MIME type to string value map to include in the drop payload.',
+          },
+        },
+        required: ['target'],
+      },
+    },
+    {
+      name: 'browser_handle_dialog',
+      description: 'Handle a JavaScript dialog opened by a prior action.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          accept: { type: 'boolean', description: 'Whether to accept the dialog.' },
+          promptText: { type: 'string', description: 'Text to enter for prompt dialogs.' },
+        },
+        required: ['accept'],
+      },
+    },
+    {
+      name: 'browser_snapshot',
+      description: 'Capture an accessibility-style snapshot of the current page with Agrune target refs.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          tabId: { type: 'number', description: 'Browser tab ID. Defaults to the active session.' },
+          boxes: { type: 'boolean', description: 'Include target bounds when available.' },
+          depth: { type: 'number', description: 'Accepted for Playwright compatibility.' },
+          filename: { type: 'string', description: 'File name to save the snapshot to.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
+          includeTextContent: { type: 'boolean', description: 'Include visible text content of each target element.' },
+        },
+      },
+    },
+    {
       name: 'browser_get_targets',
       description:
-        'Get manifest-defined actionable targets for the active browser context. By default returns group summaries only; use groupId/groupIds or mode="full" to expand targetIds.',
+        'Get a Playwright-style snapshot of manifest-defined actionable targets. By default returns group refs; use groupId/groupIds or mode="full" to expand target refs.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -57,50 +355,61 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: 'browser_click',
-      description: 'Click one actionable target. First call browser_get_targets and copy the exact targetId.',
+      description: 'Click one actionable target. First call browser_get_targets and copy the exact target ref.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Exact targetId copied from browser_get_targets. Do not invent this value.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
+          button: { type: 'string', enum: ['left', 'right', 'middle'], description: 'Mouse button to click. Defaults to left.' },
+          doubleClick: { type: 'boolean', description: 'Perform a double click instead of a single click.' },
+          modifiers: {
+            type: 'array',
+            description: 'Modifier keys to press during the click.',
+            items: { type: 'string', enum: ['Alt', 'Control', 'ControlOrMeta', 'Meta', 'Shift'] },
+          },
         },
-        required: ['targetId'],
+        required: ['target'],
       },
     },
     {
       name: 'browser_double_click',
-      description: 'Double-click one actionable target. Use only when actionKinds includes dblclick or the user explicitly asks for a double-click.',
+      description: 'Double-click one actionable target. Use only when the user explicitly asks for a double-click or the target semantics require it.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Exact targetId copied from browser_get_targets. Do not invent this value.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
         },
-        required: ['targetId'],
+        required: ['target'],
       },
     },
     {
       name: 'browser_right_click',
-      description: 'Right-click one actionable target to open its context menu. Use only when actionKinds includes contextmenu or the user asks for a context menu.',
+      description: 'Right-click one actionable target to open its context menu. Use only when the user asks for a context menu.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Exact targetId copied from browser_get_targets. Do not invent this value.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
         },
-        required: ['targetId'],
+        required: ['target'],
       },
     },
     {
       name: 'browser_hover',
-      description: 'Hover one actionable target. Use when hover reveals UI or actionKinds includes hover.',
+      description: 'Hover one actionable target. Use when hover reveals UI.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Exact targetId copied from browser_get_targets. Do not invent this value.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
         },
-        required: ['targetId'],
+        required: ['target'],
       },
     },
     {
@@ -110,19 +419,21 @@ export function getToolDefinitions(): ToolDefinition[] {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Exact targetId copied from browser_get_targets. Do not invent this value.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
         },
-        required: ['targetId'],
+        required: ['target'],
       },
     },
     {
       name: 'browser_fill',
-      description: 'Fill an input element with a value. The element is identified by its targetId from the page snapshot.',
+      description: 'Fill an input element with a value. The element is identified by its target ref from the page snapshot.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'The target input element ID from the page snapshot.' },
+          element: { type: 'string', description: 'Human-readable element description used to describe the intended interaction.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets. Do not invent this value.' },
           value: { type: 'string', description: 'The value to fill into the input element.' },
           clear: {
             type: 'boolean',
@@ -135,7 +446,7 @@ export function getToolDefinitions(): ToolDefinition[] {
               'Input method. "insert" is fastest. "keystroke" sends typed key events for masked inputs. "auto" detects masked inputs and selects automatically. Defaults to "auto".',
           },
         },
-        required: ['targetId', 'value'],
+        required: ['target', 'value'],
       },
     },
     {
@@ -145,8 +456,10 @@ export function getToolDefinitions(): ToolDefinition[] {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          sourceTargetId: { type: 'string', description: 'The source element ID to drag.' },
-          destinationTargetId: { type: 'string', description: 'The destination element ID to drop onto.' },
+          startElement: { type: 'string', description: 'Human-readable source element description.' },
+          startTarget: { type: 'string', description: 'Exact source target ref copied from browser_get_targets.' },
+          endElement: { type: 'string', description: 'Human-readable destination element description.' },
+          endTarget: { type: 'string', description: 'Exact destination target ref copied from browser_get_targets.' },
           destinationCoords: {
             type: 'object',
             description: 'Destination coordinates, either absolute canvas coordinates or offsets relative to another target.',
@@ -157,17 +470,17 @@ export function getToolDefinitions(): ToolDefinition[] {
             description: 'Drop placement relative to the destination element.',
           },
         },
-        required: ['sourceTargetId'],
+        required: ['startTarget'],
       },
     },
     {
       name: 'browser_pointer',
-      description: 'Execute a low-level pointer/wheel event sequence. Use targetId from a snapshot when possible; use coords only for canvas or freeform interactions.',
+      description: 'Execute a low-level pointer/wheel event sequence. Use target from a snapshot when possible; use coords only for canvas or freeform interactions.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'Target ID.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
           coords: {
             type: 'object',
             description: 'Viewport coordinates to find element via elementFromPoint.',
@@ -187,20 +500,22 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: 'browser_wait_for',
-      description: 'Wait for a target element to reach a specific state (e.g., visible, hidden, enabled, disabled).',
+      description: 'Wait for a target state, text to appear/disappear, or a duration.',
       inputSchema: {
         type: 'object',
         properties: {
           tabId: { type: 'number', description: 'Browser tab ID. Defaults to the first active session.' },
-          targetId: { type: 'string', description: 'The target element ID from the page snapshot.' },
+          target: { type: 'string', description: 'Exact target ref copied from browser_get_targets.' },
           state: {
             type: 'string',
             enum: ['visible', 'hidden', 'enabled', 'disabled'],
             description: 'The state to wait for.',
           },
+          text: { type: 'string', description: 'Text to wait for.' },
+          textGone: { type: 'string', description: 'Text to wait for to disappear.' },
+          time: { type: 'number', description: 'Time to wait in seconds.' },
           timeoutMs: { type: 'number', description: 'Timeout in milliseconds. Defaults to 30000.' },
         },
-        required: ['targetId', 'state'],
       },
     },
     {

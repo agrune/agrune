@@ -1,0 +1,43 @@
+{
+  "name": "@agrune/cli",
+  "version": "0.4.1",
+  "description": "Agrune CLI and local Playwright daemon.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "agrune": "./dist/bin/agrune.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build && tsup",
+    "pretest": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:smoke": "pnpm run pretest && AGRUNE_CLI_SMOKE=1 vitest run tests/daemon-smoke.spec.ts"
+  },
+  "dependencies": {
+    "@agrune/core": "workspace:*",
+    "@agrune/manifest": "workspace:*",
+    "playwright": "^1.59.1",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "@types/ws": "^8.18.1",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.1"
+  },
+  "license": "MIT"
+}

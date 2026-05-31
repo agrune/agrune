@@ -28,8 +28,8 @@ describe('@agrune/core — v3 manifest re-export', () => {
   })
 
   it('ActionKind is a string union', () => {
-    const k: ActionKind = 'click'
-    expect(typeof k).toBe('string')
+    const kinds: ActionKind[] = ['click', 'fill', 'type', 'press', 'select', 'upload', 'drop']
+    expect(kinds.every(k => typeof k === 'string')).toBe(true)
   })
 
   it('ManifestGroup has targets and optional repeats', () => {

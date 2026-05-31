@@ -110,7 +110,9 @@ export async function createRealHarness(options: HarnessOptions = {}): Promise<R
     try {
       parsed = JSON.parse(raw.text)
     } catch {
-      parsed = raw.text
+      parsed = name === 'browser_get_targets' || name === 'browser_snapshot'
+        ? parseFormattedSnapshot(raw.text)
+        : raw.text
     }
     return { text: raw.text, ...(raw.isError ? { isError: true } : {}), parsed }
   }
@@ -431,8 +433,79 @@ export interface SnapshotTargetLite {
   name: string
 }
 
+interface ParsedFormattedSnapshot {
+  url?: string
+  title?: string
+  context?: string
+  version?: number
+  targets?: SnapshotTargetLite[]
+}
+
+function parseFormattedSnapshot(text: string): ParsedFormattedSnapshot {
+  const result: ParsedFormattedSnapshot = {}
+  const targets: SnapshotTargetLite[] = []
+  let current: SnapshotTargetLite | null = null
+  let currentGroupId = ''
+
+  for (const line of text.split('\n')) {
+    if (line.startsWith('- Page URL: ')) {
+      result.url = line.slice('- Page URL: '.length)
+      continue
+    }
+    if (line.startsWith('- Page Title: ')) {
+      result.title = line.slice('- Page Title: '.length)
+      continue
+    }
+    if (line.startsWith('- Agrune Context: ')) {
+      result.context = line.slice('- Agrune Context: '.length)
+      continue
+    }
+    if (line.startsWith('- Snapshot Version: ')) {
+      const version = Number(line.slice('- Snapshot Version: '.length))
+      if (Number.isFinite(version)) result.version = version
+      continue
+    }
+
+    const groupMatch = line.match(/^\s*- group (.+) \[ref=([^\]]+)\]:$/)
+    if (groupMatch) {
+      currentGroupId = groupMatch[2] ?? ''
+      current = null
+      continue
+    }
+
+    const targetMatch = line.match(/^\s*- target (.+) \[ref=([^\]]+)\](?: .*)?:$/)
+    if (targetMatch) {
+      current = {
+        name: unquote(targetMatch[1] ?? ''),
+        targetId: targetMatch[2] ?? '',
+        groupId: currentGroupId,
+      }
+      targets.push(current)
+      continue
+    }
+
+    if (current) {
+      const explicitGroupMatch = line.match(/^  - group: (.+)$/)
+      if (explicitGroupMatch) {
+        current.groupId = unquote(explicitGroupMatch[1] ?? '')
+      }
+    }
+  }
+
+  result.targets = targets
+  return result
+}
+
+function unquote(value: string): string {
+  try {
+    return JSON.parse(value) as string
+  } catch {
+    return value
+  }
+}
+
 /**
- * Snapshot + flatten (`mode: 'full'`) so specs can pick a target by its
+ * Fetch targets (`mode: 'full'`) so specs can pick a target by its
  * manifest-defined `targetId` without hand-parsing the outline. Waits briefly
  * because the manifest-driven runtime resolve is async.
  */
@@ -442,7 +515,7 @@ export async function getFullTargets(
 ): Promise<SnapshotTargetLite[]> {
   const args: Record<string, unknown> = { mode: 'full' }
   if (typeof tabId === 'number') args.tabId = tabId
-  const res = await call('agrune_snapshot', args)
+  const res = await call('browser_get_targets', args)
   const parsed = res.parsed as { targets?: SnapshotTargetLite[] } | null
   return parsed?.targets ?? []
 }

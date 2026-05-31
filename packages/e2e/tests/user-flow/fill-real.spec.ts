@@ -1,5 +1,5 @@
 /**
- * Scenario A — INPUT-01/02/03: agrune_fill against tricky-inputs fixture
+ * Scenario A — INPUT-01/02/03: browser_fill against tricky-inputs fixture
  * via the real MCP handler → CdpDriver → real Chrome.
  */
 
@@ -13,7 +13,7 @@ import {
 
 const skipReason = realE2eSkipReason()
 
-test.describe('real user-flow: agrune_fill end-to-end', () => {
+test.describe('real user-flow: browser_fill end-to-end', () => {
   test.skip(!!skipReason, skipReason ?? '')
 
   let harness: RealHarness | null = null
@@ -36,7 +36,7 @@ test.describe('real user-flow: agrune_fill end-to-end', () => {
     const cc = await waitForTargetByName(h.call, t => t.targetId === 'cc-number')
     expect(cc, 'cc-number target in snapshot').not.toBeNull()
 
-    const res = await h.call('agrune_fill', {
+    const res = await h.call('browser_fill', {
       targetId: cc!.targetId,
       value: '4242424242424242',
       strategy: 'keystroke',
@@ -58,7 +58,7 @@ test.describe('real user-flow: agrune_fill end-to-end', () => {
     const bio = await waitForTargetByName(h.call, t => t.targetId === 'bio')
     expect(bio, 'bio contenteditable target in snapshot').not.toBeNull()
 
-    const res = await h.call('agrune_fill', {
+    const res = await h.call('browser_fill', {
       targetId: bio!.targetId,
       value: 'hello from real E2E',
     })
@@ -75,7 +75,7 @@ test.describe('real user-flow: agrune_fill end-to-end', () => {
     const pw = await waitForTargetByName(h.call, t => t.targetId === 'pw')
     expect(pw, 'pw target in snapshot').not.toBeNull()
 
-    const res = await h.call('agrune_fill', {
+    const res = await h.call('browser_fill', {
       targetId: pw!.targetId,
       value: 'hunter2',
       strategy: 'keystroke',

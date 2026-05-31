@@ -63,7 +63,7 @@ Things this batch intentionally does NOT cover — good candidates for follow-up
    wouldn't catch binary-shebang or build-time packaging regressions.
 2. **DevTools webapp** user flow (open the URL, click pause/resume, observe
    HITL state). Covered in isolation by `hitl-toolbar.spec.ts` already.
-3. **React / Vue framework state parity** for `agrune_fill`. The current spec
+3. **React / Vue framework state parity** for `browser_fill`. The current spec
    asserts DOM-level `value` + `textContent` only; reframework adapters
    (`.input`/`.change` semantics) would need a vendored React UMD fixture.
 4. **Multi-session recovery**: we kill Chrome with one session; behaviour

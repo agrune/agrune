@@ -19,6 +19,7 @@
   "dependencies": {
     "@agrune/core": "workspace:*",
     "@agrune/runtime": "workspace:*",
+    "playwright": "^1.59.1",
     "ws": "^8.20.0"
   },
   "devDependencies": {

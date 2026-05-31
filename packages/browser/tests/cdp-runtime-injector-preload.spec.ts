@@ -41,7 +41,7 @@ function makeMockConnection() {
 describe('prepareSession — no preload', () => {
   afterEach(() => vi.restoreAllMocks())
 
-  it('5가지 CDP 커맨드를 각 1회 전송한다', async () => {
+  it('6가지 CDP 커맨드를 각 1회 전송한다', async () => {
     const { send, calls } = makeMockConnection()
     const { CdpRuntimeInjector } = await import('../src/cdp-runtime-injector.js')
     const injector = new CdpRuntimeInjector({ send } as any)
@@ -51,11 +51,12 @@ describe('prepareSession — no preload', () => {
     const methods = calls.map(c => c.method)
     expect(methods).toContain('Page.enable')
     expect(methods).toContain('Runtime.enable')
+    expect(methods).toContain('Network.enable')
     expect(methods).toContain('Runtime.addBinding')
     expect(methods).toContain('Page.addScriptToEvaluateOnNewDocument')
     expect(methods).toContain('Runtime.evaluate')
-    // 총 5회 전송
-    expect(calls.length).toBe(5)
+    // 총 6회 전송
+    expect(calls.length).toBe(6)
   })
 
   it('Runtime.evaluate expression에 JSON.parse 형태의 preload embed snippet 이 없다', async () => {

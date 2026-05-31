@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>file-upload fixture</title>
+  </head>
+  <body>
+    <label>Profile upload:
+      <input
+        type="file"
+        id="single-upload"
+        onchange="showFiles('files', this.files)"
+      >
+    </label>
+
+    <label>Multiple upload:
+      <input
+        type="file"
+        multiple
+        id="multi-upload"
+        onchange="showFiles('multi', this.files)"
+      >
+    </label>
+
+    <p id="status">idle</p>
+
+    <script>
+      window.__agrune_manifest__ = {
+        version: 3,
+        groups: [
+          {
+            groupId: 'uploads',
+            name: 'Uploads',
+            targets: [
+              {
+                targetId: 'single-upload',
+                name: 'Profile upload',
+                desc: 'Single file input',
+                actionKinds: ['click', 'upload'],
+                selector: { css: '#single-upload' }
+              },
+              {
+                targetId: 'multi-upload',
+                name: 'Multiple upload',
+                desc: 'Multiple file input',
+                actionKinds: ['click', 'upload'],
+                selector: { css: '#multi-upload' }
+              }
+            ]
+          }
+        ]
+      }
+
+      function showFiles(prefix, files) {
+        document.querySelector('#status').textContent =
+          prefix + ':' + Array.from(files).map(file => file.name).join(',')
+      }
+    </script>
+  </body>
+</html>

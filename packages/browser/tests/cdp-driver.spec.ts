@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CdpDriver } from '../src/cdp-driver.js'
 
@@ -11,6 +14,19 @@ describe('CdpDriver background callbacks', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(driver as never, 'onBindingCalled' as never).mockRejectedValue(
       new Error('CDP connection disconnected.'),
+    )
+
+    ;(driver as any).handleBindingCalled({}, 'session-1')
+    await Promise.resolve()
+
+    expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  it('swallows background callbacks racing with a closed CDP session', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/devtools/browser/mock' })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(driver as never, 'onBindingCalled' as never).mockRejectedValue(
+      new Error('Session with given id not found.'),
     )
 
     ;(driver as any).handleBindingCalled({}, 'session-1')
@@ -359,6 +375,1164 @@ describe('CdpDriver.focusSession', () => {
     expect(result.becameActive).toBe(true)
     expect(result.cdpFocusError).toBe('cdp broken')
     expect(driver.sessions.getActiveSessionId()).toBe(1)
+  })
+})
+
+describe('CdpDriver.closeTab', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('throws TAB_NOT_FOUND when no tab can be resolved', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+
+    await expect(driver.closeTab()).rejects.toMatchObject({
+      code: 'TAB_NOT_FOUND',
+    })
+  })
+
+  it('sends Target.closeTarget and waits until the session is removed', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const sendSpy = vi
+      .spyOn((driver as any).connection, 'send')
+      .mockImplementation(async () => {
+        driver.sessions.closeSession(1)
+        return {}
+      })
+
+    const result = await driver.closeTab(1)
+
+    expect(sendSpy).toHaveBeenCalledWith('Target.closeTarget', { targetId: 'cdp-target-1' })
+    expect(result).toEqual({ tabId: 1, closed: true })
+    expect(driver.sessions.getSession(1)).toBeNull()
+  })
+
+  it('closes the active session when no explicit tabId is provided', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.openSession(2, 'https://b.com', 'B')
+    driver.sessions.setActiveSession(2)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 2,
+      targetId: 'cdp-target-2',
+      sessionId: 'session-2',
+    })
+    vi.spyOn((driver as any).connection, 'send').mockImplementation(async () => {
+      driver.sessions.closeSession(2)
+      return {}
+    })
+
+    const result = await driver.closeTab()
+
+    expect(result).toEqual({ tabId: 2, closed: true })
+    expect(driver.sessions.getSession(2)).toBeNull()
+    expect(driver.sessions.getSession(1)).not.toBeNull()
+  })
+})
+
+describe('CdpDriver navigation', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('navigateTab sends Page.navigate and returns the settled page metadata', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+      url: 'https://next.test/',
+      title: 'Next',
+    })
+    const sendSpy = vi
+      .spyOn((driver as any).connection, 'send')
+      .mockResolvedValue({})
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue({
+      url: 'https://next.test/',
+      title: 'Next',
+      readyState: 'complete',
+    } as never)
+
+    const result = await driver.navigateTab(undefined, 'https://next.test')
+
+    expect(sendSpy).toHaveBeenCalledWith('Page.navigate', { url: 'https://next.test/' }, 'session-1')
+    expect(result).toEqual({ tabId: 1, url: 'https://next.test/', title: 'Next' })
+  })
+
+  it('navigateTab rejects invalid URLs before sending CDP commands', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    await expect(driver.navigateTab(undefined, 'not a url')).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(sendSpy).not.toHaveBeenCalled()
+  })
+
+  it('navigateBack uses the previous CDP history entry', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://current.test/', 'Current')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+      url: 'https://previous.test/',
+      title: 'Previous',
+    })
+    const sendSpy = vi
+      .spyOn((driver as any).connection, 'send')
+      .mockImplementation(async (method: string) => {
+        if (method === 'Page.getNavigationHistory') {
+          return {
+            currentIndex: 1,
+            entries: [
+              { id: 7, url: 'https://previous.test/', title: 'Previous' },
+              { id: 8, url: 'https://current.test/', title: 'Current' },
+            ],
+          }
+        }
+        return {}
+      })
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue({
+      url: 'https://previous.test/',
+      title: 'Previous',
+      readyState: 'complete',
+    } as never)
+
+    const result = await driver.navigateBack()
+
+    expect(sendSpy).toHaveBeenCalledWith('Page.getNavigationHistory', {}, 'session-1')
+    expect(sendSpy).toHaveBeenCalledWith('Page.navigateToHistoryEntry', { entryId: 7 }, 'session-1')
+    expect(result).toEqual({ tabId: 1, url: 'https://previous.test/', title: 'Previous' })
+  })
+
+  it('navigateBack rejects when there is no previous history entry', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://current.test/', 'Current')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).connection, 'send').mockResolvedValue({
+      currentIndex: 0,
+      entries: [{ id: 8, url: 'https://current.test/', title: 'Current' }],
+    })
+
+    await expect(driver.navigateBack()).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+  })
+})
+
+describe('CdpDriver.resizeTab', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('sets device metrics override and returns evaluated viewport size', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue({
+      width: 900,
+      height: 700,
+    } as never)
+
+    const result = await driver.resizeTab(undefined, 900, 700)
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Emulation.setDeviceMetricsOverride',
+      {
+        width: 900,
+        height: 700,
+        deviceScaleFactor: 1,
+        mobile: false,
+      },
+      'session-1',
+    )
+    expect(result).toEqual({ tabId: 1, width: 900, height: 700 })
+  })
+
+  it('rejects non-positive dimensions before sending CDP commands', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    await expect(driver.resizeTab(undefined, 0, 700)).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(sendSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('CdpDriver.screenshotTab', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('captures the active viewport and writes the image file', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'agrune-cdp-'))
+    try {
+      const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+      vi.spyOn(driver, 'connect').mockResolvedValue()
+      driver.sessions.openSession(1, 'https://a.com', 'A')
+      driver.sessions.setActiveSession(1)
+
+      vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+        tabId: 1,
+        targetId: 'cdp-target-1',
+        sessionId: 'session-1',
+      })
+      const image = Buffer.from('fake-png')
+      const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({
+        data: image.toString('base64'),
+      })
+      const path = join(tempDir, 'viewport.png')
+
+      const result = await driver.screenshotTab(undefined, path)
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        'Page.captureScreenshot',
+        { format: 'png', fromSurface: true },
+        'session-1',
+      )
+      expect(await readFile(path)).toEqual(image)
+      expect(result).toEqual({ tabId: 1, path, type: 'png', fullPage: false })
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('uses full-page layout metrics when fullPage is true', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'agrune-cdp-'))
+    try {
+      const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+      vi.spyOn(driver, 'connect').mockResolvedValue()
+      driver.sessions.openSession(1, 'https://a.com', 'A')
+      driver.sessions.setActiveSession(1)
+
+      vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+        tabId: 1,
+        targetId: 'cdp-target-1',
+        sessionId: 'session-1',
+      })
+      const sendSpy = vi.spyOn((driver as any).connection, 'send').mockImplementation(async (method: string) => {
+        if (method === 'Page.getLayoutMetrics') {
+          return { cssContentSize: { width: 800.2, height: 1200.1 } }
+        }
+        return { data: Buffer.from('jpeg').toString('base64') }
+      })
+
+      const result = await driver.screenshotTab(undefined, join(tempDir, 'full.jpg'), {
+        fullPage: true,
+        type: 'jpeg',
+      })
+
+      expect(sendSpy).toHaveBeenCalledWith('Page.getLayoutMetrics', {}, 'session-1')
+      expect(sendSpy).toHaveBeenCalledWith(
+        'Page.captureScreenshot',
+        {
+          format: 'jpeg',
+          fromSurface: true,
+          captureBeyondViewport: true,
+          clip: { x: 0, y: 0, width: 801, height: 1201, scale: 1 },
+        },
+        'session-1',
+      )
+      expect(result).toMatchObject({ tabId: 1, type: 'jpeg', fullPage: true })
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('captures a target clip from snapshot bounds plus page scroll', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'agrune-cdp-'))
+    try {
+      const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+      vi.spyOn(driver, 'connect').mockResolvedValue()
+      driver.sessions.openSession(1, 'https://a.com', 'A')
+      driver.sessions.setActiveSession(1)
+      driver.sessions.updateSnapshot(1, {
+        schemaVersion: 3,
+        version: 1,
+        capturedAt: Date.now(),
+        url: 'https://a.com',
+        title: 'A',
+        groups: [],
+        targets: [
+          {
+            targetId: 'save_button',
+            center: { x: 50, y: 70 },
+            size: { w: 20, h: 30 },
+          },
+        ],
+      } as any)
+
+      vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+        tabId: 1,
+        targetId: 'cdp-target-1',
+        sessionId: 'session-1',
+      })
+      vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue({ x: 10, y: 20 } as never)
+      const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({
+        data: Buffer.from('png').toString('base64'),
+      })
+
+      const result = await driver.screenshotTab(undefined, join(tempDir, 'target.png'), {
+        targetId: 'save_button',
+      })
+
+      expect(sendSpy).toHaveBeenCalledWith(
+        'Page.captureScreenshot',
+        {
+          format: 'png',
+          fromSurface: true,
+          clip: { x: 50, y: 75, width: 20, height: 30, scale: 1 },
+        },
+        'session-1',
+      )
+      expect(result).toMatchObject({ tabId: 1, type: 'png', fullPage: false, targetId: 'save_button' })
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('CdpDriver.evaluateTab', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('evaluates a page function in the active tab', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(42 as never)
+
+    const result = await driver.evaluateTab(undefined, '() => 42')
+
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('() => 42'))
+    expect(result).toEqual({ tabId: 1, result: 42 })
+  })
+
+  it('evaluates a target function at the snapshot target point', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    driver.sessions.updateSnapshot(1, {
+      schemaVersion: 3,
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://a.com',
+      title: 'A',
+      groups: [],
+      targets: [
+        {
+          targetId: 'save_button',
+          center: { x: 50, y: 70 },
+          size: { w: 20, h: 30 },
+        },
+      ],
+    } as any)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue('Save' as never)
+
+    const result = await driver.evaluateTab(undefined, '(element) => element.textContent', {
+      targetId: 'save_button',
+    })
+
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('document.elementFromPoint'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('"x":50'))
+    expect(result).toEqual({ tabId: 1, result: 'Save', targetId: 'save_button' })
+  })
+
+  it('preserves undefined results as null plus undefinedResult marker', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(undefined as never)
+
+    const result = await driver.evaluateTab(undefined, '() => undefined')
+
+    expect(result).toEqual({ tabId: 1, result: null, undefinedResult: true })
+  })
+})
+
+describe('CdpDriver.pressKey', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('dispatches printable key events to the active tab', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    const result = await driver.pressKey(undefined, '4')
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Input.dispatchKeyEvent',
+      expect.objectContaining({
+        type: 'keyDown',
+        key: '4',
+        code: 'Digit4',
+        text: '4',
+        unmodifiedText: '4',
+        windowsVirtualKeyCode: 52,
+      }),
+      'session-1',
+    )
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Input.dispatchKeyEvent',
+      expect.objectContaining({
+        type: 'keyUp',
+        key: '4',
+        code: 'Digit4',
+      }),
+      'session-1',
+    )
+    expect(result).toEqual({ tabId: 1, key: '4' })
+  })
+
+  it('dispatches named key events without text', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    await driver.pressKey(undefined, 'Backspace')
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Input.dispatchKeyEvent',
+      expect.not.objectContaining({
+        text: expect.anything(),
+      }),
+      'session-1',
+    )
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Input.dispatchKeyEvent',
+      expect.objectContaining({
+        type: 'rawKeyDown',
+        key: 'Backspace',
+        code: 'Backspace',
+        windowsVirtualKeyCode: 8,
+      }),
+      'session-1',
+    )
+  })
+
+  it('rejects empty keys before sending CDP commands', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    await expect(driver.pressKey(undefined, '')).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(sendSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('CdpDriver.typeText', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('focuses the snapshot target and inserts text into it', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    driver.sessions.updateSnapshot(1, {
+      schemaVersion: 3,
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://a.com',
+      title: 'A',
+      groups: [],
+      targets: [
+        {
+          targetId: 'cc-number',
+          center: { x: 50, y: 70 },
+        },
+      ],
+    } as any)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(true as never)
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    const result = await driver.typeText(undefined, 'cc-number', 'Ada')
+
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('document.elementFromPoint'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('"x":50'))
+    expect(sendSpy).toHaveBeenCalledWith('Input.insertText', { text: 'Ada' }, 'session-1')
+    expect(result).toEqual({
+      tabId: 1,
+      targetId: 'cc-number',
+      text: 'Ada',
+      submitted: false,
+    })
+  })
+
+  it('can type slowly and submit with Enter', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    driver.sessions.updateSnapshot(1, {
+      schemaVersion: 3,
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://a.com',
+      title: 'A',
+      groups: [],
+      targets: [
+        {
+          targetId: 'name-input',
+          center: { x: 10, y: 20 },
+        },
+      ],
+    } as any)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(true as never)
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    const result = await driver.typeText(undefined, 'name-input', 'AB', { slowly: true, submit: true })
+
+    expect(sendSpy).toHaveBeenCalledWith('Input.insertText', { text: 'A' }, 'session-1')
+    expect(sendSpy).toHaveBeenCalledWith('Input.insertText', { text: 'B' }, 'session-1')
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Input.dispatchKeyEvent',
+      expect.objectContaining({
+        type: 'rawKeyDown',
+        key: 'Enter',
+        code: 'Enter',
+      }),
+      'session-1',
+    )
+    expect(result.submitted).toBe(true)
+  })
+})
+
+describe('CdpDriver.selectOptions', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('selects option values through the snapshot target', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    driver.sessions.updateSnapshot(1, {
+      schemaVersion: 3,
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://a.com',
+      title: 'A',
+      groups: [],
+      targets: [
+        {
+          targetId: 'country',
+          center: { x: 30, y: 40 },
+        },
+      ],
+    } as any)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(['kr'] as never)
+
+    const result = await driver.selectOptions(undefined, 'country', ['kr'])
+
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('document.elementFromPoint'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('HTMLSelectElement'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('"kr"'))
+    expect(result).toEqual({ tabId: 1, targetId: 'country', values: ['kr'] })
+  })
+
+  it('rejects empty values before evaluating the page', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue([] as never)
+
+    await expect(driver.selectOptions(undefined, 'country', [])).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(evaluateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('CdpDriver.fillForm', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('fills multiple form fields through snapshot targets', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    driver.sessions.updateSnapshot(1, {
+      schemaVersion: 3,
+      version: 1,
+      capturedAt: Date.now(),
+      url: 'https://a.com',
+      title: 'A',
+      groups: [],
+      targets: [
+        { targetId: 'email', center: { x: 10, y: 20 } },
+        { targetId: 'subscribe', center: { x: 30, y: 40 } },
+        { targetId: 'country', center: { x: 50, y: 60 } },
+      ],
+    } as any)
+
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(undefined as never)
+
+    const result = await driver.fillForm(undefined, [
+      { name: 'Email', targetId: 'email', type: 'textbox', value: 'ada@example.test' },
+      { name: 'Subscribe', targetId: 'subscribe', type: 'checkbox', value: true },
+      { name: 'Country', targetId: 'country', type: 'combobox', value: 'kr' },
+    ])
+
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('document.elementFromPoint'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('booleanFillFormValue'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('"targetId":"email"'))
+    expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('"x":50'))
+    expect(result).toEqual({
+      tabId: 1,
+      fields: [
+        { name: 'Email', targetId: 'email', type: 'textbox' },
+        { name: 'Subscribe', targetId: 'subscribe', type: 'checkbox' },
+        { name: 'Country', targetId: 'country', type: 'combobox' },
+      ],
+    })
+  })
+
+  it('rejects invalid fields before evaluating the page', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(undefined as never)
+
+    await expect(driver.fillForm(undefined, [])).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(evaluateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('CdpDriver.fileUpload', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('uploads files to the pending file chooser backend node', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, targetId: 'cdp-target-1', sessionId: 'session-1' },
+    ])
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    ;(driver as any).recordFileChooserOpened({
+      mode: 'selectMultiple',
+      backendNodeId: 77,
+    }, 'session-1')
+
+    const result = await driver.fileUpload(undefined, ['/tmp/a.txt', '/tmp/b.txt'])
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'DOM.setFileInputFiles',
+      {
+        files: ['/tmp/a.txt', '/tmp/b.txt'],
+        backendNodeId: 77,
+      },
+      'session-1',
+    )
+    expect(result).toMatchObject({
+      tabId: 1,
+      paths: ['/tmp/a.txt', '/tmp/b.txt'],
+      cancelled: false,
+      fileChooser: {
+        id: 1,
+        tabId: 1,
+        multiple: true,
+        handled: true,
+        cancelled: false,
+        paths: ['/tmp/a.txt', '/tmp/b.txt'],
+      },
+    })
+  })
+
+  it('cancels a pending file chooser when paths are empty', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, targetId: 'cdp-target-1', sessionId: 'session-1' },
+    ])
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    ;(driver as any).recordFileChooserOpened({
+      mode: 'selectSingle',
+      backendNodeId: 88,
+    }, 'session-1')
+
+    const result = await driver.fileUpload(undefined, [])
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'DOM.setFileInputFiles',
+      {
+        files: [],
+        backendNodeId: 88,
+      },
+      'session-1',
+    )
+    expect(result.cancelled).toBe(true)
+    expect(result.fileChooser.cancelled).toBe(true)
+  })
+})
+
+describe('CdpDriver.drop', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('drops MIME data and file payloads onto a snapshot target', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'agrune-drop-'))
+    try {
+      const filePath = join(tempDir, 'drop.txt')
+      await writeFile(filePath, 'file from drop')
+
+      const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+      vi.spyOn(driver, 'connect').mockResolvedValue()
+      vi.spyOn(driver as never, 'refreshSnapshot' as never).mockResolvedValue(undefined as never)
+      driver.sessions.openSession(1, 'https://a.com', 'A')
+      driver.sessions.setActiveSession(1)
+      driver.sessions.updateSnapshot(1, {
+        schemaVersion: 3,
+        version: 1,
+        capturedAt: Date.now(),
+        url: 'https://a.com',
+        title: 'A',
+        groups: [],
+        targets: [
+          { targetId: 'drop-zone', center: { x: 30, y: 40 } },
+        ],
+      } as any)
+
+      vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+        tabId: 1,
+        targetId: 'cdp-target-1',
+        sessionId: 'session-1',
+      })
+      const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(undefined as never)
+
+      const result = await driver.drop(
+        undefined,
+        'drop-zone',
+        { 'text/plain': 'plain text' },
+        [filePath],
+      )
+
+      expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('DataTransfer'))
+      expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('dragenter'))
+      expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('plain text'))
+      expect(evaluateSpy).toHaveBeenCalledWith('session-1', expect.stringContaining('drop.txt'))
+      expect(result).toEqual({
+        tabId: 1,
+        targetId: 'drop-zone',
+        paths: [filePath],
+        dataTypes: ['text/plain'],
+      })
+    } finally {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects empty drop payloads before evaluating the page', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    const evaluateSpy = vi.spyOn(driver as never, 'evaluateInSession' as never).mockResolvedValue(undefined as never)
+
+    await expect(driver.drop(undefined, 'drop-zone', {}, [])).rejects.toMatchObject({
+      code: 'INVALID_COMMAND',
+    })
+    expect(evaluateSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('CdpDriver.handleDialog', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('accepts a pending prompt dialog through CDP', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    vi.spyOn(driver as never, 'refreshSnapshot' as never).mockResolvedValue(undefined as never)
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, targetId: 'cdp-target-1', sessionId: 'session-1' },
+    ])
+    const sendSpy = vi.spyOn((driver as any).connection, 'send').mockResolvedValue({})
+
+    ;(driver as any).recordJavascriptDialogOpening({
+      type: 'prompt',
+      message: 'Name?',
+      defaultPrompt: 'Anon',
+    }, 'session-1')
+
+    const result = await driver.handleDialog(undefined, { accept: true, promptText: 'Ada' })
+
+    expect(sendSpy).toHaveBeenCalledWith(
+      'Page.handleJavaScriptDialog',
+      { accept: true, promptText: 'Ada' },
+      'session-1',
+    )
+    expect(result).toMatchObject({
+      tabId: 1,
+      armed: false,
+      dialog: {
+        id: 1,
+        tabId: 1,
+        type: 'prompt',
+        message: 'Name?',
+        defaultValue: 'Anon',
+        handled: true,
+        accepted: true,
+        promptText: 'Ada',
+      },
+    })
+  })
+
+  it('returns the opened dialog immediately when an action triggers one', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTarget').mockReturnValue({
+      tabId: 1,
+      targetId: 'cdp-target-1',
+      sessionId: 'session-1',
+    })
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, targetId: 'cdp-target-1', sessionId: 'session-1' },
+    ])
+    vi.spyOn(driver as never, 'evaluateInSession' as never).mockImplementation(
+      async (_sessionId: string, expression: string) => {
+        if (expression.includes('handleCommand')) {
+          ;(driver as any).recordJavascriptDialogOpening({
+            type: 'confirm',
+            message: 'Delete item?',
+          }, 'session-1')
+          return new Promise(() => {}) as never
+        }
+        return undefined as never
+      },
+    )
+
+    const result = await driver.execute(1, {
+      kind: 'act',
+      targetId: 'confirm-button',
+      action: 'click',
+    })
+
+    expect(result).toMatchObject({
+      ok: true,
+      result: {
+        actionKind: 'click',
+        targetId: 'confirm-button',
+        dialog: {
+          id: 1,
+          tabId: 1,
+          type: 'confirm',
+          message: 'Delete item?',
+          handled: false,
+        },
+      },
+    })
+  })
+
+  it('fails when there is no pending dialog', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    vi.spyOn(driver, 'connect').mockResolvedValue()
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+
+    await expect(driver.handleDialog(undefined, { accept: false })).rejects.toMatchObject({
+      code: 'DIALOG_NOT_FOUND',
+    })
+  })
+})
+
+describe('CdpDriver.consoleMessages', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('records console API calls and filters by severity', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).handleConsoleAPICalled({
+      type: 'log',
+      args: [{ value: 'hello' }],
+      timestamp: 10,
+      stackTrace: { callFrames: [{ url: 'https://a.com', lineNumber: 1, columnNumber: 2 }] },
+    }, 'session-1')
+    ;(driver as any).handleConsoleAPICalled({
+      type: 'warning',
+      args: [{ value: 'warned' }],
+      timestamp: 11,
+      stackTrace: { callFrames: [{ url: 'https://a.com', lineNumber: 3, columnNumber: 4 }] },
+    }, 'session-1')
+
+    expect(driver.consoleMessages(undefined, { level: 'warning' })).toEqual([
+      expect.objectContaining({
+        level: 'warning',
+        type: 'warning',
+        text: 'warned',
+        location: { url: 'https://a.com', lineNumber: 3, columnNumber: 4 },
+      }),
+    ])
+  })
+
+  it('records page exceptions as error console messages', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).handleExceptionThrown({
+      exceptionDetails: {
+        text: 'Uncaught',
+        lineNumber: 5,
+        columnNumber: 6,
+        exception: { description: 'Error: boom' },
+      },
+    }, 'session-1')
+
+    expect(driver.consoleMessages(undefined, { level: 'error' })).toEqual([
+      expect.objectContaining({
+        level: 'error',
+        type: 'pageerror',
+        text: 'Error: boom',
+        location: { url: 'https://a.com', lineNumber: 5, columnNumber: 6 },
+      }),
+    ])
+  })
+
+  it('filters out prior-navigation messages unless all is true', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).handleConsoleAPICalled({ type: 'log', args: [{ value: 'old' }] }, 'session-1')
+    ;(driver as any).handleFrameNavigated({ frame: { id: 'main', url: 'https://b.com' } }, 'session-1')
+    ;(driver as any).handleConsoleAPICalled({ type: 'log', args: [{ value: 'new' }] }, 'session-1')
+
+    expect(driver.consoleMessages(undefined).map(message => message.text)).toEqual(['new'])
+    expect(driver.consoleMessages(undefined, { all: true }).map(message => message.text)).toEqual(['old', 'new'])
+  })
+})
+
+describe('CdpDriver.networkRequests', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('records network requests and filters successful static resources by default', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).handleNetworkRequestWillBeSent({
+      requestId: '1',
+      type: 'Fetch',
+      request: { method: 'POST', url: 'https://a.com/api/data', headers: { 'x-test': '1' }, postData: '{"ok":true}' },
+    }, 'session-1')
+    ;(driver as any).handleNetworkResponseReceived({
+      requestId: '1',
+      response: { status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' } },
+    }, 'session-1')
+    ;(driver as any).handleNetworkRequestWillBeSent({
+      requestId: '2',
+      type: 'Script',
+      request: { method: 'GET', url: 'https://a.com/static/app.js', headers: {} },
+    }, 'session-1')
+    ;(driver as any).handleNetworkResponseReceived({
+      requestId: '2',
+      response: { status: 200, statusText: 'OK', headers: {} },
+    }, 'session-1')
+
+    expect(driver.networkRequests(undefined).map(request => request.url)).toEqual(['https://a.com/api/data'])
+    expect(driver.networkRequests(undefined, { includeStatic: true }).map(request => request.url)).toEqual([
+      'https://a.com/api/data',
+      'https://a.com/static/app.js',
+    ])
+  })
+
+  it('returns request detail and response body parts', async () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+    vi.spyOn((driver as any).connection, 'send').mockResolvedValue({ body: '{"ok":true}', base64Encoded: false })
+
+    ;(driver as any).handleNetworkRequestWillBeSent({
+      requestId: '1',
+      type: 'Fetch',
+      request: { method: 'POST', url: 'https://a.com/api/data', headers: { 'x-test': '1' }, postData: '{"hello":"world"}' },
+    }, 'session-1')
+    ;(driver as any).handleNetworkResponseReceived({
+      requestId: '1',
+      response: { status: 200, statusText: 'OK', headers: { 'content-type': 'application/json' } },
+    }, 'session-1')
+
+    await expect(driver.networkRequestDetail(undefined, 1, 'request-headers')).resolves.toMatchObject({
+      part: 'request-headers',
+      value: { 'x-test': '1' },
+    })
+    await expect(driver.networkRequestDetail(undefined, 1, 'response-body')).resolves.toMatchObject({
+      part: 'response-body',
+      value: '{"ok":true}',
+    })
+    await expect(driver.networkRequestDetail(undefined, 1)).resolves.toMatchObject({
+      request: { index: 1, status: 200 },
+      requestBody: '{"hello":"world"}',
+      responseBody: '{"ok":true}',
+    })
+  })
+
+  it('filters prior-navigation requests unless all is true', () => {
+    const driver = new CdpDriver({ mode: 'attach', wsEndpoint: 'ws://example.test/mock' })
+    driver.sessions.openSession(1, 'https://a.com', 'A')
+    driver.sessions.setActiveSession(1)
+    vi.spyOn((driver as any).targetManager, 'getTargets').mockReturnValue([
+      { tabId: 1, sessionId: 'session-1' },
+    ])
+
+    ;(driver as any).handleNetworkRequestWillBeSent({
+      requestId: '1',
+      type: 'Fetch',
+      request: { method: 'GET', url: 'https://a.com/api/old', headers: {} },
+    }, 'session-1')
+    ;(driver as any).handleFrameNavigated({ frame: { id: 'main', url: 'https://b.com' } }, 'session-1')
+    ;(driver as any).handleNetworkRequestWillBeSent({
+      requestId: '2',
+      type: 'Fetch',
+      request: { method: 'GET', url: 'https://a.com/api/new', headers: {} },
+    }, 'session-1')
+
+    expect(driver.networkRequests(undefined).map(request => request.url)).toEqual(['https://a.com/api/new'])
+    expect(driver.networkRequests(undefined, { all: true }).map(request => request.url)).toEqual([
+      'https://a.com/api/old',
+      'https://a.com/api/new',
+    ])
   })
 })
 

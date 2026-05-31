@@ -28,6 +28,66 @@
       >
     </label>
 
+    <label>Form email:
+      <input
+        id="form-email"
+        oninput="updateFormStatus()"
+      >
+    </label>
+
+    <label>Subscribe:
+      <input
+        type="checkbox"
+        id="form-subscribe"
+        onchange="updateFormStatus()"
+      >
+    </label>
+
+    <label>Email contact:
+      <input
+        type="radio"
+        name="contact"
+        value="email"
+        id="form-contact-email"
+        onchange="updateFormStatus()"
+      >
+    </label>
+
+    <label>Phone contact:
+      <input
+        type="radio"
+        name="contact"
+        value="phone"
+        id="form-contact-phone"
+        onchange="updateFormStatus()"
+      >
+    </label>
+
+    <label>Country:
+      <select
+        id="country"
+        onchange="document.querySelector('#country-status').textContent = 'country:' + this.value"
+      >
+        <option value="">Choose</option>
+        <option value="kr">Korea</option>
+        <option value="us">United States</option>
+      </select>
+    </label>
+    <p id="country-status">country:</p>
+
+    <label>Volume:
+      <input
+        type="range"
+        min="0"
+        max="10"
+        value="0"
+        id="form-volume"
+        oninput="updateFormStatus()"
+        onchange="updateFormStatus()"
+      >
+    </label>
+    <p id="form-status">form:</p>
+
     <script>
       window.__agrune_manifest__ = {
         version: 3,
@@ -59,10 +119,56 @@
                 actionKinds: ['fill'],
                 selector: { css: '#pw' },
                 sensitive: true
+              },
+              {
+                targetId: 'form-email',
+                name: 'Form email',
+                desc: 'Email form field',
+                actionKinds: ['fill'],
+                selector: { css: '#form-email' }
+              },
+              {
+                targetId: 'form-subscribe',
+                name: 'Subscribe',
+                desc: 'Subscribe checkbox',
+                actionKinds: ['fill'],
+                selector: { css: '#form-subscribe' }
+              },
+              {
+                targetId: 'form-contact-email',
+                name: 'Contact email',
+                desc: 'Email contact radio',
+                actionKinds: ['fill'],
+                selector: { css: '#form-contact-email' }
+              },
+              {
+                targetId: 'country',
+                name: 'Country',
+                desc: 'Country dropdown',
+                actionKinds: ['select'],
+                selector: { css: '#country' }
+              },
+              {
+                targetId: 'form-volume',
+                name: 'Volume',
+                desc: 'Volume slider',
+                actionKinds: ['fill'],
+                selector: { css: '#form-volume' }
               }
             ]
           }
         ]
+      }
+
+      function updateFormStatus() {
+        const contact = document.querySelector('input[name="contact"]:checked')?.value || 'none'
+        document.querySelector('#form-status').textContent = [
+          'form:' + document.querySelector('#form-email').value,
+          document.querySelector('#form-subscribe').checked ? 'yes' : 'no',
+          contact,
+          document.querySelector('#country').value,
+          document.querySelector('#form-volume').value
+        ].join('|')
       }
     </script>
   </body>

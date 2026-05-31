@@ -11,6 +11,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   normalizeAgentTargetId,
   AgentTargetIdParseError,
+  toAgentTargetRef,
 } from '../src/target-id-normalizer'
 
 const REPEATED_TARGET_KEY_DELIMITER = '__agrune_repeatKey_'
@@ -47,6 +48,16 @@ describe('normalizeAgentTargetId — valid inputs', () => {
   it('Test 6: 이미 runtime 형식이면 passthrough', () => {
     const already = `posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`
     expect(normalizeAgentTargetId(already)).toBe(already)
+  })
+
+  it('Test 6b: runtime repeat targetId -> public ref -> runtime round-trip', () => {
+    const runtimeTargetId = `posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`
+    const ref = toAgentTargetRef({
+      targetId: runtimeTargetId,
+      repeatInstance: { repeatId: 'posts', index: 0, key: 'abc' },
+    })
+    expect(ref).toBe('posts[key=abc].like_btn')
+    expect(normalizeAgentTargetId(ref)).toBe(runtimeTargetId)
   })
 })
 
@@ -110,7 +121,7 @@ describe('normalizeAgentTargetId — ReDoS / 성능', () => {
 // ---------------------------------------------------------------------------
 
 describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
-  it('Test 14: browser_click tool 호출 시 targetId normalize 통과 후 handleToolCall 전달', async () => {
+  it('Test 14: browser_click tool 호출 시 target ref normalize 통과 후 handleToolCall 전달', async () => {
     const { registerAgruneTools } = await import('../src/mcp-tools')
 
     const calledWithArgs: Array<{ name: string; args: Record<string, unknown> }> = []
@@ -135,15 +146,22 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
     const actHandler = handlers.find(h => h.name === 'browser_click')!
     expect(actHandler).toBeDefined()
 
-    // dot-bracket targetId 전달
-    await actHandler.handler({ targetId: 'posts[postId=abc123].like_btn' })
+    // dot-bracket target ref 전달
+    await actHandler.handler({
+      target: 'posts[postId=abc123].like_btn',
+      button: 'middle',
+      doubleClick: true,
+      modifiers: ['Alt', 'Shift'],
+    })
 
     expect(mockHandler).toHaveBeenCalledOnce()
     const callArgs = calledWithArgs[0]!
     expect(callArgs.name).toBe('browser_click')
     // normalize 후 runtime delimiter 형식으로 전달돼야 함
     expect(callArgs.args.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc123.like_btn`)
-    expect(callArgs.args.action).toBe('click')
+    expect(callArgs.args.action).toBe('dblclick')
+    expect(callArgs.args.button).toBe('middle')
+    expect(callArgs.args.modifiers).toEqual(['Alt', 'Shift'])
   })
 
   it('Test 15: browser_fill, browser_wait_for, browser_pointer 모두 normalize 적용', async () => {
@@ -168,24 +186,106 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     registerAgruneTools(mockMcp, mockHandler)
 
-    const toolsToTest = ['browser_fill', 'browser_wait_for']
+    const toolsToTest = ['browser_fill', 'browser_type', 'browser_select_option', 'browser_fill_form', 'browser_wait_for', 'browser_take_screenshot', 'browser_evaluate', 'browser_snapshot']
     for (const toolName of toolsToTest) {
       const h = handlers.find(hh => hh.name === toolName)!
       expect(h).toBeDefined()
       const extraArgs = toolName === 'browser_fill' ? { value: 'hello' }
+        : toolName === 'browser_type' ? { text: 'hello' }
+        : toolName === 'browser_select_option' ? { values: ['kr'] }
+        : toolName === 'browser_fill_form' ? { fields: [{ name: 'Like', target: 'posts[postId=abc].like_btn', type: 'textbox', value: 'hello' }] }
         : toolName === 'browser_wait_for' ? { state: 'visible' }
+        : toolName === 'browser_take_screenshot' ? { filename: 'out.png' }
+        : toolName === 'browser_evaluate' ? { function: '(element) => element.textContent' }
         : {}
-      await h.handler({ targetId: 'posts[postId=abc].like_btn', ...extraArgs })
+      const baseArgs = toolName === 'browser_fill_form'
+        ? extraArgs
+        : { target: 'posts[postId=abc].like_btn', ...extraArgs }
+      await h.handler(baseArgs)
     }
 
     for (const toolName of toolsToTest) {
-      expect(calledArgs[toolName]?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
+      if (toolName === 'browser_fill_form') {
+        const fields = calledArgs[toolName]?.fields as Array<{ targetId?: string }>
+        expect(fields[0]?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
+      } else {
+        expect(calledArgs[toolName]?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
+      }
     }
 
     // browser_pointer: targetId optional
     const pointerH = handlers.find(hh => hh.name === 'browser_pointer')!
-    await pointerH.handler({ targetId: 'posts[postId=abc].like_btn', actions: [] })
+    await pointerH.handler({ target: 'posts[postId=abc].like_btn', actions: [] })
     expect(calledArgs['browser_pointer']?.targetId).toBe(`posts${REPEATED_TARGET_KEY_DELIMITER}abc.like_btn`)
+  })
+
+  it('browser_wait_for text/time modes bypass target normalization', async () => {
+    const { registerAgruneTools } = await import('../src/mcp-tools')
+
+    const calledArgs: Array<Record<string, unknown>> = []
+    const mockHandler = vi.fn(async (_name: string, args: Record<string, unknown>) => {
+      calledArgs.push(args)
+      return { text: '{"ok":true}' }
+    })
+
+    const handlers: Array<{
+      name: string
+      handler: (args: Record<string, unknown>) => Promise<unknown>
+    }> = []
+    const mockMcp = {
+      tool: (name: string, _desc: string, _schema: unknown, handler: (args: Record<string, unknown>) => Promise<unknown>) => {
+        handlers.push({ name, handler })
+        return mockMcp
+      },
+    } as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer
+
+    registerAgruneTools(mockMcp, mockHandler)
+    const wait = handlers.find(h => h.name === 'browser_wait_for')!
+
+    await wait.handler({ text: 'Ready' })
+    await wait.handler({ textGone: 'Loading' })
+    await wait.handler({ time: 0.25 })
+
+    expect(calledArgs).toEqual([
+      { text: 'Ready' },
+      { textGone: 'Loading' },
+      { timeMs: 250 },
+    ])
+  })
+
+  it('browser_evaluate and browser_take_screenshot allow selector targets', async () => {
+    const { registerAgruneTools } = await import('../src/mcp-tools')
+
+    const calledArgs: Record<string, Record<string, unknown>> = {}
+    const mockHandler = vi.fn(async (name: string, args: Record<string, unknown>) => {
+      calledArgs[name] = args
+      return { text: '{"ok":true}' }
+    })
+
+    const handlers: Array<{
+      name: string
+      handler: (args: Record<string, unknown>) => Promise<unknown>
+    }> = []
+    const mockMcp = {
+      tool: (name: string, _desc: string, _schema: unknown, handler: (args: Record<string, unknown>) => Promise<unknown>) => {
+        handlers.push({ name, handler })
+        return mockMcp
+      },
+    } as unknown as import('@modelcontextprotocol/sdk/server/mcp.js').McpServer
+
+    registerAgruneTools(mockMcp, mockHandler)
+
+    await handlers.find(h => h.name === 'browser_evaluate')!.handler({
+      target: '[data-testid="save-button"]',
+      function: '(element) => element.textContent',
+    })
+    await handlers.find(h => h.name === 'browser_take_screenshot')!.handler({
+      target: '[data-testid="save-button"]',
+      filename: 'out.png',
+    })
+
+    expect(calledArgs['browser_evaluate']?.targetId).toBe('[data-testid="save-button"]')
+    expect(calledArgs['browser_take_screenshot']?.targetId).toBe('[data-testid="save-button"]')
   })
 
   it('Test 16: normalize 에러 발생 시 INVALID_TARGET 반환 (handleToolCall 호출되지 않음)', async () => {
@@ -208,7 +308,7 @@ describe('MCP tool handler 배선 — normalizeAgentTargetId 통과', () => {
 
     const actHandler = handlers.find(h => h.name === 'browser_click')!
     // 잘못된 bracket — = 없음
-    const result = await actHandler.handler({ targetId: 'posts[abc].like_btn' })
+    const result = await actHandler.handler({ target: 'posts[abc].like_btn' })
 
     expect(mockHandler).not.toHaveBeenCalled()
     expect(result.isError).toBe(true)

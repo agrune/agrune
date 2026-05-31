@@ -85,7 +85,7 @@ export interface TargetState {
 // Constants
 // ---------------------------------------------------------------------------
 
-export const VALID_ACTIONS = new Set(['click', 'fill', 'dblclick', 'contextmenu', 'hover', 'longpress'])
+export const VALID_ACTIONS = new Set(['click', 'fill', 'select', 'upload', 'drop', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 export const ACT_COMPATIBLE_KINDS = new Set(['click', 'dblclick', 'contextmenu', 'hover', 'longpress'])
 export const DOM_SETTLE_TIMEOUT_MS = 320
 export const DOM_SETTLE_QUIET_WINDOW_MS = 48
@@ -404,7 +404,7 @@ export function captureTargetState(
       covered,
       sensitive,
     }),
-  }
+  } as PageTarget & { domResolved: true }
 }
 
 export function captureTarget(
@@ -450,6 +450,7 @@ export function captureTarget(
     inViewport: state.inViewport,
     covered: state.covered,
     actionableNow: state.actionableNow,
+    domResolved: true,
     overlay: state.overlay,
     textContent,
     valuePreview,
@@ -461,7 +462,37 @@ export function captureTarget(
     sourceColumn: descriptor.target.sourceColumn ?? 0,
     // Phase 15-02 (REPEAT-03): repeatInstance passthrough (T-15-11: _instanceEl은 제외)
     ...(descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}),
-  }
+  } as PageTarget & { domResolved: true }
+}
+
+export function captureMissingTarget(
+  descriptor: TargetDescriptor,
+  targetId: string,
+): PageTarget {
+  return {
+    actionKinds: descriptor.actionKinds,
+    actionableNow: false,
+    covered: false,
+    domResolved: false,
+    description: descriptor.target.desc ?? '',
+    enabled: false,
+    groupId: descriptor.groupId,
+    groupName: descriptor.groupName,
+    groupDesc: descriptor.groupDesc,
+    inViewport: false,
+    name: descriptor.target.name ?? descriptor.target.targetId,
+    overlay: false,
+    reason: 'hidden',
+    selector: descriptor.target.selector,
+    sensitive: descriptor.target.sensitive === true,
+    sourceFile: descriptor.target.sourceFile ?? '',
+    sourceLine: descriptor.target.sourceLine ?? 0,
+    sourceColumn: descriptor.target.sourceColumn ?? 0,
+    targetId,
+    visible: false,
+    valuePreview: null,
+    ...(descriptor.repeatInstance ? { repeatInstance: descriptor.repeatInstance } : {}),
+  } as PageTarget & { domResolved: false }
 }
 
 // ---------------------------------------------------------------------------
@@ -479,19 +510,26 @@ export function makeSnapshot(
 
     if (descriptor.repeatInstance) {
       // Repeat 유래: instanceEl 1개, stable key 기반 targetId
+      const targetId = toRuntimeTargetId(descriptor.target.targetId, {
+        repeatId: descriptor.repeatInstance.repeatId,
+        key: descriptor.repeatInstance.key,
+      })
+      if (elements.length === 0) {
+        return [captureMissingTarget(descriptor, targetId)]
+      }
       return elements.map((element) =>
         captureTarget(
           descriptor,
           element,
-          toRuntimeTargetId(descriptor.target.targetId, {
-            repeatId: descriptor.repeatInstance!.repeatId,
-            key: descriptor.repeatInstance!.key,
-          }),
+          targetId,
         ),
       )
     }
 
     // 기존 경로 (회귀 없음)
+    if (elements.length === 0) {
+      return [captureMissingTarget(descriptor, toRuntimeTargetId(descriptor.target.targetId, 0, 1))]
+    }
     return elements.map((element, index) =>
       captureTarget(
         descriptor,
@@ -596,6 +634,7 @@ export function makeSnapshot(
       actionKinds: target.actionKinds,
       actionableNow: target.actionableNow,
       covered: target.covered,
+      domResolved: targetDomResolved(target),
       enabled: target.enabled,
       inViewport: target.inViewport,
       reason: target.reason,
@@ -655,6 +694,10 @@ export function findSnapshotTarget(
   return snapshot.targets.find(target => target.targetId === targetId)
 }
 
+function targetDomResolved(target: PageTarget): boolean | undefined {
+  return (target as PageTarget & { domResolved?: boolean }).domResolved
+}
+
 // ---------------------------------------------------------------------------
 // Result builders
 // ---------------------------------------------------------------------------
@@ -679,12 +722,14 @@ export function buildErrorResult(
   message: string,
   snapshot: PageSnapshot,
   targetId?: string,
+  details: Record<string, unknown> = {},
 ): CommandResult {
   return {
     commandId,
     error: createCommandError(code, message, {
       snapshotVersion: snapshot.version,
       targetId,
+      ...details,
     }),
     ok: false,
     snapshotVersion: snapshot.version,

@@ -2,6 +2,52 @@ import type { ActionKind } from './manifest.js'
 import type { SelectorLadder } from './manifest.js'
 export type { ActionKind } from './manifest.js'
 export type { SelectorLadder } from './manifest.js'
+export {
+  AgentTargetIdParseError,
+  REPEATED_TARGET_KEY_DELIMITER,
+  normalizeAgentTargetId,
+  toAgentTargetRef,
+} from './target-ref.js'
+export type {
+  BrowserDriver,
+  CloseTabResult,
+  ConsoleLevel,
+  ConsoleMessageEntry,
+  ConsoleMessagesQuery,
+  DialogHandleOptions,
+  DialogHandleResult,
+  DialogInfo,
+  DialogType,
+  DropData,
+  DropResult,
+  EvaluateOptions,
+  EvaluateResult,
+  FileChooserInfo,
+  FileUploadResult,
+  FillFormField,
+  FillFormFieldType,
+  FillFormFieldValue,
+  FillFormResult,
+  FocusResult,
+  MacroResult,
+  MacroRunResponse,
+  NavigationResult,
+  NetworkRequestDetail,
+  NetworkRequestPart,
+  NetworkRequestSummary,
+  NetworkRequestsQuery,
+  OpenTabResult,
+  PressKeyResult,
+  ResizeResult,
+  RunCodeUnsafeResult,
+  ScreenshotImageType,
+  ScreenshotOptions,
+  ScreenshotResult,
+  SelectOptionResult,
+  Session,
+  TypeTextOptions,
+  TypeTextResult,
+} from './driver.js'
 
 export const COMMAND_ERROR_CODES = [
   'STALE_SNAPSHOT',
@@ -25,6 +71,10 @@ export const COMMAND_ERROR_CODES = [
   'CHROME_CRASHED',
   'RECOVERY_FAILED',
   'TAB_NOT_FOUND',
+  'DIALOG_NOT_FOUND',
+  'FILE_CHOOSER_NOT_FOUND',
+  'NETWORK_REQUEST_NOT_FOUND',
+  'NETWORK_RESPONSE_NOT_FOUND',
 ] as const
 
 export type CommandErrorCode = (typeof COMMAND_ERROR_CODES)[number]
@@ -33,6 +83,8 @@ export type DragPlacement = 'before' | 'inside' | 'after'
 export type WaitState = 'visible' | 'hidden' | 'enabled' | 'disabled'
 export type CommandKind = 'act' | 'drag' | 'fill' | 'wait' | 'read' | 'pointer'
 export type FillStrategy = 'insert' | 'keystroke' | 'auto'
+export type ClickButton = 'left' | 'middle' | 'right'
+export type ClickModifier = 'Alt' | 'Control' | 'ControlOrMeta' | 'Meta' | 'Shift'
 export type AuroraTheme = 'dark' | 'light'
 export type PageTargetReason =
   | 'ready'
@@ -144,6 +196,9 @@ export interface ActCommandRequest extends BaseCommandRequest {
   kind: 'act'
   targetId: string
   action?: 'click' | 'dblclick' | 'contextmenu' | 'hover' | 'longpress'
+  button?: ClickButton
+  doubleClick?: boolean
+  modifiers?: ClickModifier[]
   expectedVersion?: number
 }
 
@@ -165,12 +220,27 @@ export interface FillCommandRequest extends BaseCommandRequest {
   expectedVersion?: number
 }
 
-export interface WaitCommandRequest extends BaseCommandRequest {
-  kind: 'wait'
-  targetId: string
-  state: WaitState
-  timeoutMs?: number
-}
+export type WaitCommandRequest =
+  | (BaseCommandRequest & {
+      kind: 'wait'
+      targetId: string
+      state: WaitState
+      timeoutMs?: number
+    })
+  | (BaseCommandRequest & {
+      kind: 'wait'
+      text: string
+      timeoutMs?: number
+    })
+  | (BaseCommandRequest & {
+      kind: 'wait'
+      textGone: string
+      timeoutMs?: number
+    })
+  | (BaseCommandRequest & {
+      kind: 'wait'
+      timeMs: number
+    })
 
 export interface ReadCommandRequest extends BaseCommandRequest {
   kind: 'read'

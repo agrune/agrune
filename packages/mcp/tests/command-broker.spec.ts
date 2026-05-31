@@ -14,9 +14,9 @@ describe('CommandBroker', () => {
     const broker = new CommandBroker()
     const received: CommandEvent[] = []
     broker.subscribe((e) => received.push(e))
-    broker.emit({ id: '1', ts: 0, sessionId: null, tool: 'agrune_act', phase: 'start' })
+    broker.emit({ id: '1', ts: 0, sessionId: null, tool: 'browser_click', phase: 'start' })
     expect(received).toHaveLength(1)
-    expect(received[0].tool).toBe('agrune_act')
+    expect(received[0].tool).toBe('browser_click')
   })
 
   it('unsubscribe removes listener', () => {

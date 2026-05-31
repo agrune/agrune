@@ -41,6 +41,35 @@ describe('validateManifest', () => {
     expect(result.ok).toBe(true)
   })
 
+  it('accepts input and keyboard action kinds', () => {
+    const result = validateManifest({
+      version: 3,
+      groups: [
+        {
+          groupId: 'g',
+          targets: [
+            {
+              targetId: 'name',
+              actionKinds: ['type', 'press'],
+              selector: { css: 'input[name="name"]' },
+            },
+            {
+              targetId: 'country',
+              actionKinds: ['select'],
+              selector: { css: 'select[name="country"]' },
+            },
+            {
+              targetId: 'avatar',
+              actionKinds: ['upload', 'drop'],
+              selector: { css: 'input[type="file"]' },
+            },
+          ],
+        },
+      ],
+    })
+    expect(result.ok).toBe(true)
+  })
+
   it('rejects version != 3 (T-11-04)', () => {
     const result = validateManifest({ version: 2, groups: [] })
     expect(result.ok).toBe(false)

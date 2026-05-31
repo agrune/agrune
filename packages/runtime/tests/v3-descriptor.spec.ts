@@ -85,6 +85,24 @@ describe('v3 manifest → descriptor → findElements', () => {
     expect(collectDescriptors(manifest)).toEqual([])
   })
 
+  it('keeps select targets in descriptors', () => {
+    const manifest: AgruneManifest = {
+      version: 3,
+      groups: [{
+        groupId: 'form',
+        targets: [{
+          targetId: 'country',
+          actionKinds: ['select'],
+          selector: { css: 'select[name="country"]' },
+        }],
+      }],
+    }
+    const descriptors = collectDescriptors(manifest)
+    expect(descriptors).toHaveLength(1)
+    expect(descriptors[0].target.targetId).toBe('country')
+    expect(descriptors[0].actionKinds).toEqual(['select'])
+  })
+
   it('sorts descriptors by targetId', () => {
     const manifest: AgruneManifest = {
       version: 3,

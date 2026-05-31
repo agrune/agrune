@@ -1,11 +1,14 @@
 #!/usr/bin/env node
+import { createRequire as __agruneCreateRequire } from "node:module";
+const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   __commonJS,
   __require,
   __toESM,
+  createCommandError,
   createMcpServer
-} from "../chunk-M4GUW4PK.js";
+} from "../chunk-5OUHTLCZ.js";
 
 // ../../node_modules/.pnpm/ws@8.20.0/node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
@@ -1832,7 +1835,7 @@ var require_event_target = __commonJS({
     var kTarget = /* @__PURE__ */ Symbol("kTarget");
     var kType = /* @__PURE__ */ Symbol("kType");
     var kWasClean = /* @__PURE__ */ Symbol("kWasClean");
-    var Event = class {
+    var Event2 = class {
       /**
        * Create a new `Event`.
        *
@@ -1856,9 +1859,9 @@ var require_event_target = __commonJS({
         return this[kType];
       }
     };
-    Object.defineProperty(Event.prototype, "target", { enumerable: true });
-    Object.defineProperty(Event.prototype, "type", { enumerable: true });
-    var CloseEvent = class extends Event {
+    Object.defineProperty(Event2.prototype, "target", { enumerable: true });
+    Object.defineProperty(Event2.prototype, "type", { enumerable: true });
+    var CloseEvent = class extends Event2 {
       /**
        * Create a new `CloseEvent`.
        *
@@ -1900,7 +1903,7 @@ var require_event_target = __commonJS({
     Object.defineProperty(CloseEvent.prototype, "code", { enumerable: true });
     Object.defineProperty(CloseEvent.prototype, "reason", { enumerable: true });
     Object.defineProperty(CloseEvent.prototype, "wasClean", { enumerable: true });
-    var ErrorEvent = class extends Event {
+    var ErrorEvent = class extends Event2 {
       /**
        * Create a new `ErrorEvent`.
        *
@@ -1930,7 +1933,7 @@ var require_event_target = __commonJS({
     };
     Object.defineProperty(ErrorEvent.prototype, "error", { enumerable: true });
     Object.defineProperty(ErrorEvent.prototype, "message", { enumerable: true });
-    var MessageEvent = class extends Event {
+    var MessageEvent = class extends Event2 {
       /**
        * Create a new `MessageEvent`.
        *
@@ -2000,7 +2003,7 @@ var require_event_target = __commonJS({
           };
         } else if (type === "open") {
           wrapper = function onOpen() {
-            const event = new Event("open");
+            const event = new Event2("open");
             event[kTarget] = this;
             callListener(handler, this, event);
           };
@@ -2034,7 +2037,7 @@ var require_event_target = __commonJS({
     module.exports = {
       CloseEvent,
       ErrorEvent,
-      Event,
+      Event: Event2,
       EventTarget,
       MessageEvent
     };
@@ -3704,23 +3707,20 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve();
+        resolve2();
       } else {
-        this._stdout.once("drain", resolve);
+        this._stdout.once("drain", resolve2);
       }
     });
   }
 };
 
-// ../core/dist/index.js
-function createCommandError(code, message, details) {
-  return { code, message, details };
-}
-
 // ../browser/dist/index.js
+import { mkdir, readFile, writeFile } from "fs/promises";
+import { basename, dirname as dirname2, extname, resolve } from "path";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import { mkdtemp, rm } from "fs/promises";
@@ -3884,15 +3884,15 @@ var SessionManager = class {
   }
   waitForSnapshot(timeoutMs) {
     if (this.hasReadySession()) return Promise.resolve(true);
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const onReady = () => {
         clearTimeout(timer);
-        resolve(true);
+        resolve2(true);
       };
       const timer = setTimeout(() => {
         const idx = this.snapshotWaiters.indexOf(onReady);
         if (idx !== -1) this.snapshotWaiters.splice(idx, 1);
-        resolve(false);
+        resolve2(false);
       }, timeoutMs);
       this.snapshotWaiters.push(onReady);
     });
@@ -3901,19 +3901,19 @@ var SessionManager = class {
     if (this.sessions.get(tabId)?.snapshot !== null && this.sessions.has(tabId)) {
       return Promise.resolve(true);
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const onReady = () => {
         const session = this.sessions.get(tabId);
         if (!session?.snapshot) return;
         clearTimeout(timer);
         const idx = this.snapshotWaiters.indexOf(onReady);
         if (idx !== -1) this.snapshotWaiters.splice(idx, 1);
-        resolve(true);
+        resolve2(true);
       };
       const timer = setTimeout(() => {
         const idx = this.snapshotWaiters.indexOf(onReady);
         if (idx !== -1) this.snapshotWaiters.splice(idx, 1);
-        resolve(false);
+        resolve2(false);
       }, timeoutMs);
       this.snapshotWaiters.push(onReady);
     });
@@ -4002,12 +4002,12 @@ var ChromeLauncher = class _ChromeLauncher {
     this.expectedExit = child !== null;
     this.child = null;
     if (child) {
-      await new Promise((resolve) => {
+      await new Promise((resolve2) => {
         if (child.exitCode !== null || child.killed) {
-          resolve();
+          resolve2();
           return;
         }
-        child.once("exit", () => resolve());
+        child.once("exit", () => resolve2());
         child.kill("SIGTERM");
         setTimeout(() => {
           if (child.exitCode === null && !child.killed) {
@@ -4034,7 +4034,7 @@ var ChromeLauncher = class _ChromeLauncher {
     return this.child !== null;
   }
   async waitForWsEndpoint(child) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       let stderr = "";
       let stdout = "";
       let settled = false;
@@ -4049,7 +4049,7 @@ var ChromeLauncher = class _ChromeLauncher {
         if (!match || settled) return;
         settled = true;
         cleanup2();
-        resolve(match[1]);
+        resolve2(match[1]);
       };
       const handleStdout = (chunk) => {
         stdout += chunk.toString();
@@ -4087,7 +4087,7 @@ var CdpConnection = class {
   disconnectSuppressed = false;
   async connect(wsEndpoint) {
     if (this.socket && this.socket.readyState === wrapper_default.OPEN) return;
-    await new Promise((resolve, reject) => {
+    await new Promise((resolve2, reject) => {
       const socket = new wrapper_default(wsEndpoint);
       let settled = false;
       const cleanup2 = () => {
@@ -4108,7 +4108,7 @@ var CdpConnection = class {
           "error",
           (error) => this.handleDisconnect(error instanceof Error ? error : new Error(String(error)))
         );
-        resolve();
+        resolve2();
       };
       const handleError = (error) => {
         if (settled) return;
@@ -4132,12 +4132,12 @@ var CdpConnection = class {
     this.disconnectSuppressed = true;
     const socket = this.socket;
     this.socket = null;
-    await new Promise((resolve) => {
+    await new Promise((resolve2) => {
       if (socket.readyState === wrapper_default.CLOSING || socket.readyState === wrapper_default.CLOSED) {
-        resolve();
+        resolve2();
         return;
       }
-      socket.once("close", () => resolve());
+      socket.once("close", () => resolve2());
       socket.close();
     });
     this.handleDisconnect();
@@ -4152,8 +4152,8 @@ var CdpConnection = class {
     }
     const id = ++this.nextId;
     const payload = sessionId ? { id, method, params, sessionId } : { id, method, params };
-    return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+    return new Promise((resolve2, reject) => {
+      this.pending.set(id, { resolve: resolve2, reject });
       this.socket?.send(JSON.stringify(payload), (error) => {
         if (!error) return;
         this.pending.delete(id);
@@ -4636,6 +4636,8 @@ var CdpRuntimeInjector = class {
     await this.connection.send("Page.enable", {}, sessionId).catch(() => {
     });
     await this.connection.send("Runtime.enable", {}, sessionId);
+    await this.connection.send("Network.enable", {}, sessionId).catch(() => {
+    });
     await this.connection.send("Runtime.addBinding", { name: "agrune_send" }, sessionId);
     await this.connection.send(
       "Page.addScriptToEvaluateOnNewDocument",
@@ -4738,6 +4740,42 @@ var RecoverySupervisor = class {
 var ENSURE_READY_TIMEOUT_MS = 1e4;
 var ACTIVITY_TAIL_BLOCK_MS = 5e3;
 var OPEN_TAB_READY_TIMEOUT_MS = 1e4;
+var CLOSE_TAB_TIMEOUT_MS = 5e3;
+var NAVIGATION_TIMEOUT_MS = 1e4;
+var FILE_CHOOSER_WAIT_TIMEOUT_MS = 2e3;
+var CDP_ALT_MODIFIER = 1;
+var CDP_CONTROL_MODIFIER = 2;
+var CDP_META_MODIFIER = 4;
+var CDP_SHIFT_MODIFIER = 8;
+var SPECIAL_KEY_INFO = {
+  Backspace: { key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 },
+  Tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
+  Enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
+  Return: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
+  Shift: { key: "Shift", code: "ShiftLeft", windowsVirtualKeyCode: 16 },
+  Control: { key: "Control", code: "ControlLeft", windowsVirtualKeyCode: 17 },
+  Ctrl: { key: "Control", code: "ControlLeft", windowsVirtualKeyCode: 17 },
+  Alt: { key: "Alt", code: "AltLeft", windowsVirtualKeyCode: 18 },
+  Meta: { key: "Meta", code: "MetaLeft", windowsVirtualKeyCode: 91 },
+  Escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+  Esc: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
+  Space: { key: " ", code: "Space", text: " ", windowsVirtualKeyCode: 32 },
+  " ": { key: " ", code: "Space", text: " ", windowsVirtualKeyCode: 32 },
+  ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
+  Left: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
+  ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
+  Up: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
+  ArrowRight: { key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 },
+  Right: { key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 },
+  ArrowDown: { key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 },
+  Down: { key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 },
+  Insert: { key: "Insert", code: "Insert", windowsVirtualKeyCode: 45 },
+  Delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
+  Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
+  End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
+  PageUp: { key: "PageUp", code: "PageUp", windowsVirtualKeyCode: 33 },
+  PageDown: { key: "PageDown", code: "PageDown", windowsVirtualKeyCode: 34 }
+};
 var CdpDriver = class {
   sessions = new SessionManager();
   onActivity = null;
@@ -4751,11 +4789,31 @@ var CdpDriver = class {
   sessionOpenCbs = [];
   sessionCloseCbs = [];
   snapshotUpdateCbs = [];
+  consoleMessagesByTab = /* @__PURE__ */ new Map();
+  navigationIndexByTab = /* @__PURE__ */ new Map();
+  networkRequestsByTab = /* @__PURE__ */ new Map();
+  networkByRequestId = /* @__PURE__ */ new Map();
+  dialogs = [];
+  dialogWaiters = [];
+  nextDialogId = 1;
+  fileChoosers = [];
+  nextFileChooserId = 1;
   connectPromise = null;
   commandCounter = 0;
   bindingsRegistered = false;
   handleBindingCalled;
   handleDragIntercepted;
+  handleConsoleAPICalled;
+  handleExceptionThrown;
+  handleFrameNavigated;
+  handleNetworkRequestWillBeSent;
+  handleNetworkRequestWillBeSentExtraInfo;
+  handleNetworkResponseReceived;
+  handleNetworkResponseReceivedExtraInfo;
+  handleNetworkLoadingFailed;
+  handleJavascriptDialogOpening;
+  handleJavascriptDialogClosed;
+  handleFileChooserOpened;
   recovery = null;
   resolvedWsEndpoint = null;
   unsubscribeDisconnect = null;
@@ -4776,17 +4834,61 @@ var CdpDriver = class {
     this.handleDragIntercepted = (params, sessionId) => {
       void this.runBackgroundTask(this.onDragIntercepted(params, sessionId));
     };
+    this.handleConsoleAPICalled = (params, sessionId) => {
+      this.recordConsoleMessage(params, sessionId);
+    };
+    this.handleExceptionThrown = (params, sessionId) => {
+      this.recordExceptionThrown(params, sessionId);
+    };
+    this.handleFrameNavigated = (params, sessionId) => {
+      this.recordFrameNavigated(params, sessionId);
+    };
+    this.handleNetworkRequestWillBeSent = (params, sessionId) => {
+      this.recordNetworkRequestWillBeSent(params, sessionId);
+    };
+    this.handleNetworkRequestWillBeSentExtraInfo = (params, sessionId) => {
+      this.recordNetworkRequestExtraInfo(params, sessionId);
+    };
+    this.handleNetworkResponseReceived = (params, sessionId) => {
+      this.recordNetworkResponseReceived(params, sessionId);
+    };
+    this.handleNetworkResponseReceivedExtraInfo = (params, sessionId) => {
+      this.recordNetworkResponseExtraInfo(params, sessionId);
+    };
+    this.handleNetworkLoadingFailed = (params, sessionId) => {
+      this.recordNetworkLoadingFailed(params, sessionId);
+    };
+    this.handleJavascriptDialogOpening = (params, sessionId) => {
+      this.recordJavascriptDialogOpening(params, sessionId);
+    };
+    this.handleJavascriptDialogClosed = (params, sessionId) => {
+      this.recordJavascriptDialogClosed(params, sessionId);
+    };
+    this.handleFileChooserOpened = (params, sessionId) => {
+      this.recordFileChooserOpened(params, sessionId);
+    };
     this.targetManager.onTargetCreated((target) => {
       this.sessions.openSession(target.tabId, target.url, target.title);
+      this.ensureConsoleState(target.tabId);
+      this.ensureNetworkState(target.tabId);
       this.sessionOpenCbs.forEach((cb) => cb(this.toSession(target.tabId)));
       this.runBackgroundTask(this.prepareTarget(target));
     });
     this.targetManager.onTargetInfoChanged((target) => {
       this.sessions.openSession(target.tabId, target.url, target.title);
+      this.ensureConsoleState(target.tabId);
+      this.ensureNetworkState(target.tabId);
       this.runBackgroundTask(this.prepareTarget(target));
     });
     this.targetManager.onTargetDestroyed((target) => {
       this.sessions.closeSession(target.tabId);
+      this.consoleMessagesByTab.delete(target.tabId);
+      this.navigationIndexByTab.delete(target.tabId);
+      const records = this.networkRequestsByTab.get(target.tabId) ?? [];
+      for (const record of records) this.networkByRequestId.delete(networkRequestKey(record.sessionId, record.requestId));
+      this.networkRequestsByTab.delete(target.tabId);
+      removeDialogsForTab(this.dialogs, target.tabId);
+      removeFileChoosersForTab(this.fileChoosers, target.tabId);
       this.sessionCloseCbs.forEach((cb) => cb(target.tabId));
     });
   }
@@ -4810,6 +4912,11 @@ var CdpDriver = class {
     this.preparedSessions.clear();
     this.unregisterBindings();
     this.sessions.clear();
+    this.dialogs.splice(0, this.dialogs.length);
+    this.dialogWaiters.splice(0, this.dialogWaiters.length);
+    this.nextDialogId = 1;
+    this.fileChoosers.splice(0, this.fileChoosers.length);
+    this.nextFileChooserId = 1;
     await this.connection.disconnect();
     if (this.options.mode === "launch") {
       await this.launcher.kill();
@@ -4832,6 +4939,47 @@ var CdpDriver = class {
   }
   getSnapshot(tabId) {
     return this.sessions.getSnapshot(tabId);
+  }
+  consoleMessages(tabId, query = {}) {
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) return [];
+    const currentNavigationIndex = this.navigationIndexByTab.get(resolvedTabId) ?? 0;
+    const minSeverity = severityForConsoleLevel(query.level ?? "info");
+    return (this.consoleMessagesByTab.get(resolvedTabId) ?? []).filter((message) => {
+      if (!query.all && message.navigationIndex !== currentNavigationIndex) return false;
+      return severityForConsoleLevel(message.level) >= minSeverity;
+    });
+  }
+  networkRequests(tabId, query = {}) {
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) return [];
+    const currentNavigationIndex = this.navigationIndexByTab.get(resolvedTabId) ?? 0;
+    return (this.networkRequestsByTab.get(resolvedTabId) ?? []).filter((record) => networkRequestMatches(record, query, currentNavigationIndex)).map(toNetworkRequestSummary);
+  }
+  async networkRequestDetail(tabId, index, part) {
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for network request lookup.");
+    }
+    const record = (this.networkRequestsByTab.get(resolvedTabId) ?? []).find((request) => request.index === index);
+    if (!record) {
+      throw createCommandError("NETWORK_REQUEST_NOT_FOUND", `Network request not found: ${index}`, { index });
+    }
+    const summary = toNetworkRequestSummary(record);
+    if (part) {
+      return {
+        request: summary,
+        part,
+        value: await this.networkRequestPartValue(record, part)
+      };
+    }
+    return {
+      request: summary,
+      requestHeaders: record.requestHeaders,
+      requestBody: record.requestBody,
+      responseHeaders: record.responseHeaders,
+      responseBody: await this.networkResponseBody(record)
+    };
   }
   onSessionOpen(cb) {
     this.sessionOpenCbs.push(cb);
@@ -4874,10 +5022,38 @@ var CdpDriver = class {
           await this.recovery.waitForRecovery();
         }
         await this.setAgentActivity(target.sessionId, true);
-        const result = await this.evaluateInSession(
+        const dialogAfterId = this.dialogs.length;
+        const dialogWaiter = this.waitForNextDialog(tabId, dialogAfterId);
+        const actionPromise = this.evaluateInSession(
           target.sessionId,
           `window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}].handleCommand(${JSON.stringify(command.kind)}, ${JSON.stringify(payload)})`
         );
+        const winner = await Promise.race([
+          actionPromise.then((result2) => ({ kind: "result", result: result2 })),
+          dialogWaiter.promise.then((dialog) => ({ kind: "dialog", dialog }))
+        ]);
+        dialogWaiter.cancel();
+        if (winner.kind === "dialog") {
+          winner.dialog.actionPromise = actionPromise.catch((error) => ({
+            commandId,
+            ok: false,
+            error: createCommandError(
+              "INVALID_COMMAND",
+              error instanceof Error ? error.message : String(error)
+            )
+          }));
+          this.sessions.touchSession(tabId);
+          return {
+            commandId,
+            ok: true,
+            result: {
+              actionKind: command.action ?? command.kind,
+              ...typeof command.targetId === "string" ? { targetId: command.targetId } : {},
+              dialog: toPublicDialog(winner.dialog)
+            }
+          };
+        }
+        const result = winner.result;
         if (result.ok) {
           this.sessions.touchSession(tabId);
         }
@@ -5028,6 +5204,441 @@ var CdpDriver = class {
       title: session?.title ?? target.title
     };
   }
+  async closeTab(tabId) {
+    await this.connect();
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to close.");
+    }
+    const session = this.sessions.getSession(resolvedTabId);
+    if (!session) {
+      throw createCommandError(
+        "TAB_NOT_FOUND",
+        `No session exists for tabId ${resolvedTabId}.`,
+        { tabId: resolvedTabId }
+      );
+    }
+    const target = this.targetManager.getTarget(resolvedTabId);
+    if (!target) {
+      throw createCommandError(
+        "TAB_NOT_FOUND",
+        `No browser target exists for tabId ${resolvedTabId}.`,
+        { tabId: resolvedTabId }
+      );
+    }
+    await this.connection.send("Target.closeTarget", { targetId: target.targetId });
+    const closed = await this.waitForSessionClosed(resolvedTabId, CLOSE_TAB_TIMEOUT_MS);
+    if (!closed) {
+      throw createCommandError(
+        "INVALID_COMMAND",
+        `Timed out waiting for tabId ${resolvedTabId} to close.`,
+        { tabId: resolvedTabId }
+      );
+    }
+    return { tabId: resolvedTabId, closed: true };
+  }
+  async navigateTab(tabId, url) {
+    await this.connect();
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to navigate.");
+    }
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw createCommandError("INVALID_COMMAND", `Invalid URL for navigation: ${url}`, { url });
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const nextUrl = parsed.toString();
+    const response = await this.connection.send("Page.navigate", { url: nextUrl }, target.sessionId);
+    if (typeof response.errorText === "string" && response.errorText.length > 0) {
+      throw createCommandError("INVALID_COMMAND", response.errorText, { url: nextUrl });
+    }
+    this.sessions.openSession(resolvedTabId, nextUrl, this.sessions.getSession(resolvedTabId)?.title ?? target.title);
+    await this.waitForNavigationSettled(resolvedTabId, nextUrl, NAVIGATION_TIMEOUT_MS);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return this.navigationResult(resolvedTabId, nextUrl);
+  }
+  async navigateBack(tabId) {
+    await this.connect();
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to navigate back.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const history = await this.connection.send("Page.getNavigationHistory", {}, target.sessionId);
+    const currentIndex = typeof history.currentIndex === "number" ? history.currentIndex : -1;
+    const entries = Array.isArray(history.entries) ? history.entries : [];
+    const previous = currentIndex > 0 ? entries[currentIndex - 1] : null;
+    const entryId = typeof previous?.id === "number" ? previous.id : null;
+    const previousUrl = typeof previous?.url === "string" ? previous.url : null;
+    if (entryId == null || !previousUrl) {
+      throw createCommandError("INVALID_COMMAND", "No previous browser history entry is available.");
+    }
+    const previousTitle = typeof previous?.title === "string" ? previous.title : "";
+    await this.connection.send("Page.navigateToHistoryEntry", { entryId }, target.sessionId);
+    this.sessions.openSession(resolvedTabId, previousUrl, previousTitle);
+    await this.waitForNavigationSettled(resolvedTabId, previousUrl, NAVIGATION_TIMEOUT_MS);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return this.navigationResult(resolvedTabId, previousUrl);
+  }
+  async resizeTab(tabId, width, height) {
+    await this.connect();
+    if (!Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0) {
+      throw createCommandError("INVALID_COMMAND", "resize requires positive integer width and height.", {
+        width,
+        height
+      });
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to resize.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    await this.connection.send(
+      "Emulation.setDeviceMetricsOverride",
+      {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false
+      },
+      target.sessionId
+    );
+    const actual = await this.evaluateInSession(
+      target.sessionId,
+      `(() => ({ width: window.innerWidth, height: window.innerHeight }))()`
+    ).catch(() => ({ width, height }));
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      width: Number.isFinite(actual.width) ? actual.width : width,
+      height: Number.isFinite(actual.height) ? actual.height : height
+    };
+  }
+  async screenshotTab(tabId, path, options = {}) {
+    await this.connect();
+    if (typeof path !== "string" || path.trim().length === 0) {
+      throw createCommandError("INVALID_COMMAND", "screenshot requires a non-empty path.");
+    }
+    if (options.targetId && options.fullPage) {
+      throw createCommandError("INVALID_COMMAND", "Element screenshots cannot use fullPage.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to screenshot.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const type = options.type ?? screenshotTypeFromPath(path) ?? "png";
+    const params = {
+      format: type,
+      fromSurface: true
+    };
+    if (options.fullPage) {
+      params.captureBeyondViewport = true;
+      params.clip = await this.fullPageScreenshotClip(target.sessionId);
+    } else if (options.targetId) {
+      params.clip = await this.targetScreenshotClip(resolvedTabId, target.sessionId, options.targetId);
+    }
+    const response = await this.connection.send("Page.captureScreenshot", params, target.sessionId);
+    if (typeof response.data !== "string" || response.data.length === 0) {
+      throw createCommandError("INVALID_COMMAND", "CDP Page.captureScreenshot did not return image data.");
+    }
+    const absolutePath = resolve(path);
+    await mkdir(dirname2(absolutePath), { recursive: true });
+    await writeFile(absolutePath, Buffer.from(response.data, "base64"));
+    return {
+      tabId: resolvedTabId,
+      path: absolutePath,
+      type,
+      fullPage: options.fullPage === true,
+      ...options.targetId ? { targetId: options.targetId } : {}
+    };
+  }
+  async evaluateTab(tabId, source, options = {}) {
+    await this.connect();
+    if (typeof source !== "string" || source.trim().length === 0) {
+      throw createCommandError("INVALID_COMMAND", "evaluate requires a non-empty function.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to evaluate.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const result = options.targetId ? await this.evaluateInSession(
+      target.sessionId,
+      await this.targetEvaluationExpression(resolvedTabId, target.sessionId, options.targetId, source, options.arg)
+    ) : await this.evaluateInSession(
+      target.sessionId,
+      buildPageEvaluationExpression(source, options.arg)
+    );
+    this.sessions.touchSession(resolvedTabId);
+    return {
+      tabId: resolvedTabId,
+      result: result === void 0 ? null : result,
+      ...result === void 0 ? { undefinedResult: true } : {},
+      ...options.targetId ? { targetId: options.targetId } : {}
+    };
+  }
+  async runCodeUnsafe(tabId, source) {
+    await this.connect();
+    if (typeof source !== "string" || source.trim().length === 0) {
+      throw createCommandError("INVALID_COMMAND", "browser_run_code_unsafe requires non-empty code.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available to run code.");
+    }
+    this.requireAttachedTarget(resolvedTabId);
+    if (!this.resolvedWsEndpoint) {
+      throw createCommandError("INVALID_COMMAND", "CDP endpoint is not available for Playwright connection.");
+    }
+    const { chromium } = await import("playwright");
+    const browser = await chromium.connectOverCDP(this.resolvedWsEndpoint);
+    try {
+      const page = await this.playwrightPageForTab(browser, resolvedTabId);
+      await page.bringToFront().catch(() => void 0);
+      const fn = compileRunCodeUnsafeFunction(source);
+      const result = await fn(page);
+      this.sessions.touchSession(resolvedTabId);
+      return {
+        tabId: resolvedTabId,
+        result: result === void 0 ? null : toJsonCompatible(result),
+        ...result === void 0 ? { undefinedResult: true } : {}
+      };
+    } finally {
+      await browser.close().catch(() => void 0);
+    }
+  }
+  async pressKey(tabId, key) {
+    await this.connect();
+    if (typeof key !== "string" || key.length === 0) {
+      throw createCommandError("INVALID_COMMAND", "pressKey requires a non-empty key.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for key press.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    await this.dispatchKeyboardKey(target.sessionId, key);
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return { tabId: resolvedTabId, key };
+  }
+  async typeText(tabId, targetId, text, options = {}) {
+    await this.connect();
+    if (typeof targetId !== "string" || targetId.length === 0) {
+      throw createCommandError("INVALID_TARGET", "typeText requires a targetId.");
+    }
+    if (typeof text !== "string") {
+      throw createCommandError("INVALID_COMMAND", "typeText requires text (string).");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for typing.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    await this.focusTargetForTextInput(resolvedTabId, target.sessionId, targetId);
+    if (options.slowly === true) {
+      for (const ch of Array.from(text)) {
+        await this.connection.send("Input.insertText", { text: ch }, target.sessionId);
+      }
+    } else if (text.length > 0) {
+      await this.connection.send("Input.insertText", { text }, target.sessionId);
+    }
+    if (options.submit === true) {
+      await this.dispatchKeyboardKey(target.sessionId, "Enter");
+    }
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      targetId,
+      text,
+      submitted: options.submit === true
+    };
+  }
+  async selectOptions(tabId, targetId, values) {
+    await this.connect();
+    if (typeof targetId !== "string" || targetId.length === 0) {
+      throw createCommandError("INVALID_TARGET", "selectOptions requires a targetId.");
+    }
+    if (!Array.isArray(values) || values.length === 0 || values.some((value) => typeof value !== "string")) {
+      throw createCommandError("INVALID_COMMAND", "selectOptions requires one or more string values.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for option selection.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const selected = await this.evaluateInSession(
+      target.sessionId,
+      buildSelectOptionsExpression(await this.targetEvaluationPoint(resolvedTabId, targetId), values)
+    );
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      targetId,
+      values: selected
+    };
+  }
+  async fillForm(tabId, fields) {
+    await this.connect();
+    if (!Array.isArray(fields) || fields.length === 0) {
+      throw createCommandError("INVALID_COMMAND", "fillForm requires one or more fields.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for form filling.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const preparedFields = await Promise.all(fields.map(async (field, index) => {
+      if (!isFillFormField(field)) {
+        throw createCommandError("INVALID_COMMAND", `fillForm field ${index} is invalid.`, { index });
+      }
+      return {
+        ...field,
+        point: await this.targetEvaluationPoint(resolvedTabId, field.targetId)
+      };
+    }));
+    await this.evaluateInSession(
+      target.sessionId,
+      buildFillFormExpression(preparedFields)
+    );
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      fields: fields.map((field) => ({
+        ...field.name ? { name: field.name } : {},
+        targetId: field.targetId,
+        type: field.type
+      }))
+    };
+  }
+  async fileUpload(tabId, paths) {
+    await this.connect();
+    if (!Array.isArray(paths) || paths.some((path) => typeof path !== "string")) {
+      throw createCommandError("INVALID_COMMAND", "fileUpload paths must be an array of strings.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for file upload.");
+    }
+    const record = await this.waitForPendingFileChooser(resolvedTabId, FILE_CHOOSER_WAIT_TIMEOUT_MS);
+    if (!record) {
+      throw createCommandError("FILE_CHOOSER_NOT_FOUND", "No pending file chooser is available to upload to.");
+    }
+    if (typeof record.backendNodeId !== "number") {
+      throw createCommandError("INVALID_COMMAND", "Pending file chooser does not expose a file input node.");
+    }
+    if (!record.multiple && paths.length > 1) {
+      throw createCommandError("INVALID_COMMAND", "Cannot upload multiple files to a single-file chooser.");
+    }
+    const absolutePaths = paths.map((path) => resolve(path));
+    try {
+      await this.connection.send(
+        "DOM.setFileInputFiles",
+        {
+          files: absolutePaths,
+          backendNodeId: record.backendNodeId
+        },
+        record.sessionId
+      );
+      record.paths = absolutePaths;
+      record.cancelled = absolutePaths.length === 0;
+      record.handled = true;
+      record.handledTimestamp = Date.now();
+    } catch (error) {
+      record.error = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      paths: absolutePaths,
+      cancelled: absolutePaths.length === 0,
+      fileChooser: toPublicFileChooser(record)
+    };
+  }
+  async drop(tabId, targetId, data, paths) {
+    await this.connect();
+    if (typeof targetId !== "string" || targetId.length === 0) {
+      throw createCommandError("INVALID_TARGET", "drop requires a targetId.");
+    }
+    if (!isDropData(data)) {
+      throw createCommandError("INVALID_COMMAND", "drop data must be an object with string values.");
+    }
+    if (!Array.isArray(paths) || paths.some((path) => typeof path !== "string")) {
+      throw createCommandError("INVALID_COMMAND", "drop paths must be an array of strings.");
+    }
+    if (Object.keys(data).length === 0 && paths.length === 0) {
+      throw createCommandError("INVALID_COMMAND", "drop requires at least one of: data, paths.");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for drop.");
+    }
+    const target = this.requireAttachedTarget(resolvedTabId);
+    const absolutePaths = paths.map((path) => resolve(path));
+    const files = await Promise.all(absolutePaths.map((path) => filePayloadFromPath(path)));
+    await this.evaluateInSession(
+      target.sessionId,
+      buildDropExpression(await this.targetEvaluationPoint(resolvedTabId, targetId), { data, files })
+    );
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      targetId,
+      paths: absolutePaths,
+      dataTypes: Object.keys(data)
+    };
+  }
+  async handleDialog(tabId, options) {
+    await this.connect();
+    if (typeof options?.accept !== "boolean") {
+      throw createCommandError("INVALID_COMMAND", "handleDialog requires accept (boolean).");
+    }
+    const resolvedTabId = this.resolveTabId(tabId);
+    if (resolvedTabId == null) {
+      throw createCommandError("TAB_NOT_FOUND", "No browser tab is available for dialog handling.");
+    }
+    const record = this.dialogs.find((dialog) => dialog.tabId === resolvedTabId && !dialog.handled);
+    if (!record) {
+      throw createCommandError("DIALOG_NOT_FOUND", "No pending dialog is available to handle.");
+    }
+    try {
+      await this.connection.send(
+        "Page.handleJavaScriptDialog",
+        {
+          accept: options.accept,
+          ...typeof options.promptText === "string" ? { promptText: options.promptText } : {}
+        },
+        record.sessionId
+      );
+      record.accepted = options.accept;
+      if (typeof options.promptText === "string") record.promptText = options.promptText;
+      record.handled = true;
+      record.handledTimestamp = Date.now();
+      if (record.actionPromise) {
+        await record.actionPromise.catch(() => void 0);
+      }
+    } catch (error) {
+      record.error = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
+    this.sessions.touchSession(resolvedTabId);
+    await this.refreshSnapshot(resolvedTabId).catch(() => void 0);
+    return {
+      tabId: resolvedTabId,
+      armed: false,
+      dialog: toPublicDialog(record)
+    };
+  }
   async injectManifest(tabId, manifest) {
     const target = this.targetManager.getTarget(tabId);
     if (!target?.sessionId) {
@@ -5066,6 +5677,222 @@ var CdpDriver = class {
     this.registerBindings();
     await this.targetManager.start(this.connection);
   }
+  async waitForSessionClosed(tabId, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (!this.sessions.getSession(tabId)) return true;
+      await new Promise((resolve2) => setTimeout(resolve2, 50));
+    }
+    return !this.sessions.getSession(tabId);
+  }
+  requireAttachedTarget(tabId) {
+    const target = this.targetManager.getTarget(tabId);
+    if (!target?.sessionId) {
+      throw createCommandError(
+        "TAB_NOT_FOUND",
+        `No active browser target exists for tabId ${tabId}.`,
+        { tabId }
+      );
+    }
+    return target;
+  }
+  async playwrightPageForTab(browser, tabId) {
+    const session = this.listSessions().find((candidate) => candidate.tabId === tabId);
+    if (!session) {
+      throw createCommandError("TAB_NOT_FOUND", `No browser tab exists for tabId ${tabId}.`, { tabId });
+    }
+    const pages = browser.contexts().flatMap((context) => context.pages()).filter((page) => !page.isClosed());
+    if (pages.length === 0) {
+      throw createCommandError("TAB_NOT_FOUND", "Playwright did not expose any pages for the CDP browser.");
+    }
+    const sameUrl = pages.filter((page) => page.url() === session.url);
+    if (sameUrl.length === 1) return sameUrl[0];
+    if (sameUrl.length > 1 && session.title) {
+      for (const page of sameUrl) {
+        const title = await page.title().catch(() => "");
+        if (title === session.title) return page;
+      }
+    }
+    const sessionIndex = this.listSessions().findIndex((candidate) => candidate.tabId === tabId);
+    if (sessionIndex >= 0 && pages[sessionIndex]) return pages[sessionIndex];
+    return sameUrl[0] ?? pages[0];
+  }
+  async waitForNavigationSettled(tabId, expectedUrl, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const target = this.targetManager.getTarget(tabId);
+      if (!target?.sessionId) {
+        throw createCommandError("TAB_NOT_FOUND", `No active browser target exists for tabId ${tabId}.`, { tabId });
+      }
+      try {
+        const state = await this.evaluateInSession(
+          target.sessionId,
+          `(() => ({ url: location.href, title: document.title, readyState: document.readyState }))()`
+        );
+        if (state?.url === expectedUrl && (state.readyState === "interactive" || state.readyState === "complete")) {
+          this.sessions.openSession(tabId, state.url, state.title);
+          return;
+        }
+      } catch {
+      }
+      if (target.url === expectedUrl && target.title) {
+        this.sessions.openSession(tabId, target.url, target.title);
+      }
+      await new Promise((resolve2) => setTimeout(resolve2, 100));
+    }
+    throw createCommandError(
+      "TIMEOUT",
+      `Timed out waiting for tabId ${tabId} to navigate to ${expectedUrl}.`,
+      { tabId, url: expectedUrl }
+    );
+  }
+  navigationResult(tabId, fallbackUrl) {
+    const session = this.sessions.getSession(tabId);
+    return {
+      tabId,
+      url: session?.url ?? fallbackUrl,
+      title: session?.title ?? ""
+    };
+  }
+  async fullPageScreenshotClip(sessionId) {
+    const metrics = await this.connection.send("Page.getLayoutMetrics", {}, sessionId);
+    const size = metrics.cssContentSize ?? metrics.contentSize;
+    const width = typeof size?.width === "number" ? size.width : NaN;
+    const height = typeof size?.height === "number" ? size.height : NaN;
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      throw createCommandError("INVALID_COMMAND", "CDP Page.getLayoutMetrics did not return content size.");
+    }
+    return {
+      x: 0,
+      y: 0,
+      width: Math.ceil(width),
+      height: Math.ceil(height),
+      scale: 1
+    };
+  }
+  async targetScreenshotClip(tabId, sessionId, targetId) {
+    const snapshotTarget = await this.findSnapshotTarget(tabId, targetId);
+    if (!snapshotTarget) {
+      return this.selectorScreenshotClip(sessionId, targetId);
+    }
+    if (!snapshotTarget.center || !snapshotTarget.size) {
+      throw createCommandError("INVALID_TARGET", `target has no screenshot bounds: ${targetId}`, { targetId });
+    }
+    const width = Number(snapshotTarget.size.w);
+    const height = Number(snapshotTarget.size.h);
+    const centerX = Number(snapshotTarget.center.x);
+    const centerY = Number(snapshotTarget.center.y);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || !Number.isFinite(centerX) || !Number.isFinite(centerY) || width <= 0 || height <= 0) {
+      throw createCommandError("INVALID_TARGET", `target has invalid screenshot bounds: ${targetId}`, { targetId });
+    }
+    const scroll = await this.evaluateInSession(
+      sessionId,
+      `(() => ({ x: window.scrollX, y: window.scrollY }))()`
+    ).catch(() => ({ x: 0, y: 0 }));
+    return {
+      x: Math.max(0, scroll.x + centerX - width / 2),
+      y: Math.max(0, scroll.y + centerY - height / 2),
+      width: Math.ceil(width),
+      height: Math.ceil(height),
+      scale: 1
+    };
+  }
+  async selectorScreenshotClip(sessionId, selector) {
+    const bounds = await this.resolveSelectorBounds(sessionId, selector);
+    if (bounds.width <= 0 || bounds.height <= 0) {
+      throw createCommandError("INVALID_TARGET", `selector has invalid screenshot bounds: ${selector}`, {
+        targetId: selector
+      });
+    }
+    return {
+      x: Math.max(0, Math.floor(bounds.x)),
+      y: Math.max(0, Math.floor(bounds.y)),
+      width: Math.ceil(bounds.width),
+      height: Math.ceil(bounds.height),
+      scale: 1
+    };
+  }
+  async targetEvaluationExpression(tabId, sessionId, targetId, source, arg) {
+    const snapshotTarget = await this.findSnapshotTarget(tabId, targetId);
+    if (!snapshotTarget) {
+      await this.ensureUniqueSelectorTarget(sessionId, targetId);
+      return buildSelectorEvaluationExpression(source, arg, targetId);
+    }
+    if (!snapshotTarget.center) {
+      throw createCommandError("INVALID_TARGET", `target has no evaluation point: ${targetId}`, { targetId });
+    }
+    const x = Number(snapshotTarget.center.x);
+    const y = Number(snapshotTarget.center.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      throw createCommandError("INVALID_TARGET", `target has invalid evaluation point: ${targetId}`, { targetId });
+    }
+    return buildTargetEvaluationExpression(source, arg, { x, y });
+  }
+  async targetEvaluationPoint(tabId, targetId) {
+    const snapshotTarget = await this.findSnapshotTarget(tabId, targetId);
+    if (!snapshotTarget) {
+      throw createCommandError("TARGET_NOT_FOUND", `target not found: ${targetId}`, { targetId });
+    }
+    if (!snapshotTarget.center) {
+      throw createCommandError("INVALID_TARGET", `target has no evaluation point: ${targetId}`, { targetId });
+    }
+    const x = Number(snapshotTarget.center.x);
+    const y = Number(snapshotTarget.center.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      throw createCommandError("INVALID_TARGET", `target has invalid evaluation point: ${targetId}`, { targetId });
+    }
+    return { x, y };
+  }
+  async findSnapshotTarget(tabId, targetId) {
+    const snapshot = this.sessions.getSnapshot(tabId) ?? await this.refreshSnapshot(tabId).catch(() => null);
+    return snapshot?.targets.find((candidate) => candidate.targetId === targetId) ?? null;
+  }
+  async ensureUniqueSelectorTarget(sessionId, selector) {
+    const probe = await this.evaluateInSession(
+      sessionId,
+      buildSelectorProbeExpression(selector)
+    );
+    assertUniqueSelectorProbe(selector, probe);
+  }
+  async resolveSelectorBounds(sessionId, selector) {
+    const probe = await this.evaluateInSession(
+      sessionId,
+      buildSelectorBoundsProbeExpression(selector)
+    );
+    assertUniqueSelectorProbe(selector, probe);
+    if (probe.status !== "ok" || !("bounds" in probe)) {
+      throw createCommandError("TARGET_NOT_FOUND", `target not found: ${selector}`, { targetId: selector });
+    }
+    return probe.bounds;
+  }
+  async focusTargetForTextInput(tabId, sessionId, targetId) {
+    await this.evaluateInSession(
+      sessionId,
+      buildTargetFocusExpression(await this.targetEvaluationPoint(tabId, targetId))
+    );
+  }
+  async dispatchKeyboardKey(sessionId, key) {
+    const keyInfo = keyboardKeyInfo(key);
+    const base = {
+      key: keyInfo.key,
+      code: keyInfo.code,
+      modifiers: keyInfo.modifiers,
+      ...typeof keyInfo.windowsVirtualKeyCode === "number" ? {
+        windowsVirtualKeyCode: keyInfo.windowsVirtualKeyCode,
+        nativeVirtualKeyCode: keyInfo.windowsVirtualKeyCode
+      } : {}
+    };
+    const textParams = keyInfo.text ? { text: keyInfo.text, unmodifiedText: keyInfo.text } : {};
+    await this.connection.send("Input.dispatchKeyEvent", {
+      type: keyInfo.text ? "keyDown" : "rawKeyDown",
+      ...base,
+      ...textParams
+    }, sessionId);
+    await this.connection.send("Input.dispatchKeyEvent", {
+      type: "keyUp",
+      ...base
+    }, sessionId);
+  }
   async resolveWsEndpoint() {
     if (this.options.mode === "attach") {
       if (!this.options.wsEndpoint) {
@@ -5087,12 +5914,34 @@ var CdpDriver = class {
     this.bindingsRegistered = true;
     this.connection.on("Runtime.bindingCalled", this.handleBindingCalled);
     this.connection.on("Input.dragIntercepted", this.handleDragIntercepted);
+    this.connection.on("Runtime.consoleAPICalled", this.handleConsoleAPICalled);
+    this.connection.on("Runtime.exceptionThrown", this.handleExceptionThrown);
+    this.connection.on("Page.frameNavigated", this.handleFrameNavigated);
+    this.connection.on("Network.requestWillBeSent", this.handleNetworkRequestWillBeSent);
+    this.connection.on("Network.requestWillBeSentExtraInfo", this.handleNetworkRequestWillBeSentExtraInfo);
+    this.connection.on("Network.responseReceived", this.handleNetworkResponseReceived);
+    this.connection.on("Network.responseReceivedExtraInfo", this.handleNetworkResponseReceivedExtraInfo);
+    this.connection.on("Network.loadingFailed", this.handleNetworkLoadingFailed);
+    this.connection.on("Page.javascriptDialogOpening", this.handleJavascriptDialogOpening);
+    this.connection.on("Page.javascriptDialogClosed", this.handleJavascriptDialogClosed);
+    this.connection.on("Page.fileChooserOpened", this.handleFileChooserOpened);
   }
   unregisterBindings() {
     if (!this.bindingsRegistered) return;
     this.bindingsRegistered = false;
     this.connection.off("Runtime.bindingCalled", this.handleBindingCalled);
     this.connection.off("Input.dragIntercepted", this.handleDragIntercepted);
+    this.connection.off("Runtime.consoleAPICalled", this.handleConsoleAPICalled);
+    this.connection.off("Runtime.exceptionThrown", this.handleExceptionThrown);
+    this.connection.off("Page.frameNavigated", this.handleFrameNavigated);
+    this.connection.off("Network.requestWillBeSent", this.handleNetworkRequestWillBeSent);
+    this.connection.off("Network.requestWillBeSentExtraInfo", this.handleNetworkRequestWillBeSentExtraInfo);
+    this.connection.off("Network.responseReceived", this.handleNetworkResponseReceived);
+    this.connection.off("Network.responseReceivedExtraInfo", this.handleNetworkResponseReceivedExtraInfo);
+    this.connection.off("Network.loadingFailed", this.handleNetworkLoadingFailed);
+    this.connection.off("Page.javascriptDialogOpening", this.handleJavascriptDialogOpening);
+    this.connection.off("Page.javascriptDialogClosed", this.handleJavascriptDialogClosed);
+    this.connection.off("Page.fileChooserOpened", this.handleFileChooserOpened);
   }
   async prepareTarget(target) {
     if (!target.sessionId || this.preparedSessions.has(target.sessionId)) return;
@@ -5100,6 +5949,11 @@ var CdpDriver = class {
     const injector = new CdpRuntimeInjector(this.connection);
     try {
       await injector.prepareSession(target.sessionId);
+      await this.connection.send(
+        "Page.setInterceptFileChooserDialog",
+        { enabled: true },
+        target.sessionId
+      );
       if (Object.keys(this.desiredConfig).length > 0) {
         await this.evaluateInSession(
           target.sessionId,
@@ -5191,6 +6045,236 @@ var CdpDriver = class {
       `window[${JSON.stringify(QUICK_MODE_RUNTIME_KEY)}]?.dispatchCdpMessage(${JSON.stringify(detail)})`
     );
   }
+  recordConsoleMessage(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null) return;
+    this.ensureConsoleState(tabId);
+    const stackTrace = params.stackTrace;
+    const callFrame = firstCallFrame(stackTrace);
+    const args2 = Array.isArray(params.args) ? params.args : [];
+    const type = typeof params.type === "string" ? params.type : "log";
+    this.consoleMessagesByTab.get(tabId).push({
+      tabId,
+      level: normalizeConsoleLevel(type),
+      type,
+      text: consoleTextFromArgs(args2),
+      timestamp: typeof params.timestamp === "number" ? params.timestamp : Date.now(),
+      navigationIndex: this.navigationIndexByTab.get(tabId) ?? 0,
+      location: {
+        url: typeof callFrame?.url === "string" ? callFrame.url : this.sessions.getSession(tabId)?.url ?? "",
+        lineNumber: typeof callFrame?.lineNumber === "number" ? callFrame.lineNumber : 0,
+        columnNumber: typeof callFrame?.columnNumber === "number" ? callFrame.columnNumber : 0
+      }
+    });
+  }
+  recordExceptionThrown(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null) return;
+    this.ensureConsoleState(tabId);
+    const details = params.exceptionDetails;
+    const exception = details?.exception;
+    const stackTrace = details?.stackTrace;
+    const callFrame = firstCallFrame(stackTrace);
+    this.consoleMessagesByTab.get(tabId).push({
+      tabId,
+      level: "error",
+      type: "pageerror",
+      text: exceptionText(details, exception),
+      timestamp: typeof params.timestamp === "number" ? params.timestamp : Date.now(),
+      navigationIndex: this.navigationIndexByTab.get(tabId) ?? 0,
+      location: {
+        url: typeof callFrame?.url === "string" ? callFrame.url : this.sessions.getSession(tabId)?.url ?? "",
+        lineNumber: typeof details?.lineNumber === "number" ? details.lineNumber : typeof callFrame?.lineNumber === "number" ? callFrame.lineNumber : 0,
+        columnNumber: typeof details?.columnNumber === "number" ? details.columnNumber : typeof callFrame?.columnNumber === "number" ? callFrame.columnNumber : 0
+      }
+    });
+  }
+  recordFrameNavigated(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null) return;
+    const frame = params.frame;
+    if (!frame || typeof frame.parentId === "string") return;
+    this.ensureConsoleState(tabId);
+    this.navigationIndexByTab.set(tabId, (this.navigationIndexByTab.get(tabId) ?? 0) + 1);
+  }
+  recordJavascriptDialogOpening(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null || !sessionId) return;
+    const type = typeof params.type === "string" ? params.type : "alert";
+    const record = {
+      id: this.nextDialogId++,
+      tabId,
+      sessionId,
+      type,
+      message: typeof params.message === "string" ? params.message : "",
+      ...typeof params.defaultPrompt === "string" ? { defaultValue: params.defaultPrompt } : {},
+      timestamp: Date.now(),
+      handled: false
+    };
+    this.dialogs.push(record);
+    this.notifyDialogWaiters(record);
+  }
+  recordJavascriptDialogClosed(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null) return;
+    const pending = this.dialogs.find((dialog) => dialog.tabId === tabId && !dialog.handled);
+    if (!pending) return;
+    pending.handled = true;
+    pending.accepted = params.result === true;
+    if (typeof params.userInput === "string") pending.promptText = params.userInput;
+    pending.handledTimestamp = Date.now();
+  }
+  waitForNextDialog(tabId, afterId) {
+    const existing = this.dialogs.find((dialog) => dialog.tabId === tabId && dialog.id > afterId && !dialog.handled);
+    if (existing) {
+      return {
+        promise: Promise.resolve(existing),
+        cancel() {
+        }
+      };
+    }
+    let waiter = null;
+    const promise = new Promise((resolve2) => {
+      waiter = { tabId, afterId, resolve: resolve2 };
+      this.dialogWaiters.push(waiter);
+    });
+    return {
+      promise,
+      cancel: () => {
+        if (!waiter) return;
+        const index = this.dialogWaiters.indexOf(waiter);
+        if (index >= 0) this.dialogWaiters.splice(index, 1);
+      }
+    };
+  }
+  notifyDialogWaiters(dialog) {
+    for (let index = this.dialogWaiters.length - 1; index >= 0; index -= 1) {
+      const waiter = this.dialogWaiters[index];
+      if (waiter.tabId !== dialog.tabId || dialog.id <= waiter.afterId) continue;
+      this.dialogWaiters.splice(index, 1);
+      waiter.resolve(dialog);
+    }
+  }
+  recordFileChooserOpened(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null || !sessionId) return;
+    const mode = params.mode === "selectMultiple" ? "selectMultiple" : "selectSingle";
+    const backendNodeId = typeof params.backendNodeId === "number" ? params.backendNodeId : void 0;
+    this.fileChoosers.push({
+      id: this.nextFileChooserId++,
+      tabId,
+      sessionId,
+      timestamp: Date.now(),
+      mode,
+      multiple: mode === "selectMultiple",
+      handled: false,
+      ...typeof backendNodeId === "number" ? { backendNodeId } : {}
+    });
+  }
+  async waitForPendingFileChooser(tabId, timeoutMs) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const pending = this.fileChoosers.find((fileChooser) => fileChooser.tabId === tabId && !fileChooser.handled);
+      if (pending) return pending;
+      await new Promise((resolve2) => setTimeout(resolve2, 50));
+    }
+    return this.fileChoosers.find((fileChooser) => fileChooser.tabId === tabId && !fileChooser.handled) ?? null;
+  }
+  ensureConsoleState(tabId) {
+    if (!this.consoleMessagesByTab.has(tabId)) this.consoleMessagesByTab.set(tabId, []);
+    if (!this.navigationIndexByTab.has(tabId)) this.navigationIndexByTab.set(tabId, 0);
+  }
+  recordNetworkRequestWillBeSent(params, sessionId) {
+    const tabId = this.tabIdForSession(sessionId);
+    if (tabId == null || !sessionId) return;
+    const requestId = typeof params.requestId === "string" ? params.requestId : null;
+    const request = params.request;
+    if (!requestId || !request) return;
+    this.ensureNetworkState(tabId);
+    const records = this.networkRequestsByTab.get(tabId);
+    const resourceType = normalizeResourceType(typeof params.type === "string" ? params.type : "other");
+    const navigationIndex = resourceType === "document" ? (this.navigationIndexByTab.get(tabId) ?? 0) + 1 : this.navigationIndexByTab.get(tabId) ?? 0;
+    const record = {
+      index: records.length + 1,
+      requestId,
+      sessionId,
+      tabId,
+      method: typeof request.method === "string" ? request.method : "GET",
+      url: typeof request.url === "string" ? request.url : "",
+      resourceType,
+      isNavigationRequest: resourceType === "document",
+      timestamp: typeof params.wallTime === "number" ? Math.round(params.wallTime * 1e3) : Date.now(),
+      navigationIndex,
+      requestHeaders: headersFromUnknown(request.headers),
+      requestBody: typeof request.postData === "string" ? request.postData : null,
+      responseHeaders: {}
+    };
+    records.push(record);
+    this.networkByRequestId.set(networkRequestKey(sessionId, requestId), record);
+  }
+  recordNetworkRequestExtraInfo(params, sessionId) {
+    const record = this.networkRecordFor(params, sessionId);
+    if (!record) return;
+    record.requestHeaders = { ...record.requestHeaders, ...headersFromUnknown(params.headers) };
+  }
+  recordNetworkResponseReceived(params, sessionId) {
+    const record = this.networkRecordFor(params, sessionId);
+    if (!record) return;
+    const response = params.response;
+    if (!response) return;
+    if (typeof response.status === "number") record.status = response.status;
+    if (typeof response.statusText === "string") record.statusText = response.statusText;
+    record.responseHeaders = { ...record.responseHeaders, ...headersFromUnknown(response.headers) };
+  }
+  recordNetworkResponseExtraInfo(params, sessionId) {
+    const record = this.networkRecordFor(params, sessionId);
+    if (!record) return;
+    if (typeof params.statusCode === "number") record.status = params.statusCode;
+    record.responseHeaders = { ...record.responseHeaders, ...headersFromUnknown(params.headers) };
+  }
+  recordNetworkLoadingFailed(params, sessionId) {
+    const record = this.networkRecordFor(params, sessionId);
+    if (!record) return;
+    record.failureText = typeof params.errorText === "string" ? params.errorText : "Request failed";
+  }
+  networkRecordFor(params, sessionId) {
+    if (!sessionId || typeof params.requestId !== "string") return null;
+    return this.networkByRequestId.get(networkRequestKey(sessionId, params.requestId)) ?? null;
+  }
+  ensureNetworkState(tabId) {
+    if (!this.networkRequestsByTab.has(tabId)) this.networkRequestsByTab.set(tabId, []);
+  }
+  async networkRequestPartValue(record, part) {
+    if (part === "request-headers") return record.requestHeaders;
+    if (part === "request-body") return record.requestBody;
+    if (part === "response-headers") {
+      if (!hasNetworkResponse(record)) {
+        throw createCommandError("NETWORK_RESPONSE_NOT_FOUND", `No response is available for request ${record.index}.`, { index: record.index });
+      }
+      return record.responseHeaders;
+    }
+    if (!hasNetworkResponse(record)) {
+      throw createCommandError("NETWORK_RESPONSE_NOT_FOUND", `No response is available for request ${record.index}.`, { index: record.index });
+    }
+    return this.networkResponseBody(record);
+  }
+  async networkResponseBody(record) {
+    if (!hasNetworkResponse(record)) return null;
+    if (record.responseBody !== void 0) return record.responseBody;
+    try {
+      const response = await this.connection.send("Network.getResponseBody", { requestId: record.requestId }, record.sessionId);
+      const body = typeof response.body === "string" ? response.body : "";
+      record.responseBody = response.base64Encoded === true ? Buffer.from(body, "base64").toString("utf8") : body;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw createCommandError("NETWORK_RESPONSE_NOT_FOUND", `Response body is unavailable: ${message}`, { index: record.index });
+    }
+    return record.responseBody;
+  }
+  tabIdForSession(sessionId) {
+    if (!sessionId) return null;
+    return this.targetManager.getTargets().find((target) => target.sessionId === sessionId)?.tabId ?? null;
+  }
   async evaluateInSession(sessionId, expression) {
     const response = await this.connection.send(
       "Runtime.evaluate",
@@ -5234,7 +6318,7 @@ var CdpDriver = class {
   }
   isIgnorableDisconnectError(error) {
     if (error instanceof Error) {
-      return error.message === "CDP connection disconnected." || error.message === "CDP connection is not open.";
+      return error.message === "CDP connection disconnected." || error.message === "CDP connection is not open." || error.message === "Session with given id not found.";
     }
     return false;
   }
@@ -5338,7 +6422,7 @@ var CdpDriver = class {
     while (Date.now() <= deadline) {
       const target = this.targetManager.getTargets().find((candidate) => candidate.targetId === targetId);
       if (target?.sessionId) return target;
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve2) => setTimeout(resolve2, 50));
     }
     return null;
   }
@@ -5351,6 +6435,573 @@ var CdpDriver = class {
     return value;
   }
 };
+function screenshotTypeFromPath(path) {
+  const ext = extname(path).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "jpeg";
+  if (ext === ".png") return "png";
+  return null;
+}
+function keyboardKeyInfo(input) {
+  const parts = input.includes("+") && input !== "+" ? input.split("+").filter((part) => part.length > 0) : [input];
+  let modifiers = 0;
+  let keyPart = parts[parts.length - 1] ?? input;
+  for (const part of parts.slice(0, -1)) {
+    const modifier = modifierBit(part);
+    if (modifier === 0) {
+      keyPart = input;
+      modifiers = 0;
+      break;
+    }
+    modifiers |= modifier;
+  }
+  const base = baseKeyboardKeyInfo(keyPart);
+  if ((modifiers & (CDP_ALT_MODIFIER | CDP_CONTROL_MODIFIER | CDP_META_MODIFIER)) !== 0) {
+    const rest = { ...base };
+    delete rest.text;
+    return { ...rest, modifiers };
+  }
+  return { ...base, modifiers };
+}
+function baseKeyboardKeyInfo(key) {
+  const specialName = Object.keys(SPECIAL_KEY_INFO).find((name) => name.toLowerCase() === key.toLowerCase());
+  const special = specialName ? SPECIAL_KEY_INFO[specialName] : void 0;
+  if (special) return special;
+  const functionKey = /^F([1-9]|1[0-2])$/.exec(key);
+  if (functionKey) {
+    const number = Number(functionKey[1]);
+    return {
+      key,
+      code: key,
+      windowsVirtualKeyCode: 111 + number
+    };
+  }
+  if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+    return {
+      key,
+      code: `Key${key.toUpperCase()}`,
+      text: key,
+      windowsVirtualKeyCode: key.toUpperCase().charCodeAt(0)
+    };
+  }
+  if (key.length === 1 && /[0-9]/.test(key)) {
+    return {
+      key,
+      code: `Digit${key}`,
+      text: key,
+      windowsVirtualKeyCode: key.charCodeAt(0)
+    };
+  }
+  if (key.length === 1) {
+    return {
+      key,
+      code: "",
+      text: key,
+      windowsVirtualKeyCode: key.charCodeAt(0)
+    };
+  }
+  return { key, code: key };
+}
+function modifierBit(part) {
+  switch (part.toLowerCase()) {
+    case "alt":
+    case "option":
+      return CDP_ALT_MODIFIER;
+    case "control":
+    case "ctrl":
+      return CDP_CONTROL_MODIFIER;
+    case "meta":
+    case "command":
+    case "cmd":
+      return CDP_META_MODIFIER;
+    case "shift":
+      return CDP_SHIFT_MODIFIER;
+    default:
+      return 0;
+  }
+}
+function compileRunCodeUnsafeFunction(source) {
+  let candidate;
+  try {
+    candidate = new Function(`return (${source});`)();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw createCommandError(
+      "INVALID_COMMAND",
+      `browser_run_code_unsafe code must be a JavaScript function: ${message}`
+    );
+  }
+  if (typeof candidate !== "function") {
+    throw createCommandError("INVALID_COMMAND", "browser_run_code_unsafe code must evaluate to a function.");
+  }
+  return candidate;
+}
+function toJsonCompatible(value) {
+  const seen = /* @__PURE__ */ new WeakSet();
+  const serialized = JSON.stringify(value, (_key, nested) => {
+    if (typeof nested === "bigint") return nested.toString();
+    if (typeof nested === "function") return `[Function ${nested.name || "anonymous"}]`;
+    if (typeof nested === "symbol") return String(nested);
+    if (nested && typeof nested === "object") {
+      if (seen.has(nested)) return "[Circular]";
+      seen.add(nested);
+    }
+    return nested;
+  });
+  if (serialized === void 0) return String(value);
+  return JSON.parse(serialized);
+}
+function buildPageEvaluationExpression(source, arg) {
+  return `(${evaluatePageInBrowser.toString()})(${JSON.stringify({ source, arg })})`;
+}
+function buildTargetEvaluationExpression(source, arg, point) {
+  return `(() => {
+    const payload = ${JSON.stringify({ source, arg })};
+    const point = ${JSON.stringify(point)};
+    const el = document.elementFromPoint(point.x, point.y);
+    if (!el) throw new Error('No element exists at the target evaluation point.');
+    return (${evaluateTargetInBrowser.toString()})(el, payload);
+  })()`;
+}
+function buildSelectorEvaluationExpression(source, arg, selector) {
+  return `(() => {
+    const payload = ${JSON.stringify({ source, arg })};
+    const selector = ${JSON.stringify(selector)};
+    const elements = document.querySelectorAll(selector);
+    if (elements.length === 0) throw new Error('No element matches selector: ' + selector);
+    if (elements.length > 1) throw new Error('Selector is not unique: ' + selector);
+    return (${evaluateTargetInBrowser.toString()})(elements[0], payload);
+  })()`;
+}
+function buildSelectorProbeExpression(selector) {
+  return `(() => {
+    try {
+      const elements = document.querySelectorAll(${JSON.stringify(selector)});
+      if (elements.length === 0) return { status: 'not-found', count: 0 };
+      if (elements.length > 1) return { status: 'not-unique', count: elements.length };
+      return { status: 'ok', count: 1 };
+    } catch (error) {
+      return { status: 'invalid', message: error instanceof Error ? error.message : String(error) };
+    }
+  })()`;
+}
+function buildSelectorBoundsProbeExpression(selector) {
+  return `(() => {
+    try {
+      const elements = document.querySelectorAll(${JSON.stringify(selector)});
+      if (elements.length === 0) return { status: 'not-found', count: 0 };
+      if (elements.length > 1) return { status: 'not-unique', count: elements.length };
+      const rect = elements[0].getBoundingClientRect();
+      return {
+        status: 'ok',
+        count: 1,
+        bounds: {
+          x: window.scrollX + rect.left,
+          y: window.scrollY + rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+      };
+    } catch (error) {
+      return { status: 'invalid', message: error instanceof Error ? error.message : String(error) };
+    }
+  })()`;
+}
+function assertUniqueSelectorProbe(selector, probe) {
+  if (!probe || typeof probe !== "object") {
+    throw createCommandError("INVALID_TARGET", `invalid selector probe result: ${selector}`, { targetId: selector });
+  }
+  if (probe.status === "ok") return;
+  if (probe.status === "not-found") {
+    throw createCommandError("TARGET_NOT_FOUND", `target not found: ${selector}`, { targetId: selector });
+  }
+  if (probe.status === "not-unique") {
+    throw createCommandError("INVALID_TARGET", `selector is not unique: ${selector}`, {
+      targetId: selector,
+      count: probe.count
+    });
+  }
+  throw createCommandError("INVALID_TARGET", `invalid selector: ${selector}`, {
+    targetId: selector,
+    reason: probe.message
+  });
+}
+function buildTargetFocusExpression(point) {
+  return `(() => {
+    const point = ${JSON.stringify(point)};
+    const el = document.elementFromPoint(point.x, point.y);
+    if (!el) throw new Error('No element exists at the target typing point.');
+    const target = el.closest('input, textarea, [contenteditable], select') || el;
+    if (typeof target.focus !== 'function') {
+      throw new Error('Target element cannot be focused for typing.');
+    }
+    target.focus({ preventScroll: true });
+    return true;
+  })()`;
+}
+function buildSelectOptionsExpression(point, values) {
+  return `(() => {
+    const point = ${JSON.stringify(point)};
+    const requested = ${JSON.stringify(values)};
+    const el = document.elementFromPoint(point.x, point.y);
+    if (!el) throw new Error('No element exists at the target selection point.');
+    const select = el.closest('select');
+    if (!(select instanceof HTMLSelectElement)) {
+      throw new Error('Target element is not a select element.');
+    }
+    if (!select.multiple && requested.length > 1) {
+      throw new Error('Cannot select multiple values in a single-select element.');
+    }
+    const options = Array.from(select.options);
+    const missing = requested.filter(value => !options.some(option => option.value === value));
+    if (missing.length > 0) {
+      throw new Error('Select option value not found: ' + missing.join(', '));
+    }
+    const selected = new Set(requested);
+    for (const option of options) {
+      option.selected = selected.has(option.value);
+    }
+    select.dispatchEvent(new Event('input', { bubbles: true }));
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    return Array.from(select.selectedOptions).map(option => option.value);
+  })()`;
+}
+function isFillFormField(field) {
+  if (!field || typeof field !== "object" || Array.isArray(field)) return false;
+  const candidate = field;
+  return (candidate.name === void 0 || typeof candidate.name === "string") && typeof candidate.targetId === "string" && candidate.targetId.length > 0 && (candidate.type === "textbox" || candidate.type === "checkbox" || candidate.type === "radio" || candidate.type === "combobox" || candidate.type === "slider") && (typeof candidate.value === "string" || typeof candidate.value === "boolean" || typeof candidate.value === "number");
+}
+function buildFillFormExpression(fields) {
+  return `(${fillFormInBrowser.toString()})(${JSON.stringify(fields)})`;
+}
+function buildDropExpression(point, payload) {
+  return `(() => {
+    const point = ${JSON.stringify(point)};
+    const payload = ${JSON.stringify(payload)};
+    const el = document.elementFromPoint(point.x, point.y);
+    if (!el) throw new Error('No element exists at the target drop point.');
+    return (${dispatchDropInBrowser.toString()})(el, payload);
+  })()`;
+}
+async function filePayloadFromPath(path) {
+  const buffer = await readFile(path);
+  return {
+    name: basename(path),
+    type: mimeTypeForPath(path),
+    base64: buffer.toString("base64")
+  };
+}
+function mimeTypeForPath(path) {
+  switch (extname(path).toLowerCase()) {
+    case ".css":
+      return "text/css";
+    case ".csv":
+      return "text/csv";
+    case ".gif":
+      return "image/gif";
+    case ".htm":
+    case ".html":
+      return "text/html";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".js":
+    case ".mjs":
+      return "text/javascript";
+    case ".json":
+      return "application/json";
+    case ".pdf":
+      return "application/pdf";
+    case ".png":
+      return "image/png";
+    case ".svg":
+      return "image/svg+xml";
+    case ".txt":
+      return "text/plain";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "application/octet-stream";
+  }
+}
+function isDropData(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.values(value).every((item) => typeof item === "string");
+}
+async function dispatchDropInBrowser(el, payload) {
+  const base64ToArrayBuffer = (base64) => {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes.buffer;
+  };
+  const dataTransfer = new DataTransfer();
+  for (const [type, value] of Object.entries(payload.data)) {
+    dataTransfer.setData(type, value);
+  }
+  for (const file of payload.files) {
+    dataTransfer.items.add(new File([base64ToArrayBuffer(file.base64)], file.name, { type: file.type }));
+  }
+  const options = {
+    bubbles: true,
+    cancelable: true,
+    dataTransfer
+  };
+  el.dispatchEvent(new DragEvent("dragenter", options));
+  el.dispatchEvent(new DragEvent("dragover", options));
+  el.dispatchEvent(new DragEvent("drop", options));
+}
+function fillFormInBrowser(fields) {
+  const completed = [];
+  for (let index = 0; index < fields.length; index += 1) {
+    const field = fields[index];
+    const el = document.elementFromPoint(field.point.x, field.point.y);
+    if (!el) {
+      throw new Error(`No element exists at form field ${index} (${field.targetId}).`);
+    }
+    try {
+      applyField(el, field);
+      completed.push({
+        ...field.name ? { name: field.name } : {},
+        targetId: field.targetId,
+        type: field.type
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fill form field ${field.name ?? field.targetId}: ${message}`);
+    }
+  }
+  return completed;
+  function applyField(el, field) {
+    switch (field.type) {
+      case "textbox": {
+        const target = closestOrSelf(el, "input, textarea, [contenteditable]");
+        if (target instanceof HTMLElement && target.isContentEditable) {
+          target.focus({ preventScroll: true });
+          target.textContent = String(field.value);
+          target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: String(field.value) }));
+          return;
+        }
+        if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLTextAreaElement)) {
+          throw new Error("textbox field is not an input, textarea, or contenteditable element");
+        }
+        setNativeValue(target, String(field.value));
+        dispatchInputAndChange(target);
+        return;
+      }
+      case "checkbox":
+      case "radio": {
+        const target = closestOrSelf(el, `input[type="${field.type}"]`);
+        if (!(target instanceof HTMLInputElement) || target.type !== field.type) {
+          throw new Error(`${field.type} field is not an input[type="${field.type}"] element`);
+        }
+        target.checked = booleanFillFormValue(field.value);
+        dispatchInputAndChange(target);
+        return;
+      }
+      case "combobox": {
+        const target = closestOrSelf(el, "select");
+        if (!(target instanceof HTMLSelectElement)) {
+          throw new Error("combobox field is not a select element");
+        }
+        const value = String(field.value);
+        if (!Array.from(target.options).some((option) => option.value === value)) {
+          throw new Error(`select option value not found: ${value}`);
+        }
+        setNativeValue(target, value);
+        dispatchInputAndChange(target);
+        return;
+      }
+      case "slider": {
+        const target = closestOrSelf(el, 'input[type="range"]');
+        if (!(target instanceof HTMLInputElement) || target.type !== "range") {
+          throw new Error('slider field is not an input[type="range"] element');
+        }
+        setNativeValue(target, String(field.value));
+        dispatchInputAndChange(target);
+        return;
+      }
+    }
+  }
+  function closestOrSelf(el, selector) {
+    return el.closest(selector) ?? el;
+  }
+  function setNativeValue(element, value) {
+    const prototype = Object.getPrototypeOf(element);
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, "value");
+    if (descriptor?.set) {
+      descriptor.set.call(element, value);
+    } else {
+      element.value = value;
+    }
+  }
+  function dispatchInputAndChange(element) {
+    element.dispatchEvent(new Event("input", { bubbles: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  function booleanFillFormValue(value) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    const normalized = value.trim().toLowerCase();
+    if (["1", "true", "yes", "on", "checked"].includes(normalized)) return true;
+    if (["0", "false", "no", "off", "unchecked"].includes(normalized)) return false;
+    throw new Error("checkbox/radio values must be boolean-like");
+  }
+}
+function evaluatePageInBrowser(payload) {
+  const source = payload.source.trim();
+  try {
+    const candidate = new Function(`return (${source})`)();
+    if (typeof candidate === "function") {
+      return candidate(payload.arg);
+    }
+  } catch {
+  }
+  return new Function("arg", `return (${payload.source})`)(payload.arg);
+}
+function evaluateTargetInBrowser(el, payload) {
+  const source = payload.source.trim();
+  try {
+    const candidate = new Function(`return (${source})`)();
+    if (typeof candidate === "function") {
+      return candidate(el, payload.arg);
+    }
+  } catch {
+  }
+  return new Function("el", "arg", `return (${payload.source})`)(el, payload.arg);
+}
+function normalizeConsoleLevel(type) {
+  if (type === "debug") return "debug";
+  if (type === "warning") return "warning";
+  if (type === "error" || type === "assert") return "error";
+  return "info";
+}
+function severityForConsoleLevel(level) {
+  switch (level) {
+    case "debug":
+      return 10;
+    case "info":
+      return 20;
+    case "warning":
+      return 30;
+    case "error":
+      return 40;
+  }
+}
+function consoleTextFromArgs(args2) {
+  return args2.map(remoteObjectText).join(" ");
+}
+function remoteObjectText(object) {
+  if ("value" in object) {
+    const value = object.value;
+    if (typeof value === "string") return value;
+    if (value === void 0) return "undefined";
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  if (typeof object.description === "string") return object.description;
+  if (typeof object.type === "string") return object.type;
+  return "";
+}
+function exceptionText(details, exception) {
+  if (typeof exception?.description === "string") return exception.description;
+  if ("value" in (exception ?? {})) return remoteObjectText(exception);
+  if (typeof details?.text === "string") return details.text;
+  return "Uncaught exception";
+}
+function firstCallFrame(stackTrace) {
+  const callFrames = stackTrace?.callFrames;
+  return Array.isArray(callFrames) && callFrames.length > 0 && typeof callFrames[0] === "object" ? callFrames[0] : null;
+}
+function toNetworkRequestSummary(record) {
+  return {
+    index: record.index,
+    tabId: record.tabId,
+    method: record.method,
+    url: record.url,
+    resourceType: record.resourceType,
+    isNavigationRequest: record.isNavigationRequest,
+    timestamp: record.timestamp,
+    navigationIndex: record.navigationIndex,
+    ...typeof record.status === "number" ? { status: record.status } : {},
+    ...record.statusText ? { statusText: record.statusText } : {},
+    ...record.failureText ? { failureText: record.failureText } : {}
+  };
+}
+function networkRequestMatches(record, query, activeNavigationIndex) {
+  if (!query.all && record.navigationIndex !== activeNavigationIndex) return false;
+  if (!query.includeStatic && isSuccessfulStaticRequest(record)) return false;
+  if (!query.filter) return true;
+  try {
+    return new RegExp(query.filter).test(record.url);
+  } catch {
+    return record.url.includes(query.filter);
+  }
+}
+function isSuccessfulStaticRequest(record) {
+  if (typeof record.status !== "number" || record.status < 200 || record.status >= 400) return false;
+  return STATIC_RESOURCE_TYPES.has(record.resourceType);
+}
+function hasNetworkResponse(record) {
+  return typeof record.status === "number" && !record.failureText;
+}
+function headersFromUnknown(value) {
+  if (!value || typeof value !== "object") return {};
+  const headers = {};
+  for (const [key, headerValue] of Object.entries(value)) {
+    headers[key.toLowerCase()] = typeof headerValue === "string" ? headerValue : String(headerValue);
+  }
+  return headers;
+}
+function normalizeResourceType(type) {
+  return type.toLowerCase();
+}
+function networkRequestKey(sessionId, requestId) {
+  return `${sessionId}:${requestId}`;
+}
+function toPublicDialog(record) {
+  return {
+    id: record.id,
+    tabId: record.tabId,
+    type: record.type,
+    message: record.message,
+    ...typeof record.defaultValue === "string" ? { defaultValue: record.defaultValue } : {},
+    timestamp: record.timestamp,
+    handled: record.handled,
+    ...typeof record.accepted === "boolean" ? { accepted: record.accepted } : {},
+    ...typeof record.promptText === "string" ? { promptText: record.promptText } : {},
+    ...typeof record.handledTimestamp === "number" ? { handledTimestamp: record.handledTimestamp } : {},
+    ...record.error ? { error: record.error } : {}
+  };
+}
+function removeDialogsForTab(records, tabId) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index].tabId === tabId) records.splice(index, 1);
+  }
+}
+function toPublicFileChooser(record) {
+  return {
+    id: record.id,
+    tabId: record.tabId,
+    timestamp: record.timestamp,
+    multiple: record.multiple,
+    handled: record.handled,
+    ...record.paths ? { paths: [...record.paths] } : {},
+    ...typeof record.cancelled === "boolean" ? { cancelled: record.cancelled } : {},
+    ...typeof record.handledTimestamp === "number" ? { handledTimestamp: record.handledTimestamp } : {},
+    ...record.error ? { error: record.error } : {}
+  };
+}
+function removeFileChoosersForTab(records, tabId) {
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index].tabId === tabId) records.splice(index, 1);
+  }
+}
+var STATIC_RESOURCE_TYPES = /* @__PURE__ */ new Set(["font", "image", "media", "script", "stylesheet"]);
 async function resolveCdpWsEndpoint(endpoint) {
   if (endpoint.startsWith("ws://") || endpoint.startsWith("wss://")) {
     return endpoint;
@@ -5371,7 +7022,7 @@ async function resolveCdpWsEndpoint(endpoint) {
 }
 
 // bin/agrune-mcp.ts
-import { mkdir } from "fs/promises";
+import { mkdir as mkdir2 } from "fs/promises";
 import { homedir } from "os";
 import { join as join3 } from "path";
 
@@ -5435,7 +7086,7 @@ if (isolated && userDataDirArg) {
 }
 var userDataDir = attachEndpoint || isolated ? void 0 : userDataDirArg ?? join3(homedir(), ".agrune", "browser-profile");
 if (userDataDir) {
-  await mkdir(userDataDir, { recursive: true });
+  await mkdir2(userDataDir, { recursive: true });
 }
 var driver = new CdpDriver({
   mode: attachEndpoint ? "attach" : "launch",

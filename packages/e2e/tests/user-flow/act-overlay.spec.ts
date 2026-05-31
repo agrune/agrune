@@ -1,8 +1,8 @@
 /**
- * Scenario D — agrune_act end-to-end on the overlay-modal fixture:
- *   1. Snapshot the page → cancel button is reachable (context: page).
- *   2. Click the cancel button via agrune_act → modal opens.
- *   3. Snapshot again → active context flips to overlay; the underlying
+ * Scenario D — browser_click end-to-end on the overlay-modal fixture:
+ *   1. Fetch page targets → cancel button is reachable (context: page).
+ *   2. Click the cancel button via browser_click → modal opens.
+ *   3. Fetch targets again → active context flips to overlay; the underlying
  *      cancel button must no longer be returned as actionable.
  *   4. Clicking the modal's "Keep editing" button closes the modal.
  */
@@ -18,7 +18,7 @@ import {
 
 const skipReason = realE2eSkipReason()
 
-test.describe('real user-flow: agrune_act + overlay context', () => {
+test.describe('real user-flow: browser_click + overlay context', () => {
   test.skip(!!skipReason, skipReason ?? '')
 
   let harness: RealHarness | null = null
@@ -45,9 +45,8 @@ test.describe('real user-flow: agrune_act + overlay context', () => {
     )
     expect(cancelTarget, 'cancel-btn target').not.toBeNull()
 
-    const clickRes = await h.call('agrune_act', {
+    const clickRes = await h.call('browser_click', {
       targetId: cancelTarget!.targetId,
-      action: 'click',
     })
     const clickParsed = clickRes.parsed as { ok?: boolean }
     expect(clickParsed.ok).toBe(true)
@@ -58,7 +57,7 @@ test.describe('real user-flow: agrune_act + overlay context', () => {
     const deadline = Date.now() + 5_000
     let sawOverlay = false
     while (Date.now() < deadline && !sawOverlay) {
-      const res = await h.call('agrune_snapshot', {})
+      const res = await h.call('browser_get_targets', {})
       const parsed = res.parsed as { context?: string } | null
       if (parsed?.context === 'overlay') {
         sawOverlay = true
@@ -78,9 +77,8 @@ test.describe('real user-flow: agrune_act + overlay context', () => {
     // Click "Keep editing" to close the modal.
     const keep = overlayTargets.find(t => t.targetId === 'modal-keep')
     expect(keep, 'modal-keep overlay target').toBeDefined()
-    const keepRes = await h.call('agrune_act', {
+    const keepRes = await h.call('browser_click', {
       targetId: keep!.targetId,
-      action: 'click',
     })
     const keepParsed = keepRes.parsed as { ok?: boolean }
     expect(keepParsed.ok).toBe(true)
