@@ -1,6 +1,6 @@
 /**
  * Scenario A — INPUT-01/02/03: browser_fill against tricky-inputs fixture
- * via the real MCP handler → CdpDriver → real Chrome.
+ * via the real MCP handler → PlaywrightDriver → real chromium.
  */
 
 import { test, expect } from '@playwright/test'

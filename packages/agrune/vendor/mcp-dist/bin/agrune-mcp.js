@@ -4,7 +4,7 @@ const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   createMcpServer
-} from "../chunk-XCPUELDD.js";
+} from "../chunk-TQEKSDXH.js";
 
 // ../../node_modules/.pnpm/@modelcontextprotocol+sdk@1.27.1_zod@4.3.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
@@ -102,6 +102,9 @@ var StdioServerTransport = class {
 import { chromium } from "playwright";
 import { mkdir, readFile } from "fs/promises";
 import { basename, dirname, extname, resolve } from "path";
+import { existsSync, readFileSync } from "fs";
+import { dirname as dirname2, join } from "path";
+import { fileURLToPath } from "url";
 var __defProp = Object.defineProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -14620,6 +14623,23 @@ var PlaywrightSession = class {
   page(tabId) {
     return this.requireTab(this.resolveTabId(tabId)).page;
   }
+  /**
+   * Install the visual-effects bundle into the context (future documents) and
+   * best-effort into already-open pages. Decoration only — failures are ignored.
+   */
+  async installVisualRuntime(installExpression) {
+    const context = this.requireContext();
+    await context.addInitScript(installExpression).catch(() => void 0);
+    for (const entry of this.pages.values()) {
+      await entry.page.evaluate(installExpression).catch(() => void 0);
+    }
+  }
+  /** Best-effort evaluate on every open page (visual config broadcast). */
+  broadcastEvaluate(expression) {
+    for (const entry of this.pages.values()) {
+      void entry.page.evaluate(expression).catch(() => void 0);
+    }
+  }
   /** Resolve a manifest target ref to its Playwright locator. */
   async locatorForTarget(tabId, targetRef) {
     return this.resolveTargetLocator(this.resolveTabId(tabId), targetRef);
@@ -15676,6 +15696,45 @@ async function pollUntil(check2, timeoutMs) {
   }
   throw new AgruneBackendError("TIMEOUT", `Timed out after ${timeoutMs}ms.`);
 }
+var cached2;
+function loadVisualRuntimeSource() {
+  if (cached2 !== void 0) return cached2;
+  cached2 = null;
+  const candidates = [];
+  const envPath = process.env.AGRUNE_VISUAL_BUNDLE;
+  if (envPath && envPath.trim().length > 0) candidates.push(envPath.trim());
+  if (process.argv[1]) {
+    const entryDir = dirname2(process.argv[1]);
+    candidates.push(
+      join(entryDir, "visual-runtime.global.js"),
+      join(entryDir, "..", "visual-runtime.global.js")
+    );
+  }
+  try {
+    const moduleDir = dirname2(fileURLToPath(import.meta.url));
+    candidates.push(
+      join(moduleDir, "visual-runtime.global.js"),
+      join(moduleDir, "..", "visual-runtime.global.js"),
+      // workspace dev layout: packages/backend/{src,dist} → packages/runtime/dist
+      join(moduleDir, "..", "..", "runtime", "dist", "visual-runtime.global.js")
+    );
+  } catch {
+  }
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) {
+        cached2 = readFileSync(candidate, "utf-8");
+        break;
+      }
+    } catch {
+    }
+  }
+  return cached2;
+}
+function visualInstallExpression(source) {
+  return `(() => { if (window.__agrune_visual__) return; ${source}
+;try { window.__agrune_visual__ = __agrune_visual__ } catch {} })()`;
+}
 var PlaywrightDriver = class {
   constructor(options) {
     this.options = options;
@@ -15686,10 +15745,16 @@ var PlaywrightDriver = class {
   commandCounter = 0;
   snapshots = /* @__PURE__ */ new Map();
   config = normalizeRuntimeConfig(void 0);
+  visualsInstalled = false;
   async connect() {
     if (this.connected) return;
     await this.session.start();
     this.connected = true;
+    const visualSource = loadVisualRuntimeSource();
+    if (visualSource) {
+      await this.session.installVisualRuntime(visualInstallExpression(visualSource));
+      this.visualsInstalled = true;
+    }
     if (this.options.startUrl) {
       await this.session.open(this.options.startUrl).catch(() => void 0);
     }
@@ -15766,6 +15831,11 @@ var PlaywrightDriver = class {
   }
   updateConfig(config2) {
     this.config = mergeRuntimeConfig(this.config, config2);
+    if (this.visualsInstalled) {
+      this.session.broadcastEvaluate(
+        `window.__agrune_visual__ && window.__agrune_visual__.applyConfig(${JSON.stringify(this.config)})`
+      );
+    }
   }
   getConfig() {
     return { ...this.config };
@@ -15922,8 +15992,8 @@ var PlaywrightDriver = class {
   }
   async refreshSnapshot(tabId) {
     if (this.hasPendingDialog(tabId)) {
-      const cached2 = this.snapshots.get(tabId);
-      if (cached2) return cached2;
+      const cached3 = this.snapshots.get(tabId);
+      if (cached3) return cached3;
       throw new AgruneBackendError(
         "SESSION_NOT_ACTIVE",
         "Page is blocked by a pending dialog. Handle it with browser_handle_dialog first."
@@ -15968,6 +16038,7 @@ var PlaywrightDriver = class {
       case "act": {
         const targetId = requireString(command, "targetId");
         const action = typeof command.action === "string" ? command.action : "click";
+        await this.animatePointerForTarget(tabId, targetId);
         const interruption = await this.session.click(tabId, targetId, action, {
           button: command.button,
           modifiers: command.modifiers,
@@ -16094,6 +16165,26 @@ var PlaywrightDriver = class {
     }
     return { actions: actions.length };
   }
+  /**
+   * Decorative cursor flight to the target before an act command. The cached
+   * snapshot is fresh here (flowBlockGate just refreshed it). Best-effort —
+   * any failure falls through to the real action.
+   */
+  async animatePointerForTarget(tabId, targetId) {
+    if (!this.visualsInstalled || !this.config.pointerAnimation) return;
+    const center = this.snapshots.get(tabId)?.targets.find((t) => t.targetId === targetId)?.center;
+    if (!center) return;
+    const page = this.session.page(tabId);
+    await page.evaluate(
+      ({ x, y, config: config2 }) => {
+        const visual = window.__agrune_visual__;
+        if (!visual) return;
+        visual.applyConfig(config2);
+        return visual.animatePointer(x, y);
+      },
+      { x: center.x, y: center.y, config: this.config }
+    ).catch(() => void 0);
+  }
   async targetCenter(tabId, targetRef) {
     const locator = await this.session.locatorForTarget(tabId, targetRef);
     const box = await locator.boundingBox();
@@ -16157,7 +16248,7 @@ function toCommandErrorCode(code) {
 // bin/agrune-mcp.ts
 import { mkdir as mkdir2 } from "fs/promises";
 import { homedir } from "os";
-import { join } from "path";
+import { join as join2 } from "path";
 
 // src/version.ts
 var MCP_SERVER_VERSION = true ? "0.4.1" : "0.0.0";
@@ -16217,7 +16308,7 @@ if (userDataDirArg && attachEndpoint) {
 if (isolated && userDataDirArg) {
   process.stderr.write("[agrune] --user-data-dir is ignored when --isolated is set\n");
 }
-var userDataDir = attachEndpoint || isolated ? void 0 : userDataDirArg ?? join(homedir(), ".agrune", "browser-profile");
+var userDataDir = attachEndpoint || isolated ? void 0 : userDataDirArg ?? join2(homedir(), ".agrune", "browser-profile");
 if (userDataDir) {
   await mkdir2(userDataDir, { recursive: true });
 }

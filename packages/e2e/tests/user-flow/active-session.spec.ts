@@ -1,6 +1,6 @@
 /**
  * Scenario B — SESS-01/02/03: browser_focus_tab + implicit-active-tab routing
- * via the real MCP handler → CdpDriver → real Chrome.
+ * via the real MCP handler → PlaywrightDriver → real chromium.
  *
  * Opens two tabs (tricky-inputs and overlay-modal), then verifies:
  *   1. A tool call without tabId targets whichever tab is currently active.

@@ -29,8 +29,6 @@ export type {
   FillFormFieldValue,
   FillFormResult,
   FocusResult,
-  MacroResult,
-  MacroRunResponse,
   NavigationResult,
   NetworkRequestDetail,
   NetworkRequestPart,
@@ -364,6 +362,5 @@ export function isCommandResultOk(result: CommandResult): result is CommandResul
   return result.ok
 }
 
-export * from './native-messages'
 export * from './driver.js'
 export * from './manifest.js'

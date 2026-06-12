@@ -110,10 +110,10 @@ Agents should not need to read manifest files, load manifests manually, use CSS 
 | Package | Path | Role | Published |
 | --- | --- | --- | --- |
 | `agrune` | `packages/agrune` | Public npm package whose default bin runs the MCP server. | Yes |
-| `@agrune/cli` | `packages/cli` | Internal CLI and local Playwright daemon prototype. | No |
+| `@agrune/cli` | `packages/cli` | Internal CLI with a per-workspace Playwright daemon (unix socket, auto-spawn). | No |
 | `@agrune/mcp` | `packages/mcp` | Internal MCP server source bundled into `agrune`. | No |
-| `@agrune/browser` | `packages/browser` | Internal CDP driver, Chrome launcher, runtime injector. | No |
-| `@agrune/runtime` | `packages/runtime` | Internal page runtime and target resolver. | No |
+| `@agrune/backend` | `packages/backend` | Internal shared Playwright backend (session, snapshot, BrowserDriver adapter). | No |
+| `@agrune/runtime` | `packages/runtime` | Internal visual-effects page bundle (cursor, aurora). | No |
 | `@agrune/core` | `packages/core` | Internal shared types and contracts. | No |
 | `@agrune/manifest` | `packages/manifest` | Internal manifest schema/validator used by demos and future tooling. | No |
 | `@agrune/e2e` | `packages/e2e` | Internal browser-flow tests and fixtures. | No |
@@ -123,7 +123,7 @@ Agents should not need to read manifest files, load manifests manually, use CSS 
 ```bash
 pnpm install
 pnpm --filter @agrune/core run build
-pnpm --filter @agrune/browser run build
+pnpm --filter @agrune/backend run build
 pnpm --filter agrune run build
 pnpm --filter @agrune/mcp run test
 pnpm --filter agrune run test

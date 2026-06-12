@@ -42,6 +42,8 @@ describeSmoke('PlaywrightDriver (headless chromium smoke)', () => {
 
   beforeAll(async () => {
     await driver.connect()
+    // Decoration off: cursor flights would add latency to every act below.
+    driver.updateConfig({ pointerAnimation: false, auroraGlow: false })
   }, 60_000)
 
   afterAll(async () => {

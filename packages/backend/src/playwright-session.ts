@@ -158,6 +158,25 @@ export class PlaywrightSession {
     return this.requireTab(this.resolveTabId(tabId)).page
   }
 
+  /**
+   * Install the visual-effects bundle into the context (future documents) and
+   * best-effort into already-open pages. Decoration only — failures are ignored.
+   */
+  async installVisualRuntime(installExpression: string): Promise<void> {
+    const context = this.requireContext()
+    await context.addInitScript(installExpression).catch(() => undefined)
+    for (const entry of this.pages.values()) {
+      await entry.page.evaluate(installExpression).catch(() => undefined)
+    }
+  }
+
+  /** Best-effort evaluate on every open page (visual config broadcast). */
+  broadcastEvaluate(expression: string): void {
+    for (const entry of this.pages.values()) {
+      void entry.page.evaluate(expression).catch(() => undefined)
+    }
+  }
+
   /** Resolve a manifest target ref to its Playwright locator. */
   async locatorForTarget(tabId: number | undefined, targetRef: string): Promise<Locator> {
     return this.resolveTargetLocator(this.resolveTabId(tabId), targetRef)

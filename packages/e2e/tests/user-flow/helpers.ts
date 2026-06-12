@@ -71,6 +71,9 @@ export async function createRealHarness(options: HarnessOptions = {}): Promise<R
   }
 
   await driver.connect()
+  // Visual decoration (cursor flight, aurora) adds per-act latency — keep the
+  // suite deterministic and fast.
+  driver.updateConfig({ pointerAnimation: false, auroraGlow: false })
   const startUrl = options.startUrl ?? 'http://127.0.0.1:5555/tricky-inputs.html'
   await driver.openTab(startUrl)
   await driver.ensureReady()

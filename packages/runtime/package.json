@@ -11,9 +11,9 @@
       "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./page-runtime": {
-      "import": "./dist/page-runtime.global.js",
-      "default": "./dist/page-runtime.global.js"
+    "./visual-runtime": {
+      "import": "./dist/visual-runtime.global.js",
+      "default": "./dist/visual-runtime.global.js"
     }
   },
   "scripts": {
@@ -23,7 +23,6 @@
   },
   "dependencies": {
     "@agrune/core": "workspace:*",
-    "@agrune/manifest": "workspace:*",
     "ai-motion": "0.4.8"
   },
   "devDependencies": {

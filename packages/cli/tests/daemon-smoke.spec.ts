@@ -1306,9 +1306,10 @@ runSmoke('workspace socket daemon', () => {
     }
 
     tempDir = await mkdtemp(join(tmpdir(), 'agrune-auto-'))
+    const workDir: string = tempDir
     const env: NodeJS.ProcessEnv = {
       ...process.env,
-      HOME: tempDir,
+      HOME: workDir,
       // HOME is faked for session-file isolation; keep Playwright's browser
       // cache pointing at the real install so the spawned daemon can launch.
       PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? defaultBrowsersPath(),
@@ -1317,7 +1318,7 @@ runSmoke('workspace socket daemon', () => {
 
     const run = (args: string[]) =>
       spawnSync(process.execPath, [binPath, ...args], {
-        cwd: tempDir,
+        cwd: workDir,
         env,
         encoding: 'utf-8' as const,
         timeout: 60_000,
@@ -1328,7 +1329,7 @@ runSmoke('workspace socket daemon', () => {
     expect(JSON.parse(first.stdout)).toMatchObject({ ok: true, tabs: [] })
 
     // Session file recorded under the redirected HOME.
-    const runRoot = join(tempDir, '.agrune', 'run')
+    const runRoot = join(workDir, '.agrune', 'run')
     const [workspaceHashDir] = await readdir(runRoot)
     expect(workspaceHashDir).toBeTruthy()
     const sessionRaw = await readFile(join(runRoot, workspaceHashDir, 'daemon.json'), 'utf-8')

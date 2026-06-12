@@ -26,7 +26,7 @@ The `agrune` binary is the MCP server. There is no `agrune mcp` subcommand and n
 
 - MCP stdio server implementation
 - Public tool registration for browser control
-- Chrome/CDP launcher integration through `@agrune/browser`
+- Playwright-based browser backend through `@agrune/backend`
 - Command broker and HITL controller internals
 
 Manifest authoring, registry sync, DevTools, and Studio workflows are separate future/product surfaces and should not leak into the regular agent MCP tool list.

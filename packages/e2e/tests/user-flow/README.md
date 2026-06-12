@@ -1,14 +1,14 @@
 # Real user-flow E2E specs
 
-These specs route through the **real** MCP tool layer → `CdpDriver` → a real
-Chrome process. They do NOT use Playwright's bundled chromium. The runtime-level
+These specs route through the **real** MCP tool layer → `PlaywrightDriver` → a
+real chromium instance. The runtime-level
 specs in the sibling directory still use Playwright's browser to validate the
 scanner; these specs complement them by validating the stack that AI harnesses
 (Claude Code, Codex) actually hit.
 
 ## How the harness works
 
-- `helpers.ts` boots `CdpDriver` in `launch` mode with `headless: true` and
+- `helpers.ts` boots `PlaywrightDriver` in `launch` mode with `headless: true` and
   builds an in-process `createMcpServer(driver)` handler.
 - Each `call(name, args)` invokes `handleToolCall(name, args)` directly — the
   same function the MCP stdio transport dispatches to.

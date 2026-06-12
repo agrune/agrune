@@ -20,7 +20,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "pnpm --filter @agrune/backend run build && tsup",
+    "build": "pnpm --filter @agrune/backend run build && pnpm --filter @agrune/runtime run build && tsup && node -e \"const fs=require('fs');const src='../runtime/dist/visual-runtime.global.js';if(fs.existsSync(src)){fs.copyFileSync(src,'dist/visual-runtime.global.js');fs.copyFileSync(src,'dist/bin/visual-runtime.global.js')}\"",
     "pretest": "pnpm --filter @agrune/backend run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",

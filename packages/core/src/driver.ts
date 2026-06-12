@@ -1,25 +1,5 @@
 import type { PageSnapshot, CommandResult, AgruneRuntimeConfig } from './index.js'
 
-/**
- * MacroResult 유니온 타입 — source of truth: @agrune/runtime/macro-runner
- * 순환 import 회피를 위해 core 에 local 복제.
- */
-export type MacroResult =
-  | { status: 'ok' }
-  | { status: 'already-satisfied' }
-  | { status: 'precondition-failed'; reason: string }
-  | { status: 'postcondition-failed'; reason: string }
-  | { status: 'circuit-open'; failedStep: number }
-  | { status: 'step-error'; stepIndex: number; error: string }
-  | { status: 'target-not-found'; stepIndex: number; targetId: string }
-
-export type MacroRunResponse = MacroResult & {
-  macroId: string
-  stepCount: number
-  /** Phase 14-03: sensitive step 인덱스 목록 — CommandBroker redaction 용 (optional) */
-  sensitiveStepIndices?: number[]
-}
-
 export interface Session {
   tabId: number
   url: string

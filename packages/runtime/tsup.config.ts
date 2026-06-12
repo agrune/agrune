@@ -10,12 +10,12 @@ export default defineConfig([
     dts: true,
   },
   {
-    entry: { 'page-runtime': 'src/page-runtime.ts' },
+    entry: { 'visual-runtime': 'src/visual-runtime.ts' },
     format: ['iife'],
     clean: false,
     sourcemap: true,
     target: 'es2022',
     noExternal: [/.*/],
-    globalName: '__agrune_runtime__',
+    globalName: '__agrune_visual__',
   },
 ])

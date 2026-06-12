@@ -37,6 +37,7 @@ import type {
 import { createCommandError, mergeRuntimeConfig, normalizeRuntimeConfig } from '@agrune/core'
 import { AgruneBackendError } from './errors.js'
 import { PlaywrightSession, type PlaywrightConnection } from './playwright-session.js'
+import { loadVisualRuntimeSource, visualInstallExpression } from './visual-effects.js'
 
 export interface PlaywrightDriverOptions {
   connection: PlaywrightConnection
@@ -56,6 +57,7 @@ export class PlaywrightDriver implements BrowserDriver {
   private commandCounter = 0
   private readonly snapshots = new Map<number, PageSnapshot>()
   private config: AgruneRuntimeConfig = normalizeRuntimeConfig(undefined)
+  private visualsInstalled = false
 
   constructor(private readonly options: PlaywrightDriverOptions) {
     this.session = new PlaywrightSession({ connection: options.connection })
@@ -65,6 +67,13 @@ export class PlaywrightDriver implements BrowserDriver {
     if (this.connected) return
     await this.session.start()
     this.connected = true
+
+    const visualSource = loadVisualRuntimeSource()
+    if (visualSource) {
+      await this.session.installVisualRuntime(visualInstallExpression(visualSource))
+      this.visualsInstalled = true
+    }
+
     if (this.options.startUrl) {
       await this.session.open(this.options.startUrl).catch(() => undefined)
     }
@@ -158,6 +167,11 @@ export class PlaywrightDriver implements BrowserDriver {
 
   updateConfig(config: Partial<AgruneRuntimeConfig>): void {
     this.config = mergeRuntimeConfig(this.config, config)
+    if (this.visualsInstalled) {
+      this.session.broadcastEvaluate(
+        `window.__agrune_visual__ && window.__agrune_visual__.applyConfig(${JSON.stringify(this.config)})`,
+      )
+    }
   }
 
   getConfig(): AgruneRuntimeConfig {
@@ -433,6 +447,7 @@ export class PlaywrightDriver implements BrowserDriver {
       case 'act': {
         const targetId = requireString(command, 'targetId')
         const action = typeof command.action === 'string' ? command.action : 'click'
+        await this.animatePointerForTarget(tabId, targetId)
         const interruption = await this.session.click(tabId, targetId, action, {
           button: command.button as never,
           modifiers: command.modifiers as never,
@@ -583,6 +598,32 @@ export class PlaywrightDriver implements BrowserDriver {
       }
     }
     return { actions: actions.length }
+  }
+
+  /**
+   * Decorative cursor flight to the target before an act command. The cached
+   * snapshot is fresh here (flowBlockGate just refreshed it). Best-effort —
+   * any failure falls through to the real action.
+   */
+  private async animatePointerForTarget(tabId: number, targetId: string): Promise<void> {
+    if (!this.visualsInstalled || !this.config.pointerAnimation) return
+    const center = this.snapshots.get(tabId)?.targets.find(t => t.targetId === targetId)?.center
+    if (!center) return
+    const page = this.session.page(tabId)
+    await page.evaluate(
+      ({ x, y, config }) => {
+        const visual = (window as unknown as {
+          __agrune_visual__?: {
+            applyConfig(config: unknown): void
+            animatePointer(x: number, y: number): Promise<void>
+          }
+        }).__agrune_visual__
+        if (!visual) return
+        visual.applyConfig(config)
+        return visual.animatePointer(x, y)
+      },
+      { x: center.x, y: center.y, config: this.config as unknown },
+    ).catch(() => undefined)
   }
 
   private async targetCenter(tabId: number, targetRef: string): Promise<{ x: number; y: number }> {

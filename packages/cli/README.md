@@ -1,6 +1,8 @@
 # @agrune/cli
 
-Internal CLI-first prototype for the Playwright daemon path.
+Internal CLI backed by a per-workspace Playwright daemon. One-shot commands
+talk to a detached daemon over a unix socket (`~/.agrune/run/<hash>/daemon.sock`)
+and auto-spawn it on first use; `--host/--port` keeps a TCP path for tests.
 
 ```bash
 pnpm --filter @agrune/cli run build
