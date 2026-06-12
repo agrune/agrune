@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { CdpDriver } from '@agrune/browser'
+import { PlaywrightDriver, type PlaywrightConnection } from '@agrune/backend'
 import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -72,12 +72,17 @@ if (userDataDir) {
   await mkdir(userDataDir, { recursive: true })
 }
 
-const driver = new CdpDriver({
-  mode: attachEndpoint ? 'attach' : 'launch',
-  ...(attachEndpoint ? { wsEndpoint: attachEndpoint } : {}),
-  headless,
-  startUrl,
-  ...(userDataDir && !attachEndpoint ? { userDataDir } : {}),
+const connection: PlaywrightConnection = attachEndpoint
+  ? { mode: 'attach', endpoint: attachEndpoint }
+  : userDataDir
+    ? { mode: 'persistent', userDataDir, headless }
+    : { mode: 'launch', headless }
+
+const driver = new PlaywrightDriver({
+  connection,
+  // Persistent contexts open an initial blank page on their own; for the
+  // other modes fall back to about:blank so a tab always exists (CdpDriver parity).
+  startUrl: startUrl ?? (connection.mode === 'launch' ? 'about:blank' : undefined),
 })
 
 const { server } = createMcpServer(driver)
@@ -92,7 +97,7 @@ if (isMcpHost) {
 }
 
 if (!isMcpHost) {
-  void driver.connect().catch((error) => {
+  void driver.connect().catch((error: unknown) => {
     process.stderr.write(`[agrune] chrome launch error: ${error instanceof Error ? error.message : String(error)}\n`)
   })
   // Keep process alive

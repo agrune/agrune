@@ -6,13 +6,7 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
-var __commonJS = (cb, mod) => function __require2() {
+var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 var __export = (target, all) => {
@@ -30065,9 +30059,6 @@ function toAgentTargetRef(target) {
   if (!repeatKey || !baseTargetId) return target.targetId;
   return `${repeatId}[key=${repeatKey}].${baseTargetId}`;
 }
-function createCommandError(code, message, details) {
-  return { code, message, details };
-}
 
 // src/mcp-tools.ts
 function toMcpToolResult(result) {
@@ -32659,11 +32650,7 @@ function extractError(parsed) {
 }
 
 export {
-  __require,
-  __commonJS,
-  __toESM,
   JSONRPCMessageSchema,
-  createCommandError,
   registerAgruneTools,
   CommandBroker,
   HitlSkipError,
@@ -32671,4 +32658,4 @@ export {
   getToolDefinitions,
   createMcpServer
 };
-//# sourceMappingURL=chunk-5OUHTLCZ.js.map
+//# sourceMappingURL=chunk-XCPUELDD.js.map
