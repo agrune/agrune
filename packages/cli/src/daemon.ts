@@ -1,4 +1,5 @@
 import http from 'node:http'
+import net from 'node:net'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { PlaywrightSession } from '@agrune/backend'
@@ -93,6 +94,13 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<RunningD
 
   const socketPath = options.socketPath
   if (socketPath && socketFileExists(socketPath)) {
+    if (await socketAccepting(socketPath)) {
+      await session.stop()
+      throw new CliError(
+        'DAEMON_ALREADY_RUNNING',
+        `Another Agrune daemon is already listening at ${socketPath}. Stop it with "agrune daemon stop" first.`,
+      )
+    }
     // Stale socket from a crashed daemon would make listen() fail with EADDRINUSE.
     removeSocketFile(socketPath)
   }
@@ -536,6 +544,20 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown): void
     'content-length': Buffer.byteLength(text),
   })
   res.end(text)
+}
+
+/** True when something is actively accepting connections on the socket. */
+function socketAccepting(socketPath: string): Promise<boolean> {
+  return new Promise(resolve => {
+    const probe = net.connect(socketPath)
+    const finish = (accepting: boolean) => {
+      probe.destroy()
+      resolve(accepting)
+    }
+    probe.once('connect', () => finish(true))
+    probe.once('error', () => finish(false))
+    probe.setTimeout(1_000, () => finish(false))
+  })
 }
 
 function shouldTrackRequest(method: string, url: URL): boolean {

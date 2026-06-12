@@ -12,7 +12,9 @@ import {
   workspaceRunDir,
 } from './session-file.js'
 
-const SPAWN_LOCK_STALE_MS = 10_000
+// Generous: a cold browser launch can take a while — stealing a live lock
+// would double-spawn daemons, which is worse than waiting out a crashed one.
+const SPAWN_LOCK_STALE_MS = 60_000
 const HEALTH_POLL_TIMEOUT_MS = 15_000
 const HEALTH_POLL_INTERVAL_MS = 150
 
@@ -53,6 +55,19 @@ export async function stopDaemon(): Promise<{ stopped: boolean; pid?: number }> 
     const deadline = Date.now() + 5_000
     while (Date.now() < deadline && isPidAlive(session.pid)) {
       await sleep(100)
+    }
+    if (isPidAlive(session.pid)) {
+      // Refuses to die gracefully — escalate before clearing its session
+      // state, otherwise we'd leave an unreachable orphan running.
+      try {
+        process.kill(session.pid, 'SIGKILL')
+      } catch {
+        // already gone
+      }
+      const killDeadline = Date.now() + 2_000
+      while (Date.now() < killDeadline && isPidAlive(session.pid)) {
+        await sleep(100)
+      }
     }
   }
   removeSocketFile(session.socketPath)
@@ -99,7 +114,19 @@ async function spawnAndWait(
       cwd: process.cwd(),
     })
     child.unref()
-    await waitForHealthy(endpoint)
+    try {
+      await waitForHealthy(endpoint)
+    } catch (error) {
+      // Don't leave a late-arriving orphan daemon behind a failed wait.
+      if (child.pid) {
+        try {
+          process.kill(child.pid, 'SIGTERM')
+        } catch {
+          // already gone
+        }
+      }
+      throw error
+    }
   } finally {
     rmSync(lockPath, { force: true })
   }

@@ -15803,6 +15803,17 @@ var PlaywrightDriver = class {
   }
   async execute(tabId, command) {
     const commandId = typeof command.commandId === "string" ? command.commandId : `cmd-${++this.commandCounter}-${Date.now()}`;
+    if (this.hasPendingDialog(tabId)) {
+      return {
+        commandId,
+        ok: false,
+        error: createCommandError(
+          "FLOW_BLOCKED",
+          "Page is blocked by a pending dialog. Handle it with browser_handle_dialog first.",
+          { tabId }
+        )
+      };
+    }
     try {
       const blocked = await this.flowBlockGate(tabId, command);
       if (blocked) return { ...blocked, commandId };
@@ -16016,18 +16027,22 @@ var PlaywrightDriver = class {
    */
   async flowBlockGate(tabId, command) {
     if (command.kind !== "act" && command.kind !== "fill" && command.kind !== "drag") return null;
-    const targetId = typeof command.targetId === "string" ? command.targetId : typeof command.sourceTargetId === "string" ? command.sourceTargetId : null;
-    if (!targetId) return null;
+    const referencedIds = [command.targetId, command.sourceTargetId, command.destinationTargetId].filter((value) => typeof value === "string");
+    if (referencedIds.length === 0) return null;
     const snapshot = await this.refreshSnapshot(tabId).catch(() => null);
     if (!snapshot) return null;
-    const target = snapshot.targets.find((entry) => entry.targetId === targetId);
     const flowLocked = snapshot.targets.some((entry) => entry.overlay && entry.actionableNow);
-    if (!target || !flowLocked || target.overlay) return null;
+    if (!flowLocked) return null;
+    const blockedId = referencedIds.find((id) => {
+      const target = snapshot.targets.find((entry) => entry.targetId === id);
+      return target !== void 0 && !target.overlay;
+    });
+    if (!blockedId) return null;
     return {
       ok: false,
-      error: createCommandError("FLOW_BLOCKED", `target is blocked by active overlay flow: ${targetId}`, {
+      error: createCommandError("FLOW_BLOCKED", `target is blocked by active overlay flow: ${blockedId}`, {
         snapshotVersion: snapshot.version,
-        targetId
+        targetId: blockedId
       }),
       snapshotVersion: snapshot.version,
       snapshot
