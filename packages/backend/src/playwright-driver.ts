@@ -364,9 +364,27 @@ export class PlaywrightDriver implements BrowserDriver {
   }
 
   private async refreshSnapshot(tabId: number): Promise<PageSnapshot> {
+    // A pending JS dialog freezes page script execution — snapshot evaluation
+    // would deadlock until the dialog is handled. Serve the cached snapshot.
+    if (this.hasPendingDialog(tabId)) {
+      const cached = this.snapshots.get(tabId)
+      if (cached) return cached
+      throw new AgruneBackendError(
+        'SESSION_NOT_ACTIVE',
+        'Page is blocked by a pending dialog. Handle it with browser_handle_dialog first.',
+      )
+    }
     const snapshot = await this.session.snapshot(tabId, { allowMissingManifest: true })
     this.snapshots.set(tabId, snapshot)
     return snapshot
+  }
+
+  private hasPendingDialog(tabId: number): boolean {
+    try {
+      return this.session.dialogs(tabId).some(dialog => !dialog.handled)
+    } catch {
+      return false
+    }
   }
 
   /**

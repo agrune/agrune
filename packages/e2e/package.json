@@ -4,21 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "copy-runtime": "node -e \"require('fs').cpSync('../runtime/dist/page-runtime.global.js', 'fixtures/runtime.bundle.js', { force: true })\"",
-    "pretest:e2e": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build && pnpm --filter @agrune/browser run build && pnpm --filter agrune run build",
-    "test:e2e": "pnpm run copy-runtime && playwright test",
+    "pretest:e2e": "pnpm --filter @agrune/backend run build && pnpm --filter agrune run build",
+    "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
+    "@agrune/backend": "workspace:*",
     "@agrune/core": "workspace:*",
     "@agrune/manifest": "workspace:*",
     "@agrune/mcp": "workspace:*",
-    "@agrune/runtime": "workspace:*",
     "@playwright/test": "^1.48.0",
     "@types/node": "^22.0.0",
-    "@types/ws": "^8.18.1",
-    "typescript": "^5.7.0",
-    "ws": "^8.20.0"
+    "typescript": "^5.7.0"
   }
 }

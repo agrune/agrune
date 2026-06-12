@@ -15921,9 +15921,24 @@ var PlaywrightDriver = class {
     return resolved;
   }
   async refreshSnapshot(tabId) {
+    if (this.hasPendingDialog(tabId)) {
+      const cached2 = this.snapshots.get(tabId);
+      if (cached2) return cached2;
+      throw new AgruneBackendError(
+        "SESSION_NOT_ACTIVE",
+        "Page is blocked by a pending dialog. Handle it with browser_handle_dialog first."
+      );
+    }
     const snapshot = await this.session.snapshot(tabId, { allowMissingManifest: true });
     this.snapshots.set(tabId, snapshot);
     return snapshot;
+  }
+  hasPendingDialog(tabId) {
+    try {
+      return this.session.dialogs(tabId).some((dialog) => !dialog.handled);
+    } catch {
+      return false;
+    }
   }
   /**
    * Runtime FLOW_BLOCKED parity: while an overlay target is actionable, only

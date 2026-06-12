@@ -6,6 +6,7 @@
 import { test, expect } from '@playwright/test'
 import {
   createRealHarness,
+  evaluateInTab,
   realE2eSkipReason,
   waitForTargetByName,
   type RealHarness,
@@ -104,24 +105,6 @@ async function readTextContent(harness: RealHarness, selector: string): Promise<
 }
 
 async function evaluateInActiveTarget<T>(harness: RealHarness, expression: string): Promise<T> {
-  // We reach into CdpDriver internals ONLY to observe DOM state. No mutations.
-  const anyDriver = harness.driver as unknown as {
-    targetManager: { getTargets: () => Array<{ sessionId: string | null }> }
-    connection: {
-      send: (
-        method: string,
-        params: Record<string, unknown>,
-        sessionId?: string,
-      ) => Promise<Record<string, unknown>>
-    }
-  }
-  const target = anyDriver.targetManager.getTargets().find(t => t.sessionId)
-  if (!target?.sessionId) throw new Error('no attached session to evaluate in')
-  const result = await anyDriver.connection.send(
-    'Runtime.evaluate',
-    { expression, returnByValue: true, awaitPromise: true },
-    target.sessionId,
-  )
-  const remote = result.result as { value?: T } | undefined
-  return remote?.value as T
+  // Observe DOM state through the driver's Playwright page. No mutations.
+  return evaluateInTab<T>(harness.driver, undefined, expression)
 }

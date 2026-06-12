@@ -13,6 +13,7 @@ import { stat } from 'node:fs/promises'
 import { test, expect } from '@playwright/test'
 import {
   createRealHarness,
+  evaluateInTab,
   forceReprepare,
   realE2eSkipReason,
   waitForTargetByName,
@@ -558,29 +559,11 @@ async function waitUntil(predicate: () => boolean, timeoutMs: number): Promise<v
 }
 
 async function viewportSizeForTab(driver: RealHarness['driver'], tabId: number): Promise<{ width: number; height: number }> {
-  const anyDriver = driver as unknown as {
-    targetManager: { getTarget: (tabId: number) => { sessionId: string | null } | null }
-    connection: {
-      send: (
-        method: string,
-        params: Record<string, unknown>,
-        sessionId?: string,
-      ) => Promise<Record<string, unknown>>
-    }
-  }
-  const target = anyDriver.targetManager.getTarget(tabId)
-  if (!target?.sessionId) {
-    throw new Error(`No attached target for tabId ${tabId}`)
-  }
-  const result = await anyDriver.connection.send(
-    'Runtime.evaluate',
-    {
-      expression: '(() => ({ width: window.innerWidth, height: window.innerHeight }))()',
-      returnByValue: true,
-    },
-    target.sessionId,
+  const value = await evaluateInTab<{ width?: number; height?: number }>(
+    driver,
+    tabId,
+    '(() => ({ width: window.innerWidth, height: window.innerHeight }))()',
   )
-  const value = (result.result as { value?: { width?: number; height?: number } } | undefined)?.value
   if (typeof value?.width !== 'number' || typeof value.height !== 'number') {
     throw new Error('Viewport evaluation did not return numeric width/height')
   }
