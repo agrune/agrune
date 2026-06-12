@@ -11,7 +11,7 @@ import type { AgruneManifest, ManifestGroup, ManifestRepeat, ManifestTarget } fr
 import { CliError } from './errors.js'
 import { loadManifestFromPage, routeApplies } from './manifest-loader.js'
 import { resolveLocator } from './locator.js'
-import { buildSnapshotFromManifest } from './snapshot.js'
+import { buildSnapshotFromManifest, createSnapshotStore, type SnapshotStore } from './snapshot.js'
 import type { ClickButton, ClickModifier, ConsoleLevel, ConsoleMessageEntry, DialogInfo, FileChooserInfo, FillFormField, NetworkRequestPart, NetworkRequestSummary, PublicTab } from './types.js'
 
 export interface PlaywrightSessionOptions {
@@ -21,7 +21,7 @@ export interface PlaywrightSessionOptions {
 interface ManagedPage {
   tabId: number
   page: Page
-  snapshotVersion: number
+  snapshotStore: SnapshotStore
   navigationIndex: number
   consoleMessages: ConsoleMessageEntry[]
   networkRequests: InternalNetworkRequest[]
@@ -121,7 +121,7 @@ export class PlaywrightSession {
       title: '',
       active: entry.tabId === this.activeTabId,
       hasSnapshot: true,
-      snapshotVersion: entry.snapshotVersion === 0 ? null : entry.snapshotVersion,
+      snapshotVersion: entry.snapshotStore.version === 0 ? null : entry.snapshotStore.version,
     }))
   }
 
@@ -579,7 +579,7 @@ export class PlaywrightSession {
     const entry: ManagedPage = {
       tabId: this.nextTabId,
       page,
-      snapshotVersion: 0,
+      snapshotStore: createSnapshotStore(),
       navigationIndex: 0,
       consoleMessages: [],
       networkRequests: [],
@@ -775,8 +775,7 @@ export class PlaywrightSession {
   private async refreshSnapshot(tabId: number): Promise<PageSnapshot> {
     const entry = this.requireTab(tabId)
     const manifest = await loadManifestFromPage(entry.page)
-    entry.snapshotVersion += 1
-    return buildSnapshotFromManifest(entry.page, manifest, { version: entry.snapshotVersion })
+    return buildSnapshotFromManifest(entry.page, manifest, entry.snapshotStore)
   }
 
   private async resolveTargetLocator(tabId: number, targetRef: string): Promise<Locator> {
@@ -876,13 +875,13 @@ export class PlaywrightSession {
       url: entry.page.url(),
       title: await entry.page.title().catch(() => ''),
       active: entry.tabId === this.activeTabId,
-      hasSnapshot: entry.snapshotVersion > 0,
-      snapshotVersion: entry.snapshotVersion === 0 ? null : entry.snapshotVersion,
+      hasSnapshot: entry.snapshotStore.version > 0,
+      snapshotVersion: entry.snapshotStore.version === 0 ? null : entry.snapshotStore.version,
     }
   }
 
   private async afterNavigation(entry: ManagedPage): Promise<PublicTab> {
-    entry.snapshotVersion = 0
+    entry.snapshotStore = createSnapshotStore()
     await this.refreshSnapshot(entry.tabId).catch(() => null)
     return this.publicTab(entry)
   }

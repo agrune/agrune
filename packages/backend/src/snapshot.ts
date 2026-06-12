@@ -15,11 +15,18 @@ import type {
   ManifestGroup,
   ManifestRepeat,
   ManifestTarget,
+  SelectorLadder,
 } from '@agrune/manifest'
 import { resolveLocator } from './locator.js'
 import { routeApplies } from './manifest-loader.js'
-
-const MAX_REPEAT_INSTANCES_PER_TARGET = 250
+import {
+  REPEAT_MAX_INSTANCES,
+  captureElementState,
+  expandRepeatRows,
+  readContainerLogicalSize,
+  type ElementCapturedState,
+  type RepeatRow,
+} from './page-functions.js'
 
 export interface SnapshotTargetFilterOptions {
   groupId?: string
@@ -27,14 +34,24 @@ export interface SnapshotTargetFilterOptions {
   targetRef?: string
 }
 
-export interface SnapshotBuildOptions {
+/**
+ * Mutable snapshot version store — ports the runtime `MutableSnapshotStore`
+ * semantics: the version only advances when the captured target signature
+ * actually changes, so an unchanged page keeps a stable snapshot version.
+ */
+export interface SnapshotStore {
   version: number
+  signature: string | null
+}
+
+export function createSnapshotStore(): SnapshotStore {
+  return { version: 0, signature: null }
 }
 
 export async function buildSnapshotFromManifest(
   page: Page,
   manifest: AgruneManifest,
-  options: SnapshotBuildOptions,
+  store: SnapshotStore,
 ): Promise<PageSnapshot> {
   const url = page.url()
   const title = await page.title().catch(() => '')
@@ -59,7 +76,7 @@ export async function buildSnapshotFromManifest(
         repeatId: repeat.repeatId,
         strategy: repeat.strategy,
         instanceCount: groupTargets.length - before,
-        logicalSize: null,
+        logicalSize: await readRepeatLogicalSize(page, repeat),
       })
     }
 
@@ -73,15 +90,47 @@ export async function buildSnapshotFromManifest(
     targets.push(...groupTargets)
   }
 
+  const signature = JSON.stringify({
+    targets: targets.map(target => ({
+      actionKinds: target.actionKinds,
+      actionableNow: target.actionableNow,
+      covered: target.covered,
+      domResolved: (target as PageTarget & { domResolved?: boolean }).domResolved,
+      enabled: target.enabled,
+      inViewport: target.inViewport,
+      reason: target.reason,
+      sensitive: target.sensitive,
+      targetId: target.targetId,
+      textContent: target.textContent,
+      valuePreview: target.valuePreview,
+      visible: target.visible,
+      repeatInstance: target.repeatInstance,
+    })),
+    title,
+    url,
+  })
+
+  if (store.signature !== signature) {
+    store.version += 1
+    store.signature = signature
+  }
+
   return {
     schemaVersion: 3,
-    version: options.version,
+    version: store.version,
     capturedAt: Date.now(),
     url,
     title,
     groups,
     targets,
   }
+}
+
+async function readRepeatLogicalSize(page: Page, repeat: ManifestRepeat): Promise<number | null> {
+  if (repeat.strategy !== 'virtualized' || !repeat.containerSelector) return null
+  const container = await resolveLocator(page, repeat.containerSelector as SelectorLadder)
+  if (!container) return null
+  return container.locator.first().evaluate(readContainerLogicalSize).catch(() => null)
 }
 
 async function inspectRepeatTarget(
@@ -93,24 +142,21 @@ async function inspectRepeatTarget(
   const resolved = await resolveLocator(page, target.selector)
   if (!resolved) return []
 
-  const count = Math.min(
-    await resolved.locator.count().catch(() => 0),
-    MAX_REPEAT_INSTANCES_PER_TARGET,
-  )
+  const rows: RepeatRow[] = await resolved.locator
+    .evaluateAll(expandRepeatRows, {
+      keyFrom: repeat.keyFrom,
+      nameFrom: repeat.nameFrom ?? null,
+      virtualized: repeat.strategy === 'virtualized',
+      maxInstances: REPEAT_MAX_INSTANCES,
+    })
+    .catch(() => [])
+
   const results: PageTarget[] = []
-
-  for (let index = 0; index < count; index += 1) {
-    const locator = resolved.locator.nth(index)
-    const key = await evaluateRepeatExpression(locator, repeat.keyFrom)
-    if (!key) continue
-    const targetId = `${repeat.repeatId}${REPEATED_TARGET_KEY_DELIMITER}${key}.${target.targetId}`
-    const name = repeat.nameFrom
-      ? await evaluateRepeatExpression(locator, repeat.nameFrom).catch(() => '')
-      : ''
-
-    results.push(await inspectLocator(group, target, targetId, locator, {
-      repeatInstance: { repeatId: repeat.repeatId, index, key },
-      displayName: name || target.name,
+  for (const row of rows) {
+    const targetId = `${repeat.repeatId}${REPEATED_TARGET_KEY_DELIMITER}${row.key}.${target.targetId}`
+    results.push(await inspectLocator(group, target, targetId, resolved.locator.nth(row.domIndex), {
+      repeatInstance: { repeatId: repeat.repeatId, index: row.index, key: row.key },
+      displayName: row.name || target.name,
     }))
   }
 
@@ -125,14 +171,8 @@ async function inspectTarget(
 ): Promise<PageTarget> {
   const resolved = await resolveLocator(page, target.selector)
   if (!resolved) {
-    return baseTarget(group, target, targetId, {
-      visible: false,
-      enabled: false,
-      inViewport: false,
-      reason: 'hidden',
-    })
+    return missingTarget(group, target, targetId)
   }
-
   return inspectLocator(group, target, targetId, resolved.locator)
 }
 
@@ -146,99 +186,80 @@ async function inspectLocator(
     displayName?: string
   } = {},
 ): Promise<PageTarget> {
-  const visible = await locator.isVisible().catch(() => false)
-  const enabled = await locator.isEnabled().catch(() => false)
-  const box = visible ? await locator.boundingBox().catch(() => null) : null
-  const textContent = await locator.evaluate((el) => (el.textContent ?? '').trim()).catch(() => '')
-  const valuePreview = await locator.evaluate((el) => {
-    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
-      return el.value
-    }
-    return null
-  }).catch(() => null)
-  const inViewport = Boolean(box)
-  const reason = getTargetReason({ visible, enabled, inViewport })
+  const state: ElementCapturedState | null = await locator
+    .evaluate(captureElementState, {
+      sensitiveFlag: target.sensitive === true,
+      fillAction: target.actionKinds.includes('fill'),
+    })
+    .catch(() => null)
 
-  return baseTarget(group, target, targetId, {
-    visible,
-    enabled,
-    inViewport,
-    reason,
-    textContent: textContent || undefined,
-    valuePreview,
-    center: box
-      ? { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-      : undefined,
-    size: box ? { w: box.width, h: box.height } : undefined,
-    repeatInstance: opts.repeatInstance,
-    displayName: opts.displayName,
-  })
-}
+  if (!state) {
+    return missingTarget(group, target, targetId, opts)
+  }
 
-function baseTarget(
-  group: ManifestGroup,
-  target: ManifestTarget,
-  targetId: string,
-  state: {
-    visible: boolean
-    enabled: boolean
-    inViewport: boolean
-    reason: PageTargetReason
-    textContent?: string
-    valuePreview?: string | null
-    center?: { x: number; y: number }
-    size?: { w: number; h: number }
-    repeatInstance?: PageTarget['repeatInstance']
-    displayName?: string
-  },
-): PageTarget {
   return {
     targetId,
     groupId: group.groupId,
     groupName: group.name,
     groupDesc: group.desc,
-    name: state.displayName ?? target.name ?? target.targetId,
+    name: opts.displayName ?? target.name ?? target.targetId,
     description: target.desc ?? '',
     actionKinds: target.actionKinds,
     selector: target.selector,
     visible: state.visible,
     inViewport: state.inViewport,
     enabled: state.enabled,
-    covered: false,
-    actionableNow: state.visible && state.enabled && state.inViewport,
-    reason: state.reason,
-    overlay: false,
-    sensitive: target.sensitive === true,
-    textContent: state.textContent,
+    covered: state.covered,
+    actionableNow: state.actionableNow,
+    reason: state.reason as PageTargetReason,
+    overlay: state.overlay,
+    sensitive: state.sensitive,
+    textContent: state.textContent || undefined,
     valuePreview: state.valuePreview,
     center: state.center,
     size: state.size,
+    ...(state.center ? { coordSpace: 'viewport' as const } : {}),
     sourceFile: 'page-manifest',
     sourceLine: 0,
     sourceColumn: 0,
-    repeatInstance: state.repeatInstance,
-  }
+    domResolved: true,
+    repeatInstance: opts.repeatInstance,
+  } as PageTarget & { domResolved: true }
 }
 
-function getTargetReason(input: {
-  visible: boolean
-  enabled: boolean
-  inViewport: boolean
-}): PageTargetReason {
-  if (!input.visible) return 'hidden'
-  if (!input.inViewport) return 'offscreen'
-  if (!input.enabled) return 'disabled'
-  return 'ready'
-}
-
-async function evaluateRepeatExpression(locator: Locator, expression: string): Promise<string> {
-  return locator.evaluate(
-    (el, expr) => {
-      const fn = new Function('el', `return String(${expr})`) as (el: Element) => string
-      return fn(el).trim()
-    },
-    expression,
-  )
+function missingTarget(
+  group: ManifestGroup,
+  target: ManifestTarget,
+  targetId: string,
+  opts: {
+    repeatInstance?: PageTarget['repeatInstance']
+    displayName?: string
+  } = {},
+): PageTarget {
+  return {
+    targetId,
+    groupId: group.groupId,
+    groupName: group.name,
+    groupDesc: group.desc,
+    name: opts.displayName ?? target.name ?? target.targetId,
+    description: target.desc ?? '',
+    actionKinds: target.actionKinds,
+    selector: target.selector,
+    visible: false,
+    inViewport: false,
+    enabled: false,
+    covered: false,
+    actionableNow: false,
+    reason: 'hidden',
+    overlay: false,
+    sensitive: target.sensitive === true,
+    valuePreview: null,
+    sourceFile: 'page-manifest',
+    sourceLine: 0,
+    sourceColumn: 0,
+    domResolved: false,
+    repeatInstance: opts.repeatInstance,
+  } as PageTarget & { domResolved: false }
 }
 
 export function filterSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFilterOptions = {}): PageSnapshot {
