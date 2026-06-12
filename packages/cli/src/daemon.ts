@@ -2,14 +2,14 @@ import http from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { WebSocket, WebSocketServer } from 'ws'
-import { PlaywrightSession } from './playwright-session.js'
+import { PlaywrightSession } from '@agrune/backend'
 import { CliError, errorResponse } from './errors.js'
 import { DEFAULT_DAEMON_HOST, DEFAULT_DAEMON_PORT } from './types.js'
 import type { ClickButton, ClickModifier, DaemonOptions, FillFormField, FillFormFieldType, JsonResponse, NetworkRequestPart } from './types.js'
 import type { FillStrategy } from '@agrune/core'
 import { DaemonEventBroker } from './events.js'
 import type { DaemonEvent } from './events.js'
-import { filterSnapshot } from './snapshot.js'
+import { filterSnapshot } from '@agrune/backend'
 
 type TabSelector = { tabId: number; index?: number }
 

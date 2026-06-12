@@ -1,5 +1,30 @@
 import type { FillStrategy, PageSnapshot } from '@agrune/core'
+import type {
+  ClickButton,
+  ClickModifier,
+  ConsoleMessageEntry,
+  DialogInfo,
+  FileChooserInfo,
+  FillFormFieldType,
+  NetworkRequestPart,
+  NetworkRequestSummary,
+  PublicTab,
+} from '@agrune/backend'
 import type { DaemonEvent } from './events.js'
+
+export type {
+  ClickButton,
+  ClickModifier,
+  ConsoleLevel,
+  ConsoleMessageEntry,
+  DialogInfo,
+  FileChooserInfo,
+  FillFormField,
+  FillFormFieldType,
+  NetworkRequestPart,
+  NetworkRequestSummary,
+  PublicTab,
+} from '@agrune/backend'
 
 export const DEFAULT_DAEMON_HOST = '127.0.0.1'
 export const DEFAULT_DAEMON_PORT = 47654
@@ -20,16 +45,6 @@ export interface DaemonHealth {
   name: 'agrune-daemon'
   browser: 'playwright'
   tabs: number
-}
-
-export interface PublicTab {
-  index: number
-  tabId: number
-  url: string
-  title: string
-  active: boolean
-  hasSnapshot: boolean
-  snapshotVersion: number | null
 }
 
 export interface TabsResponse {
@@ -73,9 +88,6 @@ export interface AriaSnapshotResponse {
   includeTextContent?: boolean
 }
 
-export type ClickButton = 'left' | 'right' | 'middle'
-export type ClickModifier = 'Alt' | 'Control' | 'ControlOrMeta' | 'Meta' | 'Shift'
-
 export interface ActionResponse {
   ok: true
   target: string
@@ -91,15 +103,6 @@ export interface FillResponse {
   target: string
   value: string
   strategy?: FillStrategy
-}
-
-export type FillFormFieldType = 'textbox' | 'checkbox' | 'radio' | 'combobox' | 'slider'
-
-export interface FillFormField {
-  name?: string
-  target: string
-  type: FillFormFieldType
-  value: string | boolean | number
 }
 
 export interface FillFormResponse {
@@ -138,18 +141,6 @@ export interface UploadResponse {
   action: 'upload'
   target: string
   paths: string[]
-}
-
-export interface FileChooserInfo {
-  id: number
-  tabId: number
-  timestamp: number
-  multiple: boolean
-  handled: boolean
-  paths?: string[]
-  cancelled?: boolean
-  handledTimestamp?: number
-  error?: string
 }
 
 export interface FileChoosersResponse {
@@ -206,47 +197,11 @@ export interface RunCodeUnsafeResponse {
   filename?: string
 }
 
-export type ConsoleLevel = 'debug' | 'info' | 'warning' | 'error'
-
-export interface ConsoleMessageEntry {
-  tabId: number
-  level: ConsoleLevel
-  type: string
-  text: string
-  timestamp: number
-  navigationIndex: number
-  location: {
-    url: string
-    lineNumber: number
-    columnNumber: number
-  }
-}
-
 export interface ConsoleMessagesResponse {
   ok: true
   messages: ConsoleMessageEntry[]
   path?: string
 }
-
-export interface NetworkRequestSummary {
-  index: number
-  tabId: number
-  method: string
-  url: string
-  resourceType: string
-  isNavigationRequest: boolean
-  timestamp: number
-  navigationIndex: number
-  status?: number
-  statusText?: string
-  failureText?: string
-}
-
-export type NetworkRequestPart =
-  | 'request-headers'
-  | 'request-body'
-  | 'response-headers'
-  | 'response-body'
 
 export interface NetworkRequestsResponse {
   ok: true
@@ -270,20 +225,6 @@ export interface NetworkRequestPartResponse {
   part: NetworkRequestPart
   value: string | Record<string, string> | null
   path?: string
-}
-
-export interface DialogInfo {
-  id: number
-  tabId: number
-  type: string
-  message: string
-  defaultValue: string
-  timestamp: number
-  handled: boolean
-  accepted?: boolean
-  promptText?: string
-  handledTimestamp?: number
-  error?: string
 }
 
 export interface DialogsResponse {

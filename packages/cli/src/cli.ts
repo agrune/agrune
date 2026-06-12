@@ -2,7 +2,7 @@ import { getBooleanFlag, getDaemonEndpoint, getStringFlag, parseArgs } from './a
 import { startDaemon } from './daemon.js'
 import { asCliError } from './errors.js'
 import { requestJson } from './http-client.js'
-import { formatSnapshot } from './snapshot.js'
+import { formatSnapshot } from '@agrune/backend'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { WebSocket } from 'ws'
