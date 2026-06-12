@@ -1,5 +1,4 @@
 import type { PageSnapshot, CommandResult, AgruneRuntimeConfig } from './index.js'
-import type { AgruneManifest } from './manifest.js'
 
 /**
  * MacroResult 유니온 타입 — source of truth: @agrune/runtime/macro-runner
@@ -261,9 +260,6 @@ export interface BrowserDriver {
 
   listSessions(): Session[]
   getSnapshot(tabId: number): PageSnapshot | null
-  onSessionOpen(cb: (session: Session) => void): void
-  onSessionClose(cb: (tabId: number) => void): void
-  onSnapshotUpdate(cb: (tabId: number, snapshot: PageSnapshot) => void): void
 
   execute(tabId: number, command: Record<string, unknown> & { kind: string }): Promise<CommandResult>
   updateConfig(config: Partial<AgruneRuntimeConfig>): void
@@ -335,24 +331,4 @@ export interface BrowserDriver {
     index: number,
     part?: NetworkRequestPart,
   ): Promise<NetworkRequestDetail>
-
-  /**
-   * manifest를 활성 세션에 런타임 주입한다.
-   * window.__agrune_manifest__ = manifest; reloadRuntime() 시퀀스로 즉시 적용.
-   *
-   * optional — 일반 에이전트용 MCP surface에는 노출하지 않는다.
-   */
-  injectManifest?(tabId: number, manifest: AgruneManifest): Promise<void>
-
-  /**
-   * Phase 14: in-page MacroRunner 실행 — 단일 Runtime.evaluate 로 step loop 완결.
-   * CdpDriver 구현은 window[QUICK_MODE_RUNTIME_KEY].runMacro({ macroId, params }) 를 호출.
-   *
-   * optional — mock driver에서 누락 시 MCP layer에서 typeof 타입 가드로 방어 (T-14-18).
-   */
-  runMacro?(
-    tabId: number,
-    macroId: string,
-    params?: Record<string, unknown>,
-  ): Promise<MacroRunResponse>
 }

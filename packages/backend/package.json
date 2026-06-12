@@ -20,7 +20,8 @@
     "build": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build && tsup",
     "pretest": "pnpm --filter @agrune/manifest run build && pnpm --filter @agrune/core run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "pnpm run pretest && AGRUNE_BACKEND_SMOKE=1 vitest run tests/playwright-driver.spec.ts"
   },
   "dependencies": {
     "@agrune/core": "workspace:*",

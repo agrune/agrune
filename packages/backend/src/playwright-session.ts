@@ -14,13 +14,20 @@ import { resolveLocator } from './locator.js'
 import { buildSnapshotFromManifest, createSnapshotStore, type SnapshotStore } from './snapshot.js'
 import type { ClickButton, ClickModifier, ConsoleLevel, ConsoleMessageEntry, DialogInfo, FileChooserInfo, FillFormField, NetworkRequestPart, NetworkRequestSummary, PublicTab } from './types.js'
 
+export type PlaywrightConnection =
+  | { mode: 'launch'; headless?: boolean }
+  | { mode: 'persistent'; userDataDir: string; headless?: boolean; channel?: string }
+  | { mode: 'attach'; endpoint: string }
+
 export interface PlaywrightSessionOptions {
   headless?: boolean
+  connection?: PlaywrightConnection
 }
 
 interface ManagedPage {
   tabId: number
   page: Page
+  title: string
   snapshotStore: SnapshotStore
   navigationIndex: number
   consoleMessages: ConsoleMessageEntry[]
@@ -97,16 +104,37 @@ export class PlaywrightSession {
   constructor(private readonly options: PlaywrightSessionOptions = {}) {}
 
   async start(): Promise<void> {
-    if (this.browser) return
-    this.browser = await chromium.launch({ headless: this.options.headless ?? false })
-    this.context = await this.browser.newContext()
+    if (this.context) return
+    const connection: PlaywrightConnection =
+      this.options.connection ?? { mode: 'launch', headless: this.options.headless ?? false }
+
+    if (connection.mode === 'persistent') {
+      this.context = await chromium.launchPersistentContext(connection.userDataDir, {
+        headless: connection.headless ?? false,
+        ...(connection.channel ? { channel: connection.channel } : {}),
+      })
+    } else if (connection.mode === 'attach') {
+      this.browser = await chromium.connectOverCDP(connection.endpoint)
+      this.context = this.browser.contexts()[0] ?? await this.browser.newContext()
+    } else {
+      this.browser = await chromium.launch({ headless: connection.headless ?? false })
+      this.context = await this.browser.newContext()
+    }
+
     this.context.on('page', page => {
       this.registerPage(page)
     })
+    for (const page of this.context.pages()) {
+      this.registerPage(page)
+    }
   }
 
   async stop(): Promise<void> {
-    await this.browser?.close().catch(() => undefined)
+    if (this.browser) {
+      await this.browser.close().catch(() => undefined)
+    } else {
+      await this.context?.close().catch(() => undefined)
+    }
     this.browser = null
     this.context = null
     this.pages.clear()
@@ -118,11 +146,21 @@ export class PlaywrightSession {
       index,
       tabId: entry.tabId,
       url: entry.page.url(),
-      title: '',
+      title: entry.title,
       active: entry.tabId === this.activeTabId,
-      hasSnapshot: true,
+      hasSnapshot: entry.snapshotStore.version > 0,
       snapshotVersion: entry.snapshotStore.version === 0 ? null : entry.snapshotStore.version,
     }))
+  }
+
+  /** Playwright `Page` for a tab — used by the driver for low-level pointer input and by tests. */
+  page(tabId?: number): Page {
+    return this.requireTab(this.resolveTabId(tabId)).page
+  }
+
+  /** Resolve a manifest target ref to its Playwright locator. */
+  async locatorForTarget(tabId: number | undefined, targetRef: string): Promise<Locator> {
+    return this.resolveTargetLocator(this.resolveTabId(tabId), targetRef)
   }
 
   async open(url: string): Promise<PublicTab> {
@@ -329,8 +367,11 @@ export class PlaywrightSession {
     }
   }
 
-  async snapshot(tabId?: number): Promise<PageSnapshot> {
-    return this.refreshSnapshot(this.resolveTabId(tabId))
+  async snapshot(
+    tabId?: number,
+    options: { allowMissingManifest?: boolean } = {},
+  ): Promise<PageSnapshot> {
+    return this.refreshSnapshot(this.resolveTabId(tabId), options)
   }
 
   async ariaSnapshot(
@@ -579,6 +620,7 @@ export class PlaywrightSession {
     const entry: ManagedPage = {
       tabId: this.nextTabId,
       page,
+      title: '',
       snapshotStore: createSnapshotStore(),
       navigationIndex: 0,
       consoleMessages: [],
@@ -602,9 +644,17 @@ export class PlaywrightSession {
         this.activeTabId = this.pages.keys().next().value ?? null
       }
     })
+    const updateTitle = () => {
+      page.title().then(title => {
+        entry.title = title
+      }).catch(() => undefined)
+    }
+    updateTitle()
+    page.on('load', updateTitle)
     page.on('framenavigated', frame => {
       if (frame === page.mainFrame()) {
         entry.navigationIndex += 1
+        updateTitle()
       }
     })
     page.on('console', message => {
@@ -772,9 +822,27 @@ export class PlaywrightSession {
     return {}
   }
 
-  private async refreshSnapshot(tabId: number): Promise<PageSnapshot> {
+  private async refreshSnapshot(
+    tabId: number,
+    options: { allowMissingManifest?: boolean } = {},
+  ): Promise<PageSnapshot> {
     const entry = this.requireTab(tabId)
-    const manifest = await loadManifestFromPage(entry.page)
+    let manifest: AgruneManifest
+    try {
+      manifest = await loadManifestFromPage(entry.page)
+    } catch (error) {
+      // Idle-manifest fallback (runtime bootstrap parity): pages without an
+      // Agrune manifest still produce an empty, versioned snapshot.
+      if (
+        options.allowMissingManifest === true &&
+        error instanceof CliError &&
+        error.code === 'MANIFEST_NOT_FOUND'
+      ) {
+        manifest = { version: 3, groups: [] }
+      } else {
+        throw error
+      }
+    }
     return buildSnapshotFromManifest(entry.page, manifest, entry.snapshotStore)
   }
 

@@ -1,5 +1,7 @@
 export { PlaywrightSession } from './playwright-session.js'
-export type { PlaywrightSessionOptions } from './playwright-session.js'
+export type { PlaywrightConnection, PlaywrightSessionOptions } from './playwright-session.js'
+export { PlaywrightDriver } from './playwright-driver.js'
+export type { PlaywrightDriverOptions } from './playwright-driver.js'
 export { buildLocatorCandidates, resolveLocator } from './locator.js'
 export type { ResolvedLocator } from './locator.js'
 export { buildSnapshotFromManifest, createSnapshotStore, filterSnapshot, formatSnapshot } from './snapshot.js'
