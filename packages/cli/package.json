@@ -24,18 +24,16 @@
     "pretest": "pnpm --filter @agrune/backend run build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
-    "test:smoke": "pnpm run pretest && AGRUNE_CLI_SMOKE=1 vitest run tests/daemon-smoke.spec.ts"
+    "test:smoke": "pnpm run build && AGRUNE_CLI_SMOKE=1 vitest run tests/daemon-smoke.spec.ts"
   },
   "dependencies": {
     "@agrune/backend": "workspace:*",
     "@agrune/core": "workspace:*",
     "@agrune/manifest": "workspace:*",
-    "playwright": "^1.59.1",
-    "ws": "^8.20.0"
+    "playwright": "^1.59.1"
   },
   "devDependencies": {
     "@types/node": "^24.12.0",
-    "@types/ws": "^8.18.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.1"

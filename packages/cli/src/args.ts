@@ -1,4 +1,5 @@
 import { DEFAULT_DAEMON_HOST, DEFAULT_DAEMON_PORT } from './types.js'
+import { defaultSocketPath } from './session-file.js'
 
 export interface ParsedArgs {
   command: string[]
@@ -67,16 +68,36 @@ export function getBooleanFlag(
   return false
 }
 
-export function getDaemonEndpoint(flags: Record<string, string | boolean>): {
-  host: string
-  port: number
+export interface DaemonEndpointInfo {
+  /**
+   * Opaque endpoint token consumed by daemon-client:
+   * `unix:<socketPath>` (default, per-workspace) or `http://host:port`
+   * (explicit --host/--port — tests and remote daemons).
+   */
   baseUrl: string
-} {
-  const host = getStringFlag(flags, 'host') ?? DEFAULT_DAEMON_HOST
+  /** true when the user pinned the endpoint (--host/--port/AGRUNE_DAEMON_SOCKET) — skip auto-spawn. */
+  explicit: boolean
+  host?: string
+  port?: number
+}
+
+export function getDaemonEndpoint(flags: Record<string, string | boolean>): DaemonEndpointInfo {
+  const hostFlag = getStringFlag(flags, 'host')
   const portValue = getStringFlag(flags, 'port')
-  const port = portValue ? Number(portValue) : DEFAULT_DAEMON_PORT
-  if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
-    throw new Error(`Invalid --port value: ${portValue}`)
+
+  if (hostFlag !== undefined || portValue !== undefined) {
+    const host = hostFlag ?? DEFAULT_DAEMON_HOST
+    const port = portValue ? Number(portValue) : DEFAULT_DAEMON_PORT
+    if (!Number.isInteger(port) || port <= 0 || port > 65_535) {
+      throw new Error(`Invalid --port value: ${portValue}`)
+    }
+    return { baseUrl: `http://${host}:${port}`, explicit: true, host, port }
   }
-  return { host, port, baseUrl: `http://${host}:${port}` }
+
+  const envSocket = process.env.AGRUNE_DAEMON_SOCKET
+  if (envSocket && envSocket.trim().length > 0) {
+    return { baseUrl: `unix:${envSocket.trim()}`, explicit: true }
+  }
+
+  return { baseUrl: `unix:${defaultSocketPath()}`, explicit: false }
 }

@@ -78,11 +78,32 @@ describe('parseArgs', () => {
 })
 
 describe('getDaemonEndpoint', () => {
-  it('uses the Agrune default port', () => {
-    expect(getDaemonEndpoint({})).toEqual({
+  it('defaults to the per-workspace unix socket (auto-spawn eligible)', () => {
+    const endpoint = getDaemonEndpoint({})
+    expect(endpoint.explicit).toBe(false)
+    expect(endpoint.baseUrl).toMatch(/^unix:.+/)
+  })
+
+  it('pins a TCP endpoint when --port is given (no auto-spawn)', () => {
+    expect(getDaemonEndpoint({ port: '47654' })).toEqual({
       host: '127.0.0.1',
       port: 47654,
       baseUrl: 'http://127.0.0.1:47654',
+      explicit: true,
     })
+  })
+
+  it('honors AGRUNE_DAEMON_SOCKET as an explicit socket endpoint', () => {
+    const previous = process.env.AGRUNE_DAEMON_SOCKET
+    process.env.AGRUNE_DAEMON_SOCKET = '/tmp/custom-agrune.sock'
+    try {
+      expect(getDaemonEndpoint({})).toEqual({
+        baseUrl: 'unix:/tmp/custom-agrune.sock',
+        explicit: true,
+      })
+    } finally {
+      if (previous === undefined) delete process.env.AGRUNE_DAEMON_SOCKET
+      else process.env.AGRUNE_DAEMON_SOCKET = previous
+    }
   })
 })

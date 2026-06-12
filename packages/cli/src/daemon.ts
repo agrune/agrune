@@ -1,20 +1,22 @@
 import http from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { WebSocket, WebSocketServer } from 'ws'
 import { PlaywrightSession } from '@agrune/backend'
 import { CliError, errorResponse } from './errors.js'
 import { DEFAULT_DAEMON_HOST, DEFAULT_DAEMON_PORT } from './types.js'
 import type { ClickButton, ClickModifier, DaemonOptions, FillFormField, FillFormFieldType, JsonResponse, NetworkRequestPart } from './types.js'
 import type { FillStrategy } from '@agrune/core'
 import { DaemonEventBroker } from './events.js'
-import type { DaemonEvent } from './events.js'
 import { filterSnapshot } from '@agrune/backend'
+import { removeSocketFile, socketFileExists } from './session-file.js'
 
 type TabSelector = { tabId: number; index?: number }
 
 export interface RunningDaemon {
+  /** Human-readable endpoint: `http://host:port` (TCP) or the socket path. */
   url: string
+  /** `unix:<socketPath>` or `http://host:port` — token consumed by daemon-client. */
+  endpoint: string
   close(): Promise<void>
 }
 
@@ -89,42 +91,46 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<RunningD
     }
   })
 
-  const events = new WebSocketServer({ noServer: true })
-  server.on('upgrade', (req, socket, head) => {
-    const url = new URL(req.url ?? '/', `http://${host}:${port}`)
-    if (url.pathname !== '/events') {
-      socket.destroy()
-      return
-    }
-    events.handleUpgrade(req, socket, head, ws => {
-      events.emit('connection', ws, req)
-    })
-  })
-  events.on('connection', (ws, req) => {
-    const url = new URL(req.url ?? '/events', `http://${host}:${port}`)
-    if (url.searchParams.get('replay') !== 'false') {
-      for (const event of eventBroker.getBuffered()) {
-        sendWsEvent(ws, event)
-      }
-    }
-    const unsubscribe = eventBroker.subscribe(event => sendWsEvent(ws, event))
-    ws.on('close', unsubscribe)
-  })
+  const socketPath = options.socketPath
+  if (socketPath && socketFileExists(socketPath)) {
+    // Stale socket from a crashed daemon would make listen() fail with EADDRINUSE.
+    removeSocketFile(socketPath)
+  }
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, host, () => {
-      server.off('error', reject)
-      resolve()
-    })
+    if (socketPath) {
+      server.listen(socketPath, () => {
+        server.off('error', reject)
+        resolve()
+      })
+    } else {
+      server.listen(port, host, () => {
+        server.off('error', reject)
+        resolve()
+      })
+    }
   })
+
+  if (socketPath) {
+    return {
+      url: socketPath,
+      endpoint: `unix:${socketPath}`,
+      async close() {
+        await new Promise<void>(resolve => server.close(() => resolve()))
+        removeSocketFile(socketPath)
+        await session.stop()
+      },
+    }
+  }
+
   const address = server.address()
   const actualPort = typeof address === 'object' && address ? address.port : port
 
   return {
     url: `http://${host}:${actualPort}`,
+    endpoint: `http://${host}:${actualPort}`,
     async close() {
-      await new Promise<void>(resolve => events.close(() => resolve()))
       await new Promise<void>(resolve => server.close(() => resolve()))
       await session.stop()
     },
@@ -530,11 +536,6 @@ function sendJson(res: http.ServerResponse, status: number, body: unknown): void
     'content-length': Buffer.byteLength(text),
   })
   res.end(text)
-}
-
-function sendWsEvent(ws: WebSocket, event: DaemonEvent): void {
-  if (ws.readyState !== WebSocket.OPEN) return
-  ws.send(JSON.stringify(event))
 }
 
 function shouldTrackRequest(method: string, url: URL): boolean {

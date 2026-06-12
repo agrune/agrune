@@ -1,11 +1,12 @@
 import { getBooleanFlag, getDaemonEndpoint, getStringFlag, parseArgs } from './args.js'
 import { startDaemon } from './daemon.js'
+import { ensureDaemon, stopDaemon } from './daemon-manager.js'
 import { asCliError } from './errors.js'
-import { requestJson } from './http-client.js'
+import { isSocketEndpoint, requestJson, setDaemonAutoSpawn, socketPathFromEndpoint } from './daemon-client.js'
+import { CLI_VERSION, removeSessionFile, workspacePath, writeSessionFile } from './session-file.js'
 import { formatSnapshot } from '@agrune/backend'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { WebSocket } from 'ws'
 import type {
   AriaSnapshotResponse,
   CliIo,
@@ -49,8 +50,11 @@ async function runCliOrThrow(argv: string[], io: CliIo): Promise<number> {
   }
 
   const [primary, secondary] = parsed.command
-  if (primary === 'daemon' && secondary === 'start') {
+  if (primary === 'daemon' && (secondary === 'start' || secondary === 'run')) {
     return runDaemonStart(parsed.flags, io)
+  }
+  if (primary === 'daemon' && secondary === 'stop') {
+    return runDaemonStop(io)
   }
   if (primary === 'daemon' && secondary === 'status') {
     return runDaemonStatus(parsed.flags, io)
@@ -58,6 +62,24 @@ async function runCliOrThrow(argv: string[], io: CliIo): Promise<number> {
   if (primary === 'daemon' && secondary === 'events') {
     return runEvents(parsed.flags, io)
   }
+
+  // Browser commands talk to the workspace daemon; spawn it on demand unless
+  // the user pinned an endpoint (--host/--port/AGRUNE_DAEMON_SOCKET). The hook
+  // fires lazily on the first daemon request so argument validation stays
+  // request-free.
+  if (primary !== 'daemon') {
+    const endpoint = getDaemonEndpoint(parsed.flags)
+    setDaemonAutoSpawn(
+      endpoint.explicit
+        ? null
+        : () => ensureDaemon(endpoint.baseUrl, {
+            headless: getBooleanFlag(parsed.flags, 'headless'),
+          }),
+    )
+  } else {
+    setDaemonAutoSpawn(null)
+  }
+
   if (primary === 'open') {
     return runOpen(parsed.flags, parsed.positionals, io)
   }
@@ -178,21 +200,51 @@ async function runDaemonStart(
   flags: Record<string, string | boolean>,
   io: CliIo,
 ): Promise<number> {
-  const { host, port } = getDaemonEndpoint(flags)
+  const endpoint = getDaemonEndpoint(flags)
+  const socketPath = isSocketEndpoint(endpoint.baseUrl)
+    ? socketPathFromEndpoint(endpoint.baseUrl)
+    : undefined
+
   const daemon = await startDaemon({
-    host,
-    port,
+    ...(socketPath
+      ? { socketPath }
+      : { host: endpoint.host, port: endpoint.port }),
     headless: getBooleanFlag(flags, 'headless'),
   })
+
+  if (socketPath) {
+    writeSessionFile({
+      pid: process.pid,
+      socketPath,
+      workspace: workspacePath(),
+      startedAt: Date.now(),
+      version: CLI_VERSION,
+    })
+  }
   write(io.stdout, `Agrune daemon listening on ${daemon.url}\n`)
 
   await new Promise<void>((resolve) => {
     const stop = () => {
-      void daemon.close().finally(resolve)
+      void daemon.close()
+        .finally(() => {
+          if (socketPath) removeSessionFile()
+        })
+        .finally(resolve)
     }
     process.once('SIGINT', stop)
     process.once('SIGTERM', stop)
   })
+  return 0
+}
+
+async function runDaemonStop(io: CliIo): Promise<number> {
+  const result = await stopDaemon()
+  write(
+    io.stdout,
+    result.stopped
+      ? `Stopped Agrune daemon (pid ${result.pid}).\n`
+      : 'No Agrune daemon session found for this workspace.\n',
+  )
   return 0
 }
 
@@ -544,10 +596,7 @@ async function runEvents(
 ): Promise<number> {
   const { baseUrl } = getDaemonEndpoint(flags)
   if (getBooleanFlag(flags, 'follow')) {
-    await followEvents(baseUrl, io, {
-      replay: !getBooleanFlag(flags, 'no-replay'),
-    })
-    return 0
+    throw new Error('events --follow was removed. Poll "agrune daemon events" (/events/history) instead.')
   }
 
   const events = await requestJson<EventsResponse>(baseUrl, '/events/history')
@@ -1185,30 +1234,6 @@ function dialogAcceptValue(subcommand: string | undefined, flags: Record<string,
   throw new Error('Usage: agrune handle-dialog --accept|--dismiss [--prompt-text text]')
 }
 
-function followEvents(
-  baseUrl: string,
-  io: CliIo,
-  opts: { replay: boolean },
-): Promise<void> {
-  const replay = opts.replay ? '' : '?replay=false'
-  const wsUrl = `${baseUrl.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:')}/events${replay}`
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl)
-    const close = () => ws.close()
-    process.once('SIGINT', close)
-    process.once('SIGTERM', close)
-    ws.on('message', data => {
-      write(io.stdout, `${data.toString()}\n`)
-    })
-    ws.on('error', reject)
-    ws.on('close', () => {
-      process.off('SIGINT', close)
-      process.off('SIGTERM', close)
-      resolve()
-    })
-  })
-}
-
 function formatEventLine(event: {
   phase: string
   command: string
@@ -1280,9 +1305,14 @@ function helpText(): string {
     'agrune CLI',
     '',
     'Usage:',
-    '  agrune daemon start [--headless] [--port 47654]',
+    '  agrune daemon start [--headless] [--port 47654]   # foreground; default binds the workspace socket',
+    '  agrune daemon stop',
     '  agrune daemon status',
-    '  agrune daemon events [--json|--follow|--no-replay]',
+    '  agrune daemon events [--json]',
+    '',
+    '  Browser commands auto-spawn a per-workspace daemon (detached) on first use.',
+    '  Endpoint: ~/.agrune/run/<workspace-hash>/daemon.sock — override with',
+    '  --host/--port (TCP) or AGRUNE_DAEMON_SOCKET.',
     '  agrune open <url>',
     '  agrune navigate <url>',
     '  agrune back | forward | reload',
@@ -1304,7 +1334,7 @@ function helpText(): string {
     '  agrune tabs select <tabId>|--index <index>',
     '  agrune tabs close [tabId|--index <index>]',
     '  agrune close [tabId|--index <index>]',
-    '  agrune events [--json|--follow]',
+    '  agrune events [--json]',
     '  agrune targets [--mode outline|full] [--full] [--group <groupId>] [--group-ids csv] [--target <target-ref>] [--text] [--filename path] [--json]',
     '  agrune snapshot [--target <target-ref>] [--depth n] [--mode ai|default] [--boxes] [--include-text-content] [--filename path] [--json]',
     '  agrune click <target-ref> [--button left|right|middle] [--double-click] [--modifiers Alt,Shift]',

@@ -37,6 +37,8 @@ export interface CliIo {
 export interface DaemonOptions {
   host?: string
   port?: number
+  /** Unix domain socket (win32: named pipe) to bind instead of TCP. */
+  socketPath?: string
   headless?: boolean
 }
 

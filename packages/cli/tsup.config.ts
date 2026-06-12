@@ -1,4 +1,7 @@
 import { defineConfig } from 'tsup'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
   entry: ['src/index.ts', 'bin/agrune.ts'],
@@ -7,6 +10,9 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   target: 'es2022',
-  external: ['playwright', 'ws'],
+  external: ['playwright'],
   noExternal: ['@agrune/backend', '@agrune/core', '@agrune/manifest'],
+  define: {
+    __AGRUNE_CLI_VERSION__: JSON.stringify(pkg.version),
+  },
 })

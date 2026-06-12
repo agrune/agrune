@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import http from 'node:http'
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { WebSocket } from 'ws'
+import { fileURLToPath } from 'node:url'
 import type { RunningDaemon } from '../src/daemon'
 import { startDaemon } from '../src/daemon'
-import { requestJson } from '../src/http-client'
+import { requestJson } from '../src/daemon-client'
 import type { ActionResponse, AriaSnapshotResponse, ConsoleMessagesResponse, DialogHandleResponse, DialogsResponse, EvaluateResponse, EventsResponse, FileChoosersResponse, FileUploadResponse, FillResponse, NetworkRequestPartResponse, NetworkRequestsResponse, OpenTabResponse, ReadResponse, RunCodeUnsafeResponse, ScreenshotResponse, SnapshotResponse, TabsResponse } from '../src/types'
 import type { DaemonEvent } from '../src/events'
 
@@ -14,12 +16,9 @@ const runSmoke = process.env.AGRUNE_CLI_SMOKE === '1' ? describe : describe.skip
 
 let daemon: RunningDaemon | null = null
 let tempDir: string | null = null
-let eventSocket: WebSocket | null = null
 let fixtureServer: http.Server | null = null
 
 afterEach(async () => {
-  eventSocket?.close()
-  eventSocket = null
   await daemon?.close()
   daemon = null
   if (fixtureServer) {
@@ -186,9 +185,8 @@ runSmoke('Playwright daemon smoke', () => {
     ).rejects.toThrow(/Element screenshots cannot use fullPage/)
   })
 
-  it('focuses/closes tabs and streams command events', async () => {
+  it('focuses/closes tabs and records command events', async () => {
     daemon = await startDaemon({ port: 0, headless: true })
-    const events = await collectEvents(daemon.url)
 
     const first = await requestJson<OpenTabResponse>(daemon.url, '/tabs/new', {
       method: 'POST',
@@ -230,7 +228,7 @@ runSmoke('Playwright daemon smoke', () => {
     tabs = await requestJson<TabsResponse>(daemon.url, '/tabs')
     expect(tabs.tabs.map(tab => tab.tabId)).not.toContain(second.tab.tabId)
 
-    await waitForEvent(events, event => event.tool === 'close' && event.phase === 'end')
+    await waitForHistoryEvent(daemon.url, event => event.tool === 'close' && event.phase === 'end')
     const history = await requestJson<EventsResponse>(daemon.url, '/events/history')
     expect(history.events.some(event => event.tool === 'tabs.new' && event.phase === 'end')).toBe(true)
     expect(history.events.some(event => event.tool === 'tabs.select' && event.phase === 'end')).toBe(true)
@@ -1186,31 +1184,17 @@ function buildNavigationDataUrl(title: string, targetId: string): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
 }
 
-async function collectEvents(baseUrl: string): Promise<DaemonEvent[]> {
-  const received: DaemonEvent[] = []
-  const wsUrl = `${baseUrl.replace(/^http:/, 'ws:')}/events`
-  const ws = new WebSocket(wsUrl)
-  eventSocket = ws
-  await new Promise<void>((resolve, reject) => {
-    ws.once('open', resolve)
-    ws.once('error', reject)
-  })
-  ws.on('message', data => {
-    received.push(JSON.parse(data.toString()) as DaemonEvent)
-  })
-  return received
-}
-
-async function waitForEvent(
-  events: DaemonEvent[],
+async function waitForHistoryEvent(
+  baseUrl: string,
   predicate: (event: DaemonEvent) => boolean,
 ): Promise<void> {
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
-    if (events.some(predicate)) return
+    const history = await requestJson<EventsResponse>(baseUrl, '/events/history')
+    if (history.events.some(predicate)) return
     await new Promise(resolve => setTimeout(resolve, 50))
   }
-  throw new Error(`Timed out waiting for daemon event. Received: ${JSON.stringify(events)}`)
+  throw new Error('Timed out waiting for daemon event in /events/history.')
 }
 
 async function getConsoleMessages(
@@ -1295,4 +1279,80 @@ async function waitForNetworkRequest(
     await new Promise(resolve => setTimeout(resolve, 50))
   }
   throw new Error(`Timed out waiting for network request. Received: ${JSON.stringify(last)}`)
+}
+
+runSmoke('workspace socket daemon', () => {
+  it('serves requests over a unix socket and unlinks it on close', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'agrune-sock-'))
+    const socketPath = join(tempDir, 'daemon.sock')
+    daemon = await startDaemon({ socketPath, headless: true })
+    expect(daemon.endpoint).toBe(`unix:${socketPath}`)
+
+    const health = await requestJson<{ ok: boolean; name: string }>(daemon.endpoint, '/health')
+    expect(health).toMatchObject({ ok: true, name: 'agrune-daemon' })
+
+    const tabs = await requestJson<TabsResponse>(daemon.endpoint, '/tabs')
+    expect(tabs).toMatchObject({ ok: true, tabs: [] })
+
+    await daemon.close()
+    daemon = null
+    expect(existsSync(socketPath)).toBe(false)
+  }, 30_000)
+
+  it('auto-spawns a detached workspace daemon through the built bin and stops it', async () => {
+    const binPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'bin', 'agrune.js')
+    if (!existsSync(binPath)) {
+      throw new Error('dist/bin/agrune.js missing — run the cli build before the smoke suite.')
+    }
+
+    tempDir = await mkdtemp(join(tmpdir(), 'agrune-auto-'))
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      HOME: tempDir,
+      // HOME is faked for session-file isolation; keep Playwright's browser
+      // cache pointing at the real install so the spawned daemon can launch.
+      PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? defaultBrowsersPath(),
+    }
+    delete env.AGRUNE_DAEMON_SOCKET
+
+    const run = (args: string[]) =>
+      spawnSync(process.execPath, [binPath, ...args], {
+        cwd: tempDir,
+        env,
+        encoding: 'utf-8' as const,
+        timeout: 60_000,
+      })
+
+    const first = run(['tabs', 'list', '--headless', '--json'])
+    expect(first.status, first.stderr).toBe(0)
+    expect(JSON.parse(first.stdout)).toMatchObject({ ok: true, tabs: [] })
+
+    // Session file recorded under the redirected HOME.
+    const runRoot = join(tempDir, '.agrune', 'run')
+    const [workspaceHashDir] = await readdir(runRoot)
+    expect(workspaceHashDir).toBeTruthy()
+    const sessionRaw = await readFile(join(runRoot, workspaceHashDir, 'daemon.json'), 'utf-8')
+    const session = JSON.parse(sessionRaw) as { pid: number; socketPath: string }
+    expect(session.pid).toBeGreaterThan(0)
+
+    // Second invocation reuses the running daemon (no respawn, still healthy).
+    const second = run(['tabs', 'list', '--headless', '--json'])
+    expect(second.status, second.stderr).toBe(0)
+    const reused = JSON.parse(await readFile(join(runRoot, workspaceHashDir, 'daemon.json'), 'utf-8')) as { pid: number }
+    expect(reused.pid).toBe(session.pid)
+
+    const stop = run(['daemon', 'stop'])
+    expect(stop.status, stop.stderr).toBe(0)
+    expect(stop.stdout).toContain('Stopped Agrune daemon')
+    expect(existsSync(join(runRoot, workspaceHashDir, 'daemon.json'))).toBe(false)
+  }, 120_000)
+})
+
+function defaultBrowsersPath(): string {
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? ''
+  if (process.platform === 'darwin') return join(home, 'Library', 'Caches', 'ms-playwright')
+  if (process.platform === 'win32') {
+    return join(process.env.LOCALAPPDATA ?? join(home, 'AppData', 'Local'), 'ms-playwright')
+  }
+  return join(home, '.cache', 'ms-playwright')
 }
