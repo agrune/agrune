@@ -42,3 +42,10 @@ export type {
   MacroStep,
   AgruneManifest,
 } from './schema.js'
+
+export {
+  generatePlaywrightTests,
+  selectorToLocatorExpr,
+  actionToCallExpr,
+} from './codegen.js'
+export type { CodegenOptions } from './codegen.js'
