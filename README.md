@@ -1,18 +1,35 @@
 # agrune
 
-Agrune is a CDP-based MCP server for local AI agents. The agent talks only to MCP tools such as `browser_open_tab`, `browser_get_targets`, `browser_click`, and `browser_fill`; the page supplies the optimized manifest through `window.__agrune_manifest__`.
+Agrune is a **semantic browser-control layer for AI agents, built on the Playwright core**. Instead of handing the model a raw DOM / accessibility dump, an app-scoped **manifest** (groups → targets, each with a `role → text → testId → attr → css` selector ladder) lets the agent see a compact, stable set of *actionable* affordances and drive the page by target id. The agent talks only to MCP tools such as `browser_open_tab`, `browser_get_targets`, `browser_click`, and `browser_fill`; the page supplies the manifest through `window.__agrune_manifest__`.
+
+## Why agrune — "small model + accurate navigation"
+
+Frontier models already "know" big sites (AWS, Cloudflare); the pain is **new / small / complex platforms** — e.g. government portals like 정부24 or 건강보험공단 — where agents wander, burn tokens, or fail the user's goal. agrune's bet: an app-scoped manifest lets even a **small / cheap / on-device model** operate those long-tail sites accurately, on far less context.
+
+Measured token cost (cl100k_base, through the real agent-facing serializer — reproduce with `pnpm --filter @agrune/bench run bench`):
+
+| view | 정부24 home | vs raw a11y (full) | vs depth-tuned |
+| --- | ---: | ---: | ---: |
+| raw a11y (full) | 8,310 | — | — |
+| raw a11y (depth-tuned) | 4,245 | −49% | baseline |
+| agrune outline (groups + counts + samples) | 227 | −97% | −95% |
+| outline + expand one group (working set) | 3,384 | −59% | −20% |
+
+The token win comes from **scoped, progressive disclosure** (read the outline first; expand only the group you act on), *not* from compressing a full dump. The downstream goal — a small model navigating long-tail sites *more accurately* — is the next thing to prove with live model + task runs (it is not claimed by the token bench).
+
+Adjacent benefits: a tighter security surface (the agent can only act on declared targets; `sensitive` targets are masked), QA reuse (one manifest → agent control *and* stable Playwright tests), and a self-healing harness that re-grounds drifted targets automatically (MVP: see `@agrune/backend` self-heal).
 
 ## Current Scope
 
-This repo is currently optimized for the local-agent demo path:
+The local-agent path:
 
 1. An MCP host starts Agrune before the agent session.
-2. Agrune launches or attaches to Chrome.
+2. Agrune launches or attaches to a Chromium browser via Playwright.
 3. The agent opens a URL with `browser_open_tab`.
 4. The page-owned manifest produces a compact actionable snapshot.
 5. The agent controls the page by target IDs from that snapshot.
 
-The CLI-first product path has been reintroduced. The published `agrune` package still runs the MCP server today, while `@agrune/cli` is the internal Playwright daemon prototype for the new CLI surface.
+The published `agrune` package runs the MCP server today; `@agrune/cli` is the per-workspace Playwright daemon (unix socket, auto-spawn) for the CLI surface. The legacy Chrome DevTools Protocol stack has been removed — Playwright is the sole browser driver (`attach` still connects to an existing Chrome over CDP via Playwright's `connectOverCDP`).
 
 ## MCP Config
 
@@ -103,7 +120,7 @@ npx agrune@latest --user-data-dir ~/.agrune/browser-profile
 | `browser_read` | Extract visible page content as markdown. |
 | `browser_update_config` | Update visual/runtime options when explicitly requested. |
 
-Agents should not need to read manifest files, load manifests manually, use CSS selectors directly, or know about Chrome DevTools Protocol details.
+Agents should not need to read manifest files, load manifests manually, use CSS selectors directly, or know about low-level browser-driver details.
 
 ## Packages
 
@@ -117,6 +134,7 @@ Agents should not need to read manifest files, load manifests manually, use CSS 
 | `@agrune/core` | `packages/core` | Internal shared types and contracts. | No |
 | `@agrune/manifest` | `packages/manifest` | Internal manifest schema/validator used by demos and future tooling. | No |
 | `@agrune/e2e` | `packages/e2e` | Internal browser-flow tests and fixtures. | No |
+| `@agrune/bench` | `packages/bench` | Internal token/accuracy benchmark (raw a11y vs manifest snapshot). | No |
 
 ## Build And Verify
 

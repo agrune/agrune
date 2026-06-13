@@ -1,10 +1,10 @@
 # Privacy Policy — agrune
 
-**Last updated:** May 22, 2026
+**Last updated:** June 14, 2026
 
 ## Overview
 
-agrune is an MCP (Model Context Protocol) server that enables AI agents to interact with web pages through a local Chrome instance, controlled via the Chrome DevTools Protocol (CDP). The target surface for each interaction is supplied by the page through `window.__agrune_manifest__`. This policy explains what data agrune accesses and how it is handled.
+agrune is an MCP (Model Context Protocol) server that enables AI agents to interact with web pages through a local Chromium instance, driven via Playwright (the legacy Chrome DevTools Protocol stack has been removed). The target surface for each interaction is supplied by the page through `window.__agrune_manifest__`. This policy explains what data agrune accesses and how it is handled.
 
 ## Data Collection
 
@@ -19,14 +19,14 @@ Fields marked `sensitive: true` in the manifest (e.g. passwords, CVV, OTP) are a
 
 All data is:
 - Processed **locally** on your device
-- Transmitted **only** between the CDP session (user-launched Chrome) and the local MCP server process running on your machine, and from the MCP server to the MCP harness (Claude Code / Codex / etc.) over stdio
+- Transmitted **only** between the Playwright-managed browser session and the local MCP server process running on your machine, and from the MCP server to the MCP harness (Claude Code / Codex / etc.) over stdio
 - **Never** sent to external servers, third parties, or cloud services by agrune itself
 
 Note: the downstream MCP harness (the AI agent product) may transmit snapshot excerpts to its own model provider per that product's own privacy policy. agrune does not control that hop.
 
 ## Data Storage
 
-- agrune's CDP session is scoped to the Chrome instance that the user or the `agrune` MCP server launched. There is no system-wide install and no persistent background service.
+- agrune's browser session is scoped to the Chromium instance that the user or the `agrune` MCP server launched. There is no system-wide install and no persistent background service.
 - No website content or user activity data is persisted by the MCP server beyond the in-memory session lifetime.
 
 ## Data Sharing
@@ -40,8 +40,8 @@ agrune does **not**:
 
 agrune runs as a local stdio process and does **not** install any browser add-on, nor request system-wide Chrome permissions. Instead:
 
-- A CDP session is bound to a Chrome instance that agrune launches or to an existing Chrome instance exposed through `--remote-debugging-port`.
-- The session terminates when the Chrome process or the MCP server stops; no permissions persist after termination.
+- Playwright launches a Chromium instance, or attaches to an existing Chrome instance exposed through `--remote-debugging-port` (via Playwright's `connectOverCDP`).
+- The session terminates when the browser process or the MCP server stops; no permissions persist after termination.
 - The set of interactable targets is restricted to those declared in the page-owned manifest; targets not declared in that manifest are not exposed to the agent as actionable.
 
 ## Contact
