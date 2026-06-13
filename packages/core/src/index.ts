@@ -160,6 +160,8 @@ export interface PageTarget {
   sourceFile: string
   sourceLine: number
   sourceColumn: number
+  /** Whether the target's selector resolved to a live DOM element when the snapshot was captured. */
+  domResolved?: boolean
   /** Phase 15-01 (REPEAT-03): Repeat instance context — defined only for targets from ManifestRepeat expansion. */
   repeatInstance?: {
     repeatId: string

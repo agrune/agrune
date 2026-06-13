@@ -165,9 +165,11 @@ export class PlaywrightSession {
   async installVisualRuntime(installExpression: string): Promise<void> {
     const context = this.requireContext()
     await context.addInitScript(installExpression).catch(() => undefined)
-    for (const entry of this.pages.values()) {
-      await entry.page.evaluate(installExpression).catch(() => undefined)
-    }
+    await Promise.all(
+      [...this.pages.values()].map(entry =>
+        entry.page.evaluate(installExpression).catch(() => undefined),
+      ),
+    )
   }
 
   /** Best-effort evaluate on every open page (visual config broadcast). */

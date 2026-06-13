@@ -1,0 +1,147 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - img [ref=e7]
+      - generic [ref=e12]:
+        - heading "Project Manager" [level=1] [ref=e13]
+        - paragraph [ref=e14]: Manage tasks, team members, and documentation
+  - main [ref=e15]:
+    - generic [ref=e16]:
+      - tablist [ref=e17]:
+        - tab "Board" [selected] [ref=e18]:
+          - img [ref=e19]
+          - text: Board
+        - tab "Members" [ref=e21]:
+          - img [ref=e22]
+          - text: Members
+        - tab "Docs" [ref=e27]:
+          - img [ref=e28]
+          - text: Docs
+        - tab "Workflow" [ref=e31]:
+          - img [ref=e32]
+          - text: Workflow
+      - tabpanel "Board" [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]:
+            - generic [ref=e39]:
+              - heading "Kanban Board" [level=2] [ref=e40]
+              - paragraph [ref=e41]: Drag tasks between columns, or double-click any card to inspect and edit it.
+            - button "New Task" [ref=e42]:
+              - img
+              - text: New Task
+          - generic [ref=e43]:
+            - region "To Do column" [ref=e44]:
+              - generic [ref=e46]:
+                - generic [ref=e47]: To Do
+                - generic [ref=e48]: "3"
+              - generic [ref=e49]:
+                - button "Open task Write API documentation" [ref=e50]:
+                  - generic [ref=e52]:
+                    - generic [ref=e53]:
+                      - img [ref=e54]
+                      - generic [ref=e61]: Write API documentation
+                    - button "Delete task Write API documentation" [ref=e62]:
+                      - img
+                  - generic [ref=e63]:
+                    - paragraph [ref=e64]: Document all REST API endpoints with request/response examples using OpenAPI spec.
+                    - generic [ref=e65]:
+                      - generic [ref=e66]: medium
+                      - generic [ref=e67]: Diana Lee
+                - button "Open task Database schema optimization" [ref=e68]:
+                  - generic [ref=e70]:
+                    - generic [ref=e71]:
+                      - img [ref=e72]
+                      - generic [ref=e79]: Database schema optimization
+                    - button "Delete task Database schema optimization" [ref=e80]:
+                      - img
+                  - generic [ref=e81]:
+                    - paragraph [ref=e82]: Review and optimize database queries, add missing indexes for performance improvement.
+                    - generic [ref=e83]:
+                      - generic [ref=e84]: low
+                      - generic [ref=e85]: Bob Kim
+                - button "Open task User acceptance testing" [ref=e86]:
+                  - generic [ref=e88]:
+                    - generic [ref=e89]:
+                      - img [ref=e90]
+                      - generic [ref=e97]: User acceptance testing
+                    - button "Delete task User acceptance testing" [ref=e98]:
+                      - img
+                  - generic [ref=e99]:
+                    - paragraph [ref=e100]: Coordinate UAT sessions with stakeholders and gather feedback for the beta release.
+                    - generic [ref=e101]:
+                      - generic [ref=e102]: high
+                      - generic [ref=e103]: Eve Wang
+            - region "In Progress column" [ref=e104]:
+              - generic [ref=e106]:
+                - generic [ref=e107]: In Progress
+                - generic [ref=e108]: "2"
+              - generic [ref=e109]:
+                - button "Open task Implement authentication flow" [ref=e110]:
+                  - generic [ref=e112]:
+                    - generic [ref=e113]:
+                      - img [ref=e114]
+                      - generic [ref=e121]: Implement authentication flow
+                    - button "Delete task Implement authentication flow" [ref=e122]:
+                      - img
+                  - generic [ref=e123]:
+                    - paragraph [ref=e124]: Build login, registration, and password reset flows using OAuth2 and JWT tokens.
+                    - generic [ref=e125]:
+                      - generic [ref=e126]: high
+                      - generic [ref=e127]: Bob Kim
+                - button "Open task Mobile responsive fixes" [ref=e128]:
+                  - generic [ref=e130]:
+                    - generic [ref=e131]:
+                      - img [ref=e132]
+                      - generic [ref=e139]: Mobile responsive fixes
+                    - button "Delete task Mobile responsive fixes" [ref=e140]:
+                      - img
+                  - generic [ref=e141]:
+                    - paragraph [ref=e142]: Fix layout issues on tablet and mobile viewports for the dashboard pages.
+                    - generic [ref=e143]:
+                      - generic [ref=e144]: medium
+                      - generic [ref=e145]: Alice Chen
+            - region "In Review column" [ref=e146]:
+              - generic [ref=e148]:
+                - generic [ref=e149]: In Review
+                - generic [ref=e150]: "2"
+              - generic [ref=e151]:
+                - button "Open task Set up CI/CD pipeline" [ref=e152]:
+                  - generic [ref=e154]:
+                    - generic [ref=e155]:
+                      - img [ref=e156]
+                      - generic [ref=e163]: Set up CI/CD pipeline
+                    - button "Delete task Set up CI/CD pipeline" [ref=e164]:
+                      - img
+                  - generic [ref=e165]:
+                    - paragraph [ref=e166]: Configure GitHub Actions for automated testing, linting, and deployment to staging.
+                    - generic [ref=e167]:
+                      - generic [ref=e168]: medium
+                      - generic [ref=e169]: Charlie Park
+                - button "Open task Performance audit" [ref=e170]:
+                  - generic [ref=e172]:
+                    - generic [ref=e173]:
+                      - img [ref=e174]
+                      - generic [ref=e181]: Performance audit
+                    - button "Delete task Performance audit" [ref=e182]:
+                      - img
+                  - generic [ref=e183]:
+                    - paragraph [ref=e184]: Run Lighthouse audits and fix critical performance bottlenecks to achieve 90+ score.
+                    - generic [ref=e185]:
+                      - generic [ref=e186]: low
+                      - generic [ref=e187]: Frank Zhang
+            - region "Done column" [ref=e188]:
+              - generic [ref=e190]:
+                - generic [ref=e191]: Done
+                - generic [ref=e192]: "1"
+              - button "Open task Design landing page mockups" [ref=e194]:
+                - generic [ref=e196]:
+                  - generic [ref=e197]:
+                    - img [ref=e198]
+                    - generic [ref=e205]: Design landing page mockups
+                  - button "Delete task Design landing page mockups" [ref=e206]:
+                    - img
+                - generic [ref=e207]:
+                  - paragraph [ref=e208]: Create high-fidelity mockups for the new landing page including mobile and desktop views.
+                  - generic [ref=e209]:
+                    - generic [ref=e210]: high
+                    - generic [ref=e211]: Alice Chen

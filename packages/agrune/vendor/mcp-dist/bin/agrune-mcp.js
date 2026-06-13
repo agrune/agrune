@@ -4,7 +4,7 @@ const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   createMcpServer
-} from "../chunk-TQEKSDXH.js";
+} from "../chunk-IRVRC3ME.js";
 
 // ../../node_modules/.pnpm/@modelcontextprotocol+sdk@1.27.1_zod@4.3.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
@@ -14412,29 +14412,32 @@ async function buildSnapshotFromManifest(page, manifest, store) {
   const targets = [];
   for (const group of manifest.groups) {
     if (!routeApplies(group.route, url2)) continue;
-    const groupTargets = [];
-    for (const target of group.targets) {
-      groupTargets.push(await inspectTarget(page, group, target, target.targetId));
-    }
-    const repeatSummaries = [];
-    for (const repeat of group.repeats ?? []) {
-      const before = groupTargets.length;
-      for (const target of repeat.targets) {
-        groupTargets.push(...await inspectRepeatTarget(page, group, repeat, target));
-      }
-      repeatSummaries.push({
-        repeatId: repeat.repeatId,
-        strategy: repeat.strategy,
-        instanceCount: groupTargets.length - before,
-        logicalSize: await readRepeatLogicalSize(page, repeat)
-      });
-    }
+    const directTargets = await Promise.all(
+      group.targets.map((target) => inspectTarget(page, group, target, target.targetId))
+    );
+    const repeatResults = await Promise.all(
+      (group.repeats ?? []).map(async (repeat) => {
+        const instances = (await Promise.all(
+          repeat.targets.map((target) => inspectRepeatTarget(page, group, repeat, target))
+        )).flat();
+        return {
+          instances,
+          summary: {
+            repeatId: repeat.repeatId,
+            strategy: repeat.strategy,
+            instanceCount: instances.length,
+            logicalSize: await readRepeatLogicalSize(page, repeat)
+          }
+        };
+      })
+    );
+    const groupTargets = [...directTargets, ...repeatResults.flatMap((result) => result.instances)];
     groups.push({
       groupId: group.groupId,
       groupName: group.name,
       groupDesc: group.desc,
       targetIds: groupTargets.map((target) => target.targetId),
-      ...repeatSummaries.length > 0 ? { repeats: repeatSummaries } : {}
+      ...repeatResults.length > 0 ? { repeats: repeatResults.map((result) => result.summary) } : {}
     });
     targets.push(...groupTargets);
   }
@@ -14630,9 +14633,11 @@ var PlaywrightSession = class {
   async installVisualRuntime(installExpression) {
     const context = this.requireContext();
     await context.addInitScript(installExpression).catch(() => void 0);
-    for (const entry of this.pages.values()) {
-      await entry.page.evaluate(installExpression).catch(() => void 0);
-    }
+    await Promise.all(
+      [...this.pages.values()].map(
+        (entry) => entry.page.evaluate(installExpression).catch(() => void 0)
+      )
+    );
   }
   /** Best-effort evaluate on every open page (visual config broadcast). */
   broadcastEvaluate(expression) {
@@ -15786,9 +15791,7 @@ var PlaywrightDriver = class {
     if (tabs.length === 0) {
       return "No browser pages are open. Use browser_open_tab or browser_navigate to open a page.";
     }
-    for (const tab of tabs) {
-      await this.refreshSnapshot(tab.tabId).catch(() => void 0);
-    }
+    await Promise.all(tabs.map((tab) => this.refreshSnapshot(tab.tabId).catch(() => void 0)));
     return null;
   }
   resolveTabId(tabId) {
@@ -15823,7 +15826,7 @@ var PlaywrightDriver = class {
         commandId,
         ok: true,
         result,
-        ...snapshot ? { snapshotVersion: snapshot.version, snapshot } : {}
+        ...snapshotEnvelope(snapshot)
       };
     } catch (error48) {
       const snapshot = await this.refreshSnapshot(tabId).catch(() => null);
@@ -15836,7 +15839,7 @@ var PlaywrightDriver = class {
           ...typeof command.targetId === "string" ? { targetId: command.targetId } : {},
           ...snapshot ? { snapshotVersion: snapshot.version } : {}
         }),
-        ...snapshot ? { snapshotVersion: snapshot.version, snapshot } : {}
+        ...snapshotEnvelope(snapshot)
       };
     }
   }
@@ -16211,6 +16214,9 @@ var PlaywrightDriver = class {
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   }
 };
+function snapshotEnvelope(snapshot) {
+  return snapshot ? { snapshotVersion: snapshot.version, snapshot } : {};
+}
 function requireString(command, key) {
   const value = command[key];
   if (typeof value !== "string" || value.length === 0) {

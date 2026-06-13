@@ -110,9 +110,7 @@ export class PlaywrightDriver implements BrowserDriver {
     if (tabs.length === 0) {
       return 'No browser pages are open. Use browser_open_tab or browser_navigate to open a page.'
     }
-    for (const tab of tabs) {
-      await this.refreshSnapshot(tab.tabId).catch(() => undefined)
-    }
+    await Promise.all(tabs.map(tab => this.refreshSnapshot(tab.tabId).catch(() => undefined)))
     return null
   }
 
@@ -161,7 +159,7 @@ export class PlaywrightDriver implements BrowserDriver {
         commandId,
         ok: true,
         result,
-        ...(snapshot ? { snapshotVersion: snapshot.version, snapshot } : {}),
+        ...snapshotEnvelope(snapshot),
       }
     } catch (error) {
       const snapshot = await this.refreshSnapshot(tabId).catch(() => null)
@@ -174,7 +172,7 @@ export class PlaywrightDriver implements BrowserDriver {
           ...(typeof command.targetId === 'string' ? { targetId: command.targetId } : {}),
           ...(snapshot ? { snapshotVersion: snapshot.version } : {}),
         }),
-        ...(snapshot ? { snapshotVersion: snapshot.version, snapshot } : {}),
+        ...snapshotEnvelope(snapshot),
       }
     }
   }
@@ -654,6 +652,12 @@ export class PlaywrightDriver implements BrowserDriver {
     }
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
   }
+}
+
+function snapshotEnvelope(
+  snapshot: PageSnapshot | null,
+): { snapshotVersion: number; snapshot: PageSnapshot } | Record<string, never> {
+  return snapshot ? { snapshotVersion: snapshot.version, snapshot } : {}
 }
 
 function requireString(command: Record<string, unknown>, key: string): string {

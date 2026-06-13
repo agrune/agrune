@@ -217,7 +217,7 @@ export function toPublicSnapshot(
 }
 
 function targetDomResolved(target: PageTarget): boolean | undefined {
-  return (target as PageTarget & { domResolved?: boolean }).domResolved
+  return target.domResolved
 }
 
 function uniqueTargets(targets: PageTarget[]): PageTarget[] {

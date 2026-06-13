@@ -61,31 +61,39 @@ export async function buildSnapshotFromManifest(
   for (const group of manifest.groups) {
     if (!routeApplies(group.route, url)) continue
 
-    const groupTargets: PageTarget[] = []
-    for (const target of group.targets) {
-      groupTargets.push(await inspectTarget(page, group, target, target.targetId))
-    }
+    // Target inspections are independent DOM reads; run them concurrently while
+    // preserving manifest order (direct targets, then each repeat's instances).
+    const directTargets = await Promise.all(
+      group.targets.map(target => inspectTarget(page, group, target, target.targetId)),
+    )
 
-    const repeatSummaries: NonNullable<PageSnapshotGroup['repeats']> = []
-    for (const repeat of group.repeats ?? []) {
-      const before = groupTargets.length
-      for (const target of repeat.targets) {
-        groupTargets.push(...await inspectRepeatTarget(page, group, repeat, target))
-      }
-      repeatSummaries.push({
-        repeatId: repeat.repeatId,
-        strategy: repeat.strategy,
-        instanceCount: groupTargets.length - before,
-        logicalSize: await readRepeatLogicalSize(page, repeat),
-      })
-    }
+    const repeatResults = await Promise.all(
+      (group.repeats ?? []).map(async repeat => {
+        const instances = (
+          await Promise.all(
+            repeat.targets.map(target => inspectRepeatTarget(page, group, repeat, target)),
+          )
+        ).flat()
+        return {
+          instances,
+          summary: {
+            repeatId: repeat.repeatId,
+            strategy: repeat.strategy,
+            instanceCount: instances.length,
+            logicalSize: await readRepeatLogicalSize(page, repeat),
+          },
+        }
+      }),
+    )
+
+    const groupTargets = [...directTargets, ...repeatResults.flatMap(result => result.instances)]
 
     groups.push({
       groupId: group.groupId,
       groupName: group.name,
       groupDesc: group.desc,
       targetIds: groupTargets.map(target => target.targetId),
-      ...(repeatSummaries.length > 0 ? { repeats: repeatSummaries } : {}),
+      ...(repeatResults.length > 0 ? { repeats: repeatResults.map(result => result.summary) } : {}),
     })
     targets.push(...groupTargets)
   }
@@ -95,7 +103,7 @@ export async function buildSnapshotFromManifest(
       actionKinds: target.actionKinds,
       actionableNow: target.actionableNow,
       covered: target.covered,
-      domResolved: (target as PageTarget & { domResolved?: boolean }).domResolved,
+      domResolved: target.domResolved,
       enabled: target.enabled,
       inViewport: target.inViewport,
       reason: target.reason,
@@ -224,7 +232,7 @@ async function inspectLocator(
     sourceColumn: 0,
     domResolved: true,
     repeatInstance: opts.repeatInstance,
-  } as PageTarget & { domResolved: true }
+  }
 }
 
 function missingTarget(
@@ -259,7 +267,7 @@ function missingTarget(
     sourceColumn: 0,
     domResolved: false,
     repeatInstance: opts.repeatInstance,
-  } as PageTarget & { domResolved: false }
+  }
 }
 
 export function filterSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFilterOptions = {}): PageSnapshot {
