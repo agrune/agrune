@@ -4,7 +4,7 @@ const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   createMcpServer
-} from "../chunk-IRVRC3ME.js";
+} from "../chunk-6WDDW3KO.js";
 
 // ../../node_modules/.pnpm/@modelcontextprotocol+sdk@1.27.1_zod@4.3.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";

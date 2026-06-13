@@ -1,0 +1,15 @@
+{
+  "name": "@agrune/bench",
+  "version": "0.0.0",
+  "description": "Token/accuracy benchmark harness: raw a11y snapshot (depth-tuned) vs agrune manifest snapshot, measured through the real agent-facing serializer.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node src/run.mjs"
+  },
+  "dependencies": {
+    "@agrune/core": "workspace:*",
+    "@agrune/mcp": "workspace:*",
+    "gpt-tokenizer": "^3.0.1"
+  }
+}

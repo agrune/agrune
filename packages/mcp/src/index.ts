@@ -37,6 +37,22 @@ export type { CommandEvent, CommandEventPhase, CommandEventListener } from './co
 export type { HitlState, HitlStateListener } from './hitl-controller.js'
 export { CommandBroker } from './command-broker.js'
 export { HitlController, HitlSkipError } from './hitl-controller.js'
+// Public snapshot projection helpers — exposed so token/accuracy benchmarks and
+// external tooling can serialize a PageSnapshot exactly as the agent receives it.
+export {
+  formatPublicSnapshot,
+  toPublicSnapshot,
+  toPublicSession,
+  toPublicSessionMeta,
+  toPublicCommandResult,
+} from './public-shapes.js'
+export type {
+  PublicSnapshot,
+  PublicSnapshotDocument,
+  PublicSnapshotOptions,
+  PublicSnapshotGroup,
+  PublicSnapshotTarget,
+} from './public-shapes.js'
 
 type ActivityAwareDriver = BrowserDriver & {
   onActivity?: (() => void) | null
