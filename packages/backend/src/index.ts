@@ -1,5 +1,19 @@
 export { PlaywrightSession } from './playwright-session.js'
-export type { PlaywrightConnection, PlaywrightSessionOptions } from './playwright-session.js'
+export type { PlaywrightConnection, PlaywrightSessionOptions, RepairReport } from './playwright-session.js'
+export {
+  intentFromTarget,
+  rankRepairCandidates,
+  similarity,
+  serializeRepairOutcome,
+} from './self-heal.js'
+export type {
+  ObservedElement,
+  RepairIntent,
+  RepairCandidate,
+  RepairDecision,
+  RepairOutcome,
+  RepairOptions,
+} from './self-heal.js'
 export { PlaywrightDriver } from './playwright-driver.js'
 export type { PlaywrightDriverOptions } from './playwright-driver.js'
 export { buildLocatorCandidates, resolveLocator } from './locator.js'

@@ -7,10 +7,17 @@ import {
   REPEATED_TARGET_KEY_DELIMITER,
   normalizeAgentTargetId,
 } from '@agrune/core'
-import type { AgruneManifest, ManifestGroup, ManifestRepeat, ManifestTarget } from '@agrune/manifest'
+import type { AgruneManifest, ManifestGroup, ManifestRepeat, ManifestTarget, SelectorLadder } from '@agrune/manifest'
 import { CliError } from './errors.js'
 import { loadManifestFromPage, routeApplies } from './manifest-loader.js'
 import { resolveLocator } from './locator.js'
+import {
+  intentFromTarget,
+  rankRepairCandidates,
+  serializeRepairOutcome,
+  type ObservedElement,
+  type RepairOutcome,
+} from './self-heal.js'
 import { buildSnapshotFromManifest, createSnapshotStore, type SnapshotStore } from './snapshot.js'
 import type { ClickButton, ClickModifier, ConsoleLevel, ConsoleMessageEntry, DialogInfo, FileChooserInfo, FillFormField, NetworkRequestPart, NetworkRequestSummary, PublicTab } from './types.js'
 
@@ -22,6 +29,23 @@ export type PlaywrightConnection =
 export interface PlaywrightSessionOptions {
   headless?: boolean
   connection?: PlaywrightConnection
+  /**
+   * Self-healing: when a declared manifest target's selector ladder no longer
+   * resolves, attempt to re-ground it from the author's intent (role + name).
+   * Default true; disable per-session here or globally with AGRUNE_SELF_HEAL=off.
+   */
+  selfHeal?: boolean
+  /** Called when a target is auto-repaired or a repair is proposed (else stderr). */
+  onRepair?: (report: RepairReport) => void
+}
+
+export interface RepairReport {
+  targetRef: string
+  targetId: string
+  decision: RepairOutcome['decision']
+  reason: string
+  proposedSelector?: SelectorLadder
+  candidateCount: number
 }
 
 interface ManagedPage {
@@ -867,20 +891,115 @@ export class PlaywrightSession {
     return buildSnapshotFromManifest(entry.page, manifest, entry.snapshotStore)
   }
 
+  private get selfHealEnabled(): boolean {
+    if (this.options.selfHeal === false) return false
+    if (process.env.AGRUNE_SELF_HEAL === 'off') return false
+    return true
+  }
+
   private async resolveTargetLocator(tabId: number, targetRef: string): Promise<Locator> {
     const entry = this.requireTab(tabId)
     const manifest = await loadManifestFromPage(entry.page)
     const normalized = normalizeAgentTargetId(targetRef)
     const found = await findTargetLocator(entry.page, manifest, normalized)
-    if (!found) {
-      const manifestTarget = manifestDeclaresTarget(manifest, normalized, entry.page.url())
+    if (found) return found
+
+    const url = entry.page.url()
+    const declaredTarget = findDeclaredDirectTarget(manifest, normalized, url)
+    const declared = declaredTarget !== null || manifestDeclaresTarget(manifest, normalized, url)
+    if (!declared) {
       throw new CliError('TARGET_NOT_FOUND', `Target not found: ${targetRef}`, {
         target: targetRef,
-        manifestTarget,
-        reason: manifestTarget ? 'selector-unresolved' : 'not-declared',
+        manifestTarget: false,
+        reason: 'not-declared',
       })
     }
-    return found
+
+    // Declared but the selector ladder drifted. Try to re-ground from intent.
+    if (declaredTarget && this.selfHealEnabled) {
+      const { outcome, locator } = await this.attemptSelfHeal(entry, declaredTarget)
+      if (outcome.decision !== 'none') {
+        this.reportRepair(targetRef, declaredTarget, outcome)
+      }
+      if (outcome.decision === 'auto' && locator) {
+        return locator
+      }
+      throw new CliError('TARGET_NOT_FOUND', `Target not found: ${targetRef}`, {
+        target: targetRef,
+        manifestTarget: true,
+        reason: 'selector-unresolved',
+        repair: serializeRepairOutcome(outcome),
+      })
+    }
+
+    throw new CliError('TARGET_NOT_FOUND', `Target not found: ${targetRef}`, {
+      target: targetRef,
+      manifestTarget: true,
+      reason: 'selector-unresolved',
+    })
+  }
+
+  /**
+   * Re-ground a drifted target by scanning the page for elements matching the
+   * author's declared intent (role) and ranking them by name similarity. The
+   * decision (auto-apply vs propose) is made by the pure self-heal core.
+   */
+  private async attemptSelfHeal(
+    entry: ManagedPage,
+    target: ManifestTarget,
+  ): Promise<{ outcome: RepairOutcome; locator: Locator | null }> {
+    const intent = intentFromTarget(target)
+    const roleName = intent.role
+    const scanLocator = roleName
+      ? entry.page.getByRole(roleName as Parameters<Page['getByRole']>[0])
+      : entry.page.locator('a, button, input, select, textarea, summary, [role], [tabindex]')
+
+    const total = await scanLocator.count().catch(() => 0)
+    const cap = Math.min(total, 40)
+    const observed: ObservedElement[] = []
+    for (let index = 0; index < cap; index += 1) {
+      const info = await scanLocator
+        .nth(index)
+        .evaluate((node: Element) => {
+          const el = node as HTMLElement
+          const attr = (name: string) => (el.getAttribute ? el.getAttribute(name) ?? '' : '')
+          const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+          const name = (attr('aria-label') || attr('title') || attr('placeholder') || attr('alt') || text)
+            .replace(/\s+/g, ' ')
+            .trim()
+          const role = attr('role') || el.tagName.toLowerCase()
+          return { role, accessibleName: name.slice(0, 160), text: text.slice(0, 160) }
+        })
+        .catch(() => null)
+      if (info) observed.push({ index, ...info })
+    }
+
+    const outcome = rankRepairCandidates(target, observed)
+    if (outcome.decision === 'auto' && outcome.best) {
+      return { outcome, locator: scanLocator.nth(outcome.best.index) }
+    }
+    return { outcome, locator: null }
+  }
+
+  private reportRepair(targetRef: string, target: ManifestTarget, outcome: RepairOutcome): void {
+    const report: RepairReport = {
+      targetRef,
+      targetId: target.targetId,
+      decision: outcome.decision,
+      reason: outcome.reason,
+      ...(outcome.best ? { proposedSelector: outcome.best.proposedSelector } : {}),
+      candidateCount: outcome.candidates.length,
+    }
+    if (this.options.onRepair) {
+      try {
+        this.options.onRepair(report)
+      } catch {
+        // Reporting must never break the action path.
+      }
+      return
+    }
+    const verb = outcome.decision === 'auto' ? 'auto-repaired' : 'repair proposed for'
+    process.stderr.write(`[agrune:self-heal] ${verb} "${targetRef}" (${target.targetId}): ${outcome.reason}\n`)
   }
 
   private async resolveTargetOrSelectorLocator(tabId: number, targetRef: string): Promise<Locator> {
@@ -1001,6 +1120,20 @@ function manifestDeclaresTarget(
     }
   }
   return false
+}
+
+/** Return the declared DIRECT (non-repeat) target for the current URL, or null. */
+function findDeclaredDirectTarget(
+  manifest: AgruneManifest,
+  normalizedTargetId: string,
+  url: string,
+): ManifestTarget | null {
+  for (const group of manifest.groups) {
+    if (!routeApplies(group.route, url)) continue
+    const direct = group.targets.find(target => target.targetId === normalizedTargetId)
+    if (direct) return direct
+  }
+  return null
 }
 
 function parseRepeatedTargetId(targetId: string): { repeatId: string; baseTargetId: string } | null {

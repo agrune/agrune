@@ -14087,6 +14087,132 @@ function buildLocatorCandidates(scope, ladder) {
   }
   return candidates;
 }
+var DEFAULTS = {
+  autoThreshold: 0.82,
+  proposeThreshold: 0.5,
+  maxCandidates: 5,
+  marginForAuto: 0.12,
+  allowAuto: true,
+  sensitive: false
+};
+function intentFromTarget(target) {
+  return {
+    role: target.selector.role?.name,
+    accessibleName: target.selector.role?.level,
+    text: target.selector.text,
+    label: target.name,
+    desc: target.desc
+  };
+}
+function normalize(value) {
+  return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function tokenize(value) {
+  return normalize(value).split(" ").filter(Boolean);
+}
+function similarity(a, b) {
+  const na = normalize(a);
+  const nb = normalize(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.85;
+  const ta = new Set(tokenize(na));
+  const tb = new Set(tokenize(nb));
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter += 1;
+  const union2 = ta.size + tb.size - inter;
+  return union2 === 0 ? 0 : inter / union2;
+}
+function rolesMatch(a, b) {
+  return normalize(a).length > 0 && normalize(a) === normalize(b);
+}
+function nameSimilarity(intent, observed) {
+  const signals = [intent.accessibleName, intent.text, intent.label, intent.desc];
+  const observedNames = [observed.accessibleName, observed.text];
+  let best = 0;
+  for (const s of signals) {
+    for (const o of observedNames) {
+      best = Math.max(best, similarity(s, o));
+    }
+  }
+  return best;
+}
+function proposedSelectorFromObserved(observed) {
+  if (observed.role && observed.accessibleName) {
+    return { role: { name: observed.role, level: observed.accessibleName } };
+  }
+  if (observed.accessibleName || observed.text) {
+    return { text: observed.accessibleName || observed.text };
+  }
+  if (observed.role) {
+    return { role: { name: observed.role } };
+  }
+  return { text: "" };
+}
+function scoreCandidate(intent, observed) {
+  const matchedOn = [];
+  const nameSim = nameSimilarity(intent, observed);
+  const hasRoleIntent = Boolean(normalize(intent.role));
+  let score;
+  if (hasRoleIntent) {
+    const roleMatch = rolesMatch(intent.role, observed.role);
+    if (roleMatch) matchedOn.push("role");
+    score = (roleMatch ? 0.4 : 0) + 0.6 * nameSim;
+  } else {
+    score = nameSim;
+  }
+  if (nameSim >= 0.6) matchedOn.push("name");
+  return { score: Math.round(score * 1e3) / 1e3, matchedOn };
+}
+function rankRepairCandidates(target, observed, options = {}) {
+  const opts = { ...DEFAULTS, ...options };
+  const sensitive = options.sensitive ?? Boolean(target.sensitive);
+  const intent = intentFromTarget(target);
+  const scored = observed.map((o) => {
+    const { score, matchedOn } = scoreCandidate(intent, o);
+    return { index: o.index, score, matchedOn, proposedSelector: proposedSelectorFromObserved(o), observed: o };
+  }).filter((c) => c.score >= opts.proposeThreshold).sort((a, b) => b.score - a.score);
+  const candidates = scored.slice(0, opts.maxCandidates);
+  if (candidates.length === 0) {
+    return { decision: "none", best: null, candidates: [], reason: "no candidate scored above the propose threshold" };
+  }
+  const best = candidates[0];
+  const runnerUp = candidates[1];
+  const unambiguous = !runnerUp || best.score - runnerUp.score >= opts.marginForAuto;
+  if (sensitive) {
+    return { decision: "propose", best, candidates, reason: "sensitive target \u2014 repair proposed, never auto-applied" };
+  }
+  if (!opts.allowAuto) {
+    return { decision: "propose", best, candidates, reason: "auto-apply disabled \u2014 repair proposed" };
+  }
+  if (best.score >= opts.autoThreshold && unambiguous) {
+    return {
+      decision: "auto",
+      best,
+      candidates,
+      reason: `single high-confidence match (score ${best.score}${runnerUp ? `, margin ${Math.round((best.score - runnerUp.score) * 1e3) / 1e3}` : ""})`
+    };
+  }
+  return {
+    decision: "propose",
+    best,
+    candidates,
+    reason: runnerUp && best.score - runnerUp.score < opts.marginForAuto ? `ambiguous: top two candidates within ${opts.marginForAuto}` : `top score ${best.score} below auto threshold ${opts.autoThreshold}`
+  };
+}
+function serializeRepairOutcome(outcome) {
+  return {
+    decision: outcome.decision,
+    reason: outcome.reason,
+    candidates: outcome.candidates.map((c) => ({
+      score: c.score,
+      matchedOn: c.matchedOn,
+      name: c.observed.accessibleName || c.observed.text || "",
+      proposedSelector: c.proposedSelector
+    }))
+  };
+}
 function captureElementState(element, opts) {
   const el = element;
   const win = el.ownerDocument?.defaultView ?? window;
@@ -15188,20 +15314,96 @@ var PlaywrightSession = class {
     }
     return buildSnapshotFromManifest(entry.page, manifest, entry.snapshotStore);
   }
+  get selfHealEnabled() {
+    if (this.options.selfHeal === false) return false;
+    if (process.env.AGRUNE_SELF_HEAL === "off") return false;
+    return true;
+  }
   async resolveTargetLocator(tabId, targetRef) {
     const entry = this.requireTab(tabId);
     const manifest = await loadManifestFromPage(entry.page);
     const normalized = normalizeAgentTargetId(targetRef);
     const found = await findTargetLocator(entry.page, manifest, normalized);
-    if (!found) {
-      const manifestTarget = manifestDeclaresTarget(manifest, normalized, entry.page.url());
+    if (found) return found;
+    const url2 = entry.page.url();
+    const declaredTarget = findDeclaredDirectTarget(manifest, normalized, url2);
+    const declared = declaredTarget !== null || manifestDeclaresTarget(manifest, normalized, url2);
+    if (!declared) {
       throw new AgruneBackendError("TARGET_NOT_FOUND", `Target not found: ${targetRef}`, {
         target: targetRef,
-        manifestTarget,
-        reason: manifestTarget ? "selector-unresolved" : "not-declared"
+        manifestTarget: false,
+        reason: "not-declared"
       });
     }
-    return found;
+    if (declaredTarget && this.selfHealEnabled) {
+      const { outcome, locator } = await this.attemptSelfHeal(entry, declaredTarget);
+      if (outcome.decision !== "none") {
+        this.reportRepair(targetRef, declaredTarget, outcome);
+      }
+      if (outcome.decision === "auto" && locator) {
+        return locator;
+      }
+      throw new AgruneBackendError("TARGET_NOT_FOUND", `Target not found: ${targetRef}`, {
+        target: targetRef,
+        manifestTarget: true,
+        reason: "selector-unresolved",
+        repair: serializeRepairOutcome(outcome)
+      });
+    }
+    throw new AgruneBackendError("TARGET_NOT_FOUND", `Target not found: ${targetRef}`, {
+      target: targetRef,
+      manifestTarget: true,
+      reason: "selector-unresolved"
+    });
+  }
+  /**
+   * Re-ground a drifted target by scanning the page for elements matching the
+   * author's declared intent (role) and ranking them by name similarity. The
+   * decision (auto-apply vs propose) is made by the pure self-heal core.
+   */
+  async attemptSelfHeal(entry, target) {
+    const intent = intentFromTarget(target);
+    const roleName = intent.role;
+    const scanLocator = roleName ? entry.page.getByRole(roleName) : entry.page.locator("a, button, input, select, textarea, summary, [role], [tabindex]");
+    const total = await scanLocator.count().catch(() => 0);
+    const cap = Math.min(total, 40);
+    const observed = [];
+    for (let index = 0; index < cap; index += 1) {
+      const info = await scanLocator.nth(index).evaluate((node) => {
+        const el = node;
+        const attr = (name2) => el.getAttribute ? el.getAttribute(name2) ?? "" : "";
+        const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
+        const name = (attr("aria-label") || attr("title") || attr("placeholder") || attr("alt") || text).replace(/\s+/g, " ").trim();
+        const role = attr("role") || el.tagName.toLowerCase();
+        return { role, accessibleName: name.slice(0, 160), text: text.slice(0, 160) };
+      }).catch(() => null);
+      if (info) observed.push({ index, ...info });
+    }
+    const outcome = rankRepairCandidates(target, observed);
+    if (outcome.decision === "auto" && outcome.best) {
+      return { outcome, locator: scanLocator.nth(outcome.best.index) };
+    }
+    return { outcome, locator: null };
+  }
+  reportRepair(targetRef, target, outcome) {
+    const report = {
+      targetRef,
+      targetId: target.targetId,
+      decision: outcome.decision,
+      reason: outcome.reason,
+      ...outcome.best ? { proposedSelector: outcome.best.proposedSelector } : {},
+      candidateCount: outcome.candidates.length
+    };
+    if (this.options.onRepair) {
+      try {
+        this.options.onRepair(report);
+      } catch {
+      }
+      return;
+    }
+    const verb = outcome.decision === "auto" ? "auto-repaired" : "repair proposed for";
+    process.stderr.write(`[agrune:self-heal] ${verb} "${targetRef}" (${target.targetId}): ${outcome.reason}
+`);
   }
   async resolveTargetOrSelectorLocator(tabId, targetRef) {
     const entry = this.requireTab(tabId);
@@ -15301,6 +15503,14 @@ function manifestDeclaresTarget(manifest, normalizedTargetId, url2) {
     }
   }
   return false;
+}
+function findDeclaredDirectTarget(manifest, normalizedTargetId, url2) {
+  for (const group of manifest.groups) {
+    if (!routeApplies(group.route, url2)) continue;
+    const direct = group.targets.find((target) => target.targetId === normalizedTargetId);
+    if (direct) return direct;
+  }
+  return null;
 }
 function parseRepeatedTargetId(targetId) {
   const delimiterIndex = targetId.indexOf(REPEATED_TARGET_KEY_DELIMITER);
