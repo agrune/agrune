@@ -1,0 +1,344 @@
+{
+  "state": "task_wizard",
+  "label": "작업 생성 마법사",
+  "url": "http://127.0.0.1:50962/",
+  "capturedWith": {
+    "tokenizer": "cl100k_base",
+    "viewport": "1280x900"
+  },
+  "tokens": {
+    "agruneFull": 890,
+    "agruneNameOnly": 613,
+    "agruneOutline": 147,
+    "rawA11y": 1322,
+    "a11yInteractive": 92
+  },
+  "counts": {
+    "agruneVisibleTargets": 21,
+    "a11yRefs": 34,
+    "a11yInteractiveRefs": 0,
+    "bridged": 6
+  },
+  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n  - reason: covered\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n  - reason: covered\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n  - reason: covered\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n  - reason: covered\n- target \"New task\" [ref=board_new_task_button]:\n  - description: \"Open the task creation wizard.\"\n  - group: \"board\"\n  - reason: covered\n- target \"To Do column\" [ref=board_column_todo]:\n  - description: \"Drop tasks into the To Do column.\"\n  - group: \"board\"\n  - reason: covered\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - description: \"Drop tasks into the In Progress column.\"\n  - group: \"board\"\n  - reason: covered\n- target \"In Review column\" [ref=board_column_in_review]:\n  - description: \"Drop tasks into the In Review column.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Done column\" [ref=board_column_done]:\n  - description: \"Drop tasks into the Done column.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - description: \"Open one of the visible task cards by index.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - description: \"Use one of the visible task cards as a drag source by index.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - description: \"Delete one of the visible task cards by index.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - description: \"Open a task card details dialog.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - description: \"Use the task card as a drag source for board moves.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - description: \"Delete this task card.\"\n  - group: \"board\"\n  - reason: covered\n- target \"Wizard task name\" [ref=wizard_title_input]:\n  - description: \"Fill the task name in the new task wizard.\"\n  - group: \"task_wizard\"\n- target \"Wizard status\" [ref=wizard_status_select]:\n  - description: \"Open the task status picker in the new task wizard.\"\n  - group: \"task_wizard\"\n- target \"Wizard priority\" [ref=wizard_priority_select]:\n  - description: \"Open the priority picker in the new task wizard.\"\n  - group: \"task_wizard\"\n- target \"Wizard assignee\" [ref=wizard_assignee_select]:\n  - description: \"Open the assignee picker in the new task wizard.\"\n  - group: \"task_wizard\"\n- target \"Wizard next\" [ref=wizard_next_button]:\n  - description: \"Move to the next wizard step.\"\n  - group: \"task_wizard\"\n- target \"Wizard close\" [ref=wizard_close_button]:\n  - description: \"Close the task creation wizard.\"\n  - group: \"task_wizard\"\n```",
+  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n  - reason: covered\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n  - reason: covered\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n  - reason: covered\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n  - reason: covered\n- target \"New task\" [ref=board_new_task_button]:\n  - group: \"board\"\n  - reason: covered\n- target \"To Do column\" [ref=board_column_todo]:\n  - group: \"board\"\n  - reason: covered\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - group: \"board\"\n  - reason: covered\n- target \"In Review column\" [ref=board_column_in_review]:\n  - group: \"board\"\n  - reason: covered\n- target \"Done column\" [ref=board_column_done]:\n  - group: \"board\"\n  - reason: covered\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - group: \"board\"\n  - reason: covered\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - group: \"board\"\n  - reason: covered\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - group: \"board\"\n  - reason: covered\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - group: \"board\"\n  - reason: covered\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - group: \"board\"\n  - reason: covered\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - group: \"board\"\n  - reason: covered\n- target \"Wizard task name\" [ref=wizard_title_input]:\n  - group: \"task_wizard\"\n- target \"Wizard status\" [ref=wizard_status_select]:\n  - group: \"task_wizard\"\n- target \"Wizard priority\" [ref=wizard_priority_select]:\n  - group: \"task_wizard\"\n- target \"Wizard assignee\" [ref=wizard_assignee_select]:\n  - group: \"task_wizard\"\n- target \"Wizard next\" [ref=wizard_next_button]:\n  - group: \"task_wizard\"\n- target \"Wizard close\" [ref=wizard_close_button]:\n  - group: \"task_wizard\"\n```",
+  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 4\n- group \"Kanban board\" [ref=board]:\n  - description: \"Targets for creating, opening, editing, deleting, and moving tasks.\"\n  - targets: 11\n- group \"Task creation wizard\" [ref=task_wizard]:\n  - description: \"Targets for the three-step new task wizard.\"\n  - targets: 6\n```",
+  "rawA11yText": "- generic:\n  - generic:\n    - generic:\n      - banner:\n        - generic:\n          - generic:\n            - img\n            - generic:\n              - heading [level=1]: Project Manager\n              - paragraph: Manage tasks, team members, and documentation\n      - main:\n        - generic:\n          - tablist:\n            - tab [selected]:\n              - img\n              - text: Board\n            - tab:\n              - img\n              - text: Members\n            - tab:\n              - img\n              - text: Docs\n            - tab:\n              - img\n              - text: Workflow\n          - tabpanel:\n            - generic:\n              - generic:\n                - generic:\n                  - heading [level=2]: Kanban Board\n                  - paragraph: Drag tasks between columns, or double-click any card to inspect and edit it.\n                - button:\n                  - img\n                  - text: New Task\n              - generic:\n                - region:\n                  - generic:\n                    - generic:\n                      - generic: To Do\n                      - generic: \"3\"\n                  - generic:\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Write API documentation\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Document all REST API endpoints with request/response examples using OpenAPI spec.\n                        - generic:\n                          - generic: medium\n                          - generic: Diana Lee\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Database schema optimization\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Review and optimize database queries, add missing indexes for performance improvement.\n                        - generic:\n                          - generic: low\n                          - generic: Bob Kim\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: User acceptance testing\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Coordinate UAT sessions with stakeholders and gather feedback for the beta release.\n                        - generic:\n                          - generic: high\n                          - generic: Eve Wang\n                - region:\n                  - generic:\n                    - generic:\n                      - generic: In Progress\n                      - generic: \"2\"\n                  - generic:\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Implement authentication flow\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Build login, registration, and password reset flows using OAuth2 and JWT tokens.\n                        - generic:\n                          - generic: high\n                          - generic: Bob Kim\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Mobile responsive fixes\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Fix layout issues on tablet and mobile viewports for the dashboard pages.\n                        - generic:\n                          - generic: medium\n                          - generic: Alice Chen\n                - region:\n                  - generic:\n                    - generic:\n                      - generic: In Review\n                      - generic: \"2\"\n                  - generic:\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Set up CI/CD pipeline\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Configure GitHub Actions for automated testing, linting, and deployment to staging.\n                        - generic:\n                          - generic: medium\n                          - generic: Charlie Park\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Performance audit\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Run Lighthouse audits and fix critical performance bottlenecks to achieve 90+ score.\n                        - generic:\n                          - generic: low\n                          - generic: Frank Zhang\n                - region:\n                  - generic:\n                    - generic:\n                      - generic: Done\n                      - generic: \"1\"\n                  - generic:\n                    - button:\n                      - generic:\n                        - generic:\n                          - generic:\n                            - img\n                            - generic: Design landing page mockups\n                          - button:\n                            - img\n                      - generic:\n                        - paragraph: Create high-fidelity mockups for the new landing page including mobile and desktop views.\n                        - generic:\n                          - generic: high\n                          - generic: Alice Chen\n  - dialog \"Create New Task\" [ref=e455]:\n    - generic [ref=e456]:\n      - heading \"Create New Task\" [level=2] [ref=e457]\n      - paragraph [ref=e458]: \"Step 1 of 3: Basic Info\"\n    - progressbar [ref=e459]\n    - generic [ref=e461]:\n      - generic [ref=e462]:\n        - generic [ref=e463]: \"1\"\n        - generic [ref=e464]: Basic Info\n      - generic [ref=e465]:\n        - generic [ref=e466]: \"2\"\n        - generic [ref=e467]: Detailed Settings\n      - generic [ref=e468]:\n        - generic [ref=e469]: \"3\"\n        - generic [ref=e470]: Confirmation/Review\n    - generic [ref=e472]:\n      - generic [ref=e473]:\n        - generic [ref=e474]: Task Name *\n        - textbox \"Task Name *\" [active] [ref=e475]:\n          - /placeholder: Enter task name...\n      - generic [ref=e476]:\n        - generic [ref=e477]:\n          - text: Status\n          - combobox \"Status\" [ref=e478]:\n            - generic: To Do\n            - img [ref=e479]\n        - generic [ref=e481]:\n          - text: Priority\n          - combobox \"Priority\" [ref=e482]:\n            - generic: Medium\n            - img [ref=e483]\n      - generic [ref=e485]:\n        - generic [ref=e486]: Assignee *\n        - combobox \"Assignee *\" [ref=e487]:\n          - generic: Select a team member...\n          - img [ref=e488]\n    - button \"Next\" [ref=e491]\n    - button \"Close\" [ref=e492]:\n      - img [ref=e493]\n      - generic [ref=e496]: Close",
+  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - textbox \"Task Name *\" [active] [ref=e475]:\n  - - combobox \"Status\" [ref=e478]:\n  - - combobox \"Priority\" [ref=e482]:\n  - - combobox \"Assignee *\" [ref=e487]:\n  - - button \"Next\" [ref=e491]\n  - - button \"Close\" [ref=e492]:",
+  "elements": [
+    {
+      "targetId": "nav_board_tab",
+      "ref": "nav_board_tab",
+      "name": "Board tab",
+      "desc": "Open the kanban board.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "nav_members_tab",
+      "ref": "nav_members_tab",
+      "name": "Members tab",
+      "desc": "Open the team member table.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "nav_docs_tab",
+      "ref": "nav_docs_tab",
+      "name": "Docs tab",
+      "desc": "Open the document viewer.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "nav_workflow_tab",
+      "ref": "nav_workflow_tab",
+      "name": "Workflow tab",
+      "desc": "Open the workflow editor.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "board_new_task_button",
+      "ref": "board_new_task_button",
+      "name": "New task",
+      "desc": "Open the task creation wizard.",
+      "role": "button",
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "board_column_todo",
+      "ref": "board_column_todo",
+      "name": "To Do column",
+      "desc": "Drop tasks into the To Do column.",
+      "role": null,
+      "actionKinds": [
+        "hover"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "board_column_in_progress",
+      "ref": "board_column_in_progress",
+      "name": "In Progress column",
+      "desc": "Drop tasks into the In Progress column.",
+      "role": null,
+      "actionKinds": [
+        "hover"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "board_column_in_review",
+      "ref": "board_column_in_review",
+      "name": "In Review column",
+      "desc": "Drop tasks into the In Review column.",
+      "role": null,
+      "actionKinds": [
+        "hover"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "board_column_done",
+      "ref": "board_column_done",
+      "name": "Done column",
+      "desc": "Drop tasks into the Done column.",
+      "role": null,
+      "actionKinds": [
+        "hover"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_card_open_indexed",
+      "ref": "task_card_open_indexed",
+      "name": "Open task card",
+      "desc": "Open one of the visible task cards by index.",
+      "role": null,
+      "actionKinds": [
+        "dblclick"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_card_drag_source_indexed",
+      "ref": "task_card_drag_source_indexed",
+      "name": "Task card drag source",
+      "desc": "Use one of the visible task cards as a drag source by index.",
+      "role": null,
+      "actionKinds": [
+        "dblclick"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_card_delete_indexed",
+      "ref": "task_card_delete_indexed",
+      "name": "Delete task",
+      "desc": "Delete one of the visible task cards by index.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_cards__agrune_repeatKey_task-4.task_card_open",
+      "ref": "task_cards[key=task-4].task_card_open",
+      "name": "Write API documentation",
+      "desc": "Open a task card details dialog.",
+      "role": null,
+      "actionKinds": [
+        "dblclick"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_cards__agrune_repeatKey_task-4.task_card_drag_source",
+      "ref": "task_cards[key=task-4].task_card_drag_source",
+      "name": "Write API documentation",
+      "desc": "Use the task card as a drag source for board moves.",
+      "role": null,
+      "actionKinds": [
+        "dblclick"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "task_cards__agrune_repeatKey___idx_0.task_card_delete",
+      "ref": "task_cards[key=__idx_0].task_card_delete",
+      "name": "Delete task",
+      "desc": "Delete this task card.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": null,
+      "a11yRef": null,
+      "a11yRole": null,
+      "a11yName": null,
+      "bridgeDist": null
+    },
+    {
+      "targetId": "wizard_title_input",
+      "ref": "wizard_title_input",
+      "name": "Wizard task name",
+      "desc": "Fill the task name in the new task wizard.",
+      "role": null,
+      "actionKinds": [
+        "fill"
+      ],
+      "center": "640,426",
+      "a11yRef": "e475",
+      "a11yRole": "textbox",
+      "a11yName": "Task Name *",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "wizard_status_select",
+      "ref": "wizard_status_select",
+      "name": "Wizard status",
+      "desc": "Open the task status picker in the new task wizard.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "515,502",
+      "a11yRef": "e478",
+      "a11yRole": "combobox",
+      "a11yName": "Status",
+      "bridgeDist": 1
+    },
+    {
+      "targetId": "wizard_priority_select",
+      "ref": "wizard_priority_select",
+      "name": "Wizard priority",
+      "desc": "Open the priority picker in the new task wizard.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "766,502",
+      "a11yRef": "e482",
+      "a11yRole": "combobox",
+      "a11yName": "Priority",
+      "bridgeDist": 1
+    },
+    {
+      "targetId": "wizard_assignee_select",
+      "ref": "wizard_assignee_select",
+      "name": "Wizard assignee",
+      "desc": "Open the assignee picker in the new task wizard.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "640,578",
+      "a11yRef": "e487",
+      "a11yRole": "combobox",
+      "a11yName": "Assignee *",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "wizard_next_button",
+      "ref": "wizard_next_button",
+      "name": "Wizard next",
+      "desc": "Move to the next wizard step.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "854,646",
+      "a11yRef": "e491",
+      "a11yRole": "button",
+      "a11yName": "Next",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "wizard_close_button",
+      "ref": "wizard_close_button",
+      "name": "Wizard close",
+      "desc": "Close the task creation wizard.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "885,236",
+      "a11yRef": "e492",
+      "a11yRole": "button",
+      "a11yName": "Close",
+      "bridgeDist": 0
+    }
+  ]
+}

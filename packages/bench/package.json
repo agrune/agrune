@@ -5,11 +5,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bench": "node src/run.mjs"
+    "bench": "node src/run.mjs",
+    "capture": "node src/accuracy/capture.mjs",
+    "eval": "node src/accuracy/eval.mjs"
   },
   "dependencies": {
+    "@agrune/backend": "workspace:*",
     "@agrune/core": "workspace:*",
+    "@agrune/manifest": "workspace:*",
     "@agrune/mcp": "workspace:*",
-    "gpt-tokenizer": "^3.0.1"
+    "gpt-tokenizer": "^3.0.1",
+    "playwright": "^1.48.0"
   }
 }

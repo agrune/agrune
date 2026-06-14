@@ -1,0 +1,179 @@
+{
+  "state": "documents",
+  "label": "문서 뷰어",
+  "url": "http://127.0.0.1:50962/",
+  "capturedWith": {
+    "tokenizer": "cl100k_base",
+    "viewport": "1280x900"
+  },
+  "tokens": {
+    "agruneFull": 380,
+    "agruneNameOnly": 265,
+    "agruneOutline": 105,
+    "rawA11y": 1933,
+    "a11yInteractive": 104
+  },
+  "counts": {
+    "agruneVisibleTargets": 10,
+    "a11yRefs": 60,
+    "a11yInteractiveRefs": 0,
+    "bridged": 10
+  },
+  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Refresh document\" [ref=doc_refresh_button]:\n  - description: \"Reload the selected document iframe.\"\n  - group: \"documents\"\n- target \"Expand document\" [ref=doc_expand_toggle]:\n  - description: \"Toggle the document viewer height.\"\n  - group: \"documents\"\n- target \"Open document in new tab\" [ref=doc_open_new_tab_button]:\n  - description: \"Open the selected document in a new browser tab.\"\n  - group: \"documents\"\n- target \"Document iframe\" [ref=doc_iframe]:\n  - description: \"The embedded selected document.\"\n  - group: \"documents\"\n- target \"Select document\" [ref=document_card_select_indexed]:\n  - description: \"Select one of the document cards by index.\"\n  - group: \"documents\"\n- target \"Project OverviewProjectHigh-level project summary, milestones, and risk assessment\" [ref=document_cards[key=overview].document_card_select]:\n  - description: \"Select a document card for viewing.\"\n  - group: \"documents\"\n```",
+  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Refresh document\" [ref=doc_refresh_button]:\n  - group: \"documents\"\n- target \"Expand document\" [ref=doc_expand_toggle]:\n  - group: \"documents\"\n- target \"Open document in new tab\" [ref=doc_open_new_tab_button]:\n  - group: \"documents\"\n- target \"Document iframe\" [ref=doc_iframe]:\n  - group: \"documents\"\n- target \"Select document\" [ref=document_card_select_indexed]:\n  - group: \"documents\"\n- target \"Project OverviewProjectHigh-level project summary, milestones, and risk assessment\" [ref=document_cards[key=overview].document_card_select]:\n  - group: \"documents\"\n```",
+  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 4\n- group \"Document viewer\" [ref=documents]:\n  - description: \"Targets for selecting and controlling project documents.\"\n  - targets: 6\n```",
+  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [active] [selected] [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n      - tabpanel \"Docs\" [ref=e302]:\n        - generic [ref=e303]:\n          - generic [ref=e304]:\n            - heading \"Documents\" [level=2] [ref=e305]:\n              - img [ref=e306]\n              - text: Documents\n            - paragraph [ref=e309]: Browse project documentation. Select a document to view it in the iframe below.\n          - generic [ref=e310]:\n            - generic [ref=e311] [cursor=pointer]:\n              - generic [ref=e313]:\n                - generic [ref=e314]:\n                  - img [ref=e315]\n                  - text: Project Overview\n                - generic [ref=e317]: Project\n              - paragraph [ref=e319]: High-level project summary, milestones, and risk assessment\n            - generic [ref=e320] [cursor=pointer]:\n              - generic [ref=e322]:\n                - generic [ref=e323]:\n                  - img [ref=e324]\n                  - text: API Reference\n                - generic [ref=e327]: Technical\n              - paragraph [ref=e329]: REST API endpoints, authentication, and rate limits\n            - generic [ref=e330] [cursor=pointer]:\n              - generic [ref=e332]:\n                - generic [ref=e333]:\n                  - img [ref=e334]\n                  - text: Getting Started\n                - generic [ref=e337]: Guide\n              - paragraph [ref=e339]: Setup guide, quick start tutorial, and keyboard shortcuts\n            - generic [ref=e340] [cursor=pointer]:\n              - generic [ref=e342]:\n                - generic [ref=e343]:\n                  - img [ref=e344]\n                  - text: Meeting Notes\n                - generic [ref=e347]: Notes\n              - paragraph [ref=e349]: Sprint planning notes, decisions, and action items\n          - generic [ref=e350]:\n            - generic [ref=e352]:\n              - generic [ref=e353]:\n                - img [ref=e354]\n                - generic [ref=e356]: Project Overview\n                - generic [ref=e357]: /docs/project-overview.html\n              - generic [ref=e358]:\n                - button \"Refresh document\" [ref=e359]:\n                  - img\n                - button \"Expand\" [ref=e360]:\n                  - img\n                - button \"Open in new tab\" [ref=e361]:\n                  - img\n                  - text: Open in new tab\n            - iframe [ref=e363]:\n              - generic [active] [ref=f1e1]:\n                - heading \"Project Overview\" [level=1] [ref=f1e2]\n                - generic [ref=f1e3]:\n                  - heading \"Project Details\" [level=2] [ref=f1e4]\n                  - table [ref=f1e5]:\n                    - rowgroup [ref=f1e6]:\n                      - row \"Project Name Website Redesign v2.0\" [ref=f1e7]:\n                        - rowheader \"Project Name\" [ref=f1e8]\n                        - cell \"Website Redesign v2.0\" [ref=f1e9]\n                      - row \"Status Active\" [ref=f1e10]:\n                        - rowheader \"Status\" [ref=f1e11]\n                        - cell \"Active\" [ref=f1e12]:\n                          - generic [ref=f1e13]: Active\n                      - row \"Start Date January 15, 2026\" [ref=f1e14]:\n                        - rowheader \"Start Date\" [ref=f1e15]\n                        - cell \"January 15, 2026\" [ref=f1e16]\n                      - row \"Target Completion April 30, 2026\" [ref=f1e17]:\n                        - rowheader \"Target Completion\" [ref=f1e18]\n                        - cell \"April 30, 2026\" [ref=f1e19]\n                      - row \"Project Lead Sarah Chen\" [ref=f1e20]:\n                        - rowheader \"Project Lead\" [ref=f1e21]\n                        - cell \"Sarah Chen\" [ref=f1e22]\n                      - row \"Team Size 8 members\" [ref=f1e23]:\n                        - rowheader \"Team Size\" [ref=f1e24]\n                        - cell \"8 members\" [ref=f1e25]\n                - generic [ref=f1e26]:\n                  - heading \"Objectives\" [level=2] [ref=f1e27]\n                  - list [ref=f1e28]:\n                    - listitem [ref=f1e29]: Redesign the main marketing website with modern UI/UX patterns\n                    - listitem [ref=f1e30]: Improve page load performance by 40% across all pages\n                    - listitem [ref=f1e31]: Implement responsive design for mobile-first experience\n                    - listitem [ref=f1e32]: Migrate content management to headless CMS architecture\n                    - listitem [ref=f1e33]: Achieve WCAG 2.1 AA accessibility compliance\n                - generic [ref=f1e34]:\n                  - heading \"Milestones\" [level=2] [ref=f1e35]\n                  - table [ref=f1e36]:\n                    - rowgroup [ref=f1e37]:\n                      - row \"Milestone Status Due Date\" [ref=f1e38]:\n                        - columnheader \"Milestone\" [ref=f1e39]\n                        - columnheader \"Status\" [ref=f1e40]\n                        - columnheader \"Due Date\" [ref=f1e41]\n                      - row \"Discovery & Research Complete Feb 1, 2026\" [ref=f1e42]:\n                        - cell \"Discovery & Research\" [ref=f1e43]\n                        - cell \"Complete\" [ref=f1e44]:\n                          - generic [ref=f1e45]: Complete\n                        - cell \"Feb 1, 2026\" [ref=f1e46]\n                      - row \"Design System & Wireframes Complete Feb 28, 2026\" [ref=f1e47]:\n                        - cell \"Design System & Wireframes\" [ref=f1e48]\n                        - cell \"Complete\" [ref=f1e49]:\n                          - generic [ref=f1e50]: Complete\n                        - cell \"Feb 28, 2026\" [ref=f1e51]\n                      - row \"Frontend Development In Progress Mar 31, 2026\" [ref=f1e52]:\n                        - cell \"Frontend Development\" [ref=f1e53]\n                        - cell \"In Progress\" [ref=f1e54]:\n                          - generic [ref=f1e55]: In Progress\n                        - cell \"Mar 31, 2026\" [ref=f1e56]\n                      - row \"QA & Testing Upcoming Apr 15, 2026\" [ref=f1e57]:\n                        - cell \"QA & Testing\" [ref=f1e58]\n                        - cell \"Upcoming\" [ref=f1e59]:\n                          - generic [ref=f1e60]: Upcoming\n                        - cell \"Apr 15, 2026\" [ref=f1e61]\n                      - row \"Launch Upcoming Apr 30, 2026\" [ref=f1e62]:\n                        - cell \"Launch\" [ref=f1e63]\n                        - cell \"Upcoming\" [ref=f1e64]:\n                          - generic [ref=f1e65]: Upcoming\n                        - cell \"Apr 30, 2026\" [ref=f1e66]\n                - generic [ref=f1e67]:\n                  - heading \"Key Risks\" [level=2] [ref=f1e68]\n                  - list [ref=f1e69]:\n                    - listitem [ref=f1e70]:\n                      - strong [ref=f1e71]: Third-party API integration delays\n                      - text: \"- Mitigation: Parallel development with mock data\"\n                    - listitem [ref=f1e72]:\n                      - strong [ref=f1e73]: Scope creep from stakeholder requests\n                      - text: \"- Mitigation: Strict change request process\"\n                    - listitem [ref=f1e74]:\n                      - strong [ref=f1e75]: Performance regression\n                      - text: \"- Mitigation: Automated lighthouse CI checks\"",
+  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [ref=e18]:\n  - - tab \"Members\" [ref=e21]:\n  - - tab \"Docs\" [active] [selected] [ref=e27]:\n  - - tab \"Workflow\" [ref=e31]:\n  - - button \"Refresh document\" [ref=e359]:\n  - - button \"Expand\" [ref=e360]:\n  - - button \"Open in new tab\" [ref=e361]:",
+  "elements": [
+    {
+      "targetId": "nav_board_tab",
+      "ref": "nav_board_tab",
+      "name": "Board tab",
+      "desc": "Open the kanban board.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "83,123",
+      "a11yRef": "e18",
+      "a11yRole": "tab",
+      "a11yName": "Board",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_members_tab",
+      "ref": "nav_members_tab",
+      "name": "Members tab",
+      "desc": "Open the team member table.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "193,123",
+      "a11yRef": "e21",
+      "a11yRole": "tab",
+      "a11yName": "Members",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_docs_tab",
+      "ref": "nav_docs_tab",
+      "name": "Docs tab",
+      "desc": "Open the document viewer.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "303,123",
+      "a11yRef": "e27",
+      "a11yRole": "tab",
+      "a11yName": "Docs",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_workflow_tab",
+      "ref": "nav_workflow_tab",
+      "name": "Workflow tab",
+      "desc": "Open the workflow editor.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "413,123",
+      "a11yRef": "e31",
+      "a11yRole": "tab",
+      "a11yName": "Workflow",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "doc_refresh_button",
+      "ref": "doc_refresh_button",
+      "name": "Refresh document",
+      "desc": "Reload the selected document iframe.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "1041,383",
+      "a11yRef": "e359",
+      "a11yRole": "button",
+      "a11yName": "Refresh document",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "doc_expand_toggle",
+      "ref": "doc_expand_toggle",
+      "name": "Expand document",
+      "desc": "Toggle the document viewer height.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "1079,383",
+      "a11yRef": "e360",
+      "a11yRole": "button",
+      "a11yName": "Expand",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "doc_open_new_tab_button",
+      "ref": "doc_open_new_tab_button",
+      "name": "Open document in new tab",
+      "desc": "Open the selected document in a new browser tab.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "1172,383",
+      "a11yRef": "e361",
+      "a11yRole": "button",
+      "a11yName": "Open in new tab",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "doc_iframe",
+      "ref": "doc_iframe",
+      "name": "Document iframe",
+      "desc": "The embedded selected document.",
+      "role": null,
+      "actionKinds": [
+        "hover"
+      ],
+      "center": "640,662",
+      "a11yRef": "e363",
+      "a11yRole": "iframe",
+      "a11yName": "",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "document_card_select_indexed",
+      "ref": "document_card_select_indexed",
+      "name": "Select document",
+      "desc": "Select one of the document cards by index.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "174,288",
+      "a11yRef": "e311",
+      "a11yRole": "generic",
+      "a11yName": "",
+      "bridgeDist": 1
+    },
+    {
+      "targetId": "document_cards__agrune_repeatKey_overview.document_card_select",
+      "ref": "document_cards[key=overview].document_card_select",
+      "name": "Project OverviewProjectHigh-level project summary, milestones, and risk assessment",
+      "desc": "Select a document card for viewing.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "174,288",
+      "a11yRef": "e311",
+      "a11yRole": "generic",
+      "a11yName": "",
+      "bridgeDist": 1
+    }
+  ]
+}

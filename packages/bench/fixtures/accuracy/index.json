@@ -1,0 +1,95 @@
+{
+  "tokenizer": "cl100k_base",
+  "states": [
+    {
+      "state": "board",
+      "label": "칸반 보드",
+      "tokens": {
+        "agruneFull": 580,
+        "agruneNameOnly": 388,
+        "agruneOutline": 112,
+        "rawA11y": 1557,
+        "a11yInteractive": 339
+      },
+      "counts": {
+        "agruneVisibleTargets": 15,
+        "a11yRefs": 133,
+        "a11yInteractiveRefs": 0,
+        "bridged": 15
+      },
+      "file": "board.json"
+    },
+    {
+      "state": "members",
+      "label": "멤버 테이블",
+      "tokens": {
+        "agruneFull": 517,
+        "agruneNameOnly": 356,
+        "agruneOutline": 109,
+        "rawA11y": 1221,
+        "a11yInteractive": 182
+      },
+      "counts": {
+        "agruneVisibleTargets": 14,
+        "a11yRefs": 97,
+        "a11yInteractiveRefs": 0,
+        "bridged": 13
+      },
+      "file": "members.json"
+    },
+    {
+      "state": "documents",
+      "label": "문서 뷰어",
+      "tokens": {
+        "agruneFull": 380,
+        "agruneNameOnly": 265,
+        "agruneOutline": 105,
+        "rawA11y": 1933,
+        "a11yInteractive": 104
+      },
+      "counts": {
+        "agruneVisibleTargets": 10,
+        "a11yRefs": 60,
+        "a11yInteractiveRefs": 0,
+        "bridged": 10
+      },
+      "file": "documents.json"
+    },
+    {
+      "state": "workflow",
+      "label": "워크플로우 편집기",
+      "tokens": {
+        "agruneFull": 595,
+        "agruneNameOnly": 415,
+        "agruneOutline": 110,
+        "rawA11y": 909,
+        "a11yInteractive": 156
+      },
+      "counts": {
+        "agruneVisibleTargets": 16,
+        "a11yRefs": 70,
+        "a11yInteractiveRefs": 0,
+        "bridged": 12
+      },
+      "file": "workflow.json"
+    },
+    {
+      "state": "task_wizard",
+      "label": "작업 생성 마법사",
+      "tokens": {
+        "agruneFull": 890,
+        "agruneNameOnly": 613,
+        "agruneOutline": 147,
+        "rawA11y": 1322,
+        "a11yInteractive": 92
+      },
+      "counts": {
+        "agruneVisibleTargets": 21,
+        "a11yRefs": 34,
+        "a11yInteractiveRefs": 0,
+        "bridged": 6
+      },
+      "file": "task_wizard.json"
+    }
+  ]
+}

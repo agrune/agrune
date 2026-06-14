@@ -1,0 +1,670 @@
+{
+  "states": [
+    {
+      "state": "board",
+      "label": "칸반 보드",
+      "elements": [
+        {
+          "a11yRef": "e18",
+          "a11yName": "Board",
+          "role": null,
+          "agruneRefs": [
+            "nav_board_tab"
+          ],
+          "name": "Board tab",
+          "desc": "Open the kanban board.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e21",
+          "a11yName": "Members",
+          "role": null,
+          "agruneRefs": [
+            "nav_members_tab"
+          ],
+          "name": "Members tab",
+          "desc": "Open the team member table.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e27",
+          "a11yName": "Docs",
+          "role": null,
+          "agruneRefs": [
+            "nav_docs_tab"
+          ],
+          "name": "Docs tab",
+          "desc": "Open the document viewer.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e31",
+          "a11yName": "Workflow",
+          "role": null,
+          "agruneRefs": [
+            "nav_workflow_tab"
+          ],
+          "name": "Workflow tab",
+          "desc": "Open the workflow editor.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e42",
+          "a11yName": "New Task",
+          "role": "button",
+          "agruneRefs": [
+            "board_new_task_button"
+          ],
+          "name": "New task",
+          "desc": "Open the task creation wizard.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e44",
+          "a11yName": "To Do column",
+          "role": null,
+          "agruneRefs": [
+            "board_column_todo"
+          ],
+          "name": "To Do column",
+          "desc": "Drop tasks into the To Do column.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e104",
+          "a11yName": "In Progress column",
+          "role": null,
+          "agruneRefs": [
+            "board_column_in_progress"
+          ],
+          "name": "In Progress column",
+          "desc": "Drop tasks into the In Progress column.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e146",
+          "a11yName": "In Review column",
+          "role": null,
+          "agruneRefs": [
+            "board_column_in_review"
+          ],
+          "name": "In Review column",
+          "desc": "Drop tasks into the In Review column.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e188",
+          "a11yName": "Done column",
+          "role": null,
+          "agruneRefs": [
+            "board_column_done"
+          ],
+          "name": "Done column",
+          "desc": "Drop tasks into the Done column.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e50",
+          "a11yName": "Open task Write API documentation",
+          "role": null,
+          "agruneRefs": [
+            "task_card_open_indexed",
+            "task_card_drag_source_indexed",
+            "task_cards[key=task-4].task_card_open",
+            "task_cards[key=task-4].task_card_drag_source"
+          ],
+          "name": "Open task card",
+          "desc": "Open one of the visible task cards by index.",
+          "actionKinds": [
+            "dblclick"
+          ]
+        },
+        {
+          "a11yRef": "e62",
+          "a11yName": "Delete task Write API documentation",
+          "role": null,
+          "agruneRefs": [
+            "task_card_delete_indexed",
+            "task_cards[key=__idx_0].task_card_delete"
+          ],
+          "name": "Delete task",
+          "desc": "Delete one of the visible task cards by index.",
+          "actionKinds": [
+            "click"
+          ]
+        }
+      ]
+    },
+    {
+      "state": "members",
+      "label": "멤버 테이블",
+      "elements": [
+        {
+          "a11yRef": "e18",
+          "a11yName": "Board",
+          "role": null,
+          "agruneRefs": [
+            "nav_board_tab"
+          ],
+          "name": "Board tab",
+          "desc": "Open the kanban board.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e21",
+          "a11yName": "Members",
+          "role": null,
+          "agruneRefs": [
+            "nav_members_tab"
+          ],
+          "name": "Members tab",
+          "desc": "Open the team member table.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e27",
+          "a11yName": "Docs",
+          "role": null,
+          "agruneRefs": [
+            "nav_docs_tab"
+          ],
+          "name": "Docs tab",
+          "desc": "Open the document viewer.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e31",
+          "a11yName": "Workflow",
+          "role": null,
+          "agruneRefs": [
+            "nav_workflow_tab"
+          ],
+          "name": "Workflow tab",
+          "desc": "Open the workflow editor.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e223",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "member_search_input"
+          ],
+          "name": "Member search",
+          "desc": "Search members by name or email.",
+          "actionKinds": [
+            "fill"
+          ]
+        },
+        {
+          "a11yRef": "e228",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "member_role_filter_select"
+          ],
+          "name": "Member role filter",
+          "desc": "Open the member role filter.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e231",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "member_status_filter_select"
+          ],
+          "name": "Member status filter",
+          "desc": "Open the member status filter.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e291",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "member_page_size_select"
+          ],
+          "name": "Member page size",
+          "desc": "Open the member table page size picker.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e301",
+          "a11yName": "Next",
+          "role": null,
+          "agruneRefs": [
+            "member_pagination_next"
+          ],
+          "name": "Next member page",
+          "desc": "Go to the next member page.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e246",
+          "a11yName": "Alice Chen alice@example.com designer active Jun 15, 2025",
+          "role": null,
+          "agruneRefs": [
+            "member_row_indexed",
+            "member_rows[key=member-1].member_row"
+          ],
+          "name": "Member row",
+          "desc": "Visible member table row by index.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e296",
+          "a11yName": "1",
+          "role": null,
+          "agruneRefs": [
+            "member_page_button_indexed",
+            "member_page_buttons[key=1].member_page_button"
+          ],
+          "name": "Member page button",
+          "desc": "Go to a numbered member page by index.",
+          "actionKinds": [
+            "click"
+          ]
+        }
+      ]
+    },
+    {
+      "state": "documents",
+      "label": "문서 뷰어",
+      "elements": [
+        {
+          "a11yRef": "e18",
+          "a11yName": "Board",
+          "role": null,
+          "agruneRefs": [
+            "nav_board_tab"
+          ],
+          "name": "Board tab",
+          "desc": "Open the kanban board.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e21",
+          "a11yName": "Members",
+          "role": null,
+          "agruneRefs": [
+            "nav_members_tab"
+          ],
+          "name": "Members tab",
+          "desc": "Open the team member table.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e27",
+          "a11yName": "Docs",
+          "role": null,
+          "agruneRefs": [
+            "nav_docs_tab"
+          ],
+          "name": "Docs tab",
+          "desc": "Open the document viewer.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e31",
+          "a11yName": "Workflow",
+          "role": null,
+          "agruneRefs": [
+            "nav_workflow_tab"
+          ],
+          "name": "Workflow tab",
+          "desc": "Open the workflow editor.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e359",
+          "a11yName": "Refresh document",
+          "role": null,
+          "agruneRefs": [
+            "doc_refresh_button"
+          ],
+          "name": "Refresh document",
+          "desc": "Reload the selected document iframe.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e360",
+          "a11yName": "Expand",
+          "role": null,
+          "agruneRefs": [
+            "doc_expand_toggle"
+          ],
+          "name": "Expand document",
+          "desc": "Toggle the document viewer height.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e361",
+          "a11yName": "Open in new tab",
+          "role": null,
+          "agruneRefs": [
+            "doc_open_new_tab_button"
+          ],
+          "name": "Open document in new tab",
+          "desc": "Open the selected document in a new browser tab.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e363",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "doc_iframe"
+          ],
+          "name": "Document iframe",
+          "desc": "The embedded selected document.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e311",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "document_card_select_indexed",
+            "document_cards[key=overview].document_card_select"
+          ],
+          "name": "Select document",
+          "desc": "Select one of the document cards by index.",
+          "actionKinds": [
+            "click"
+          ]
+        }
+      ]
+    },
+    {
+      "state": "workflow",
+      "label": "워크플로우 편집기",
+      "elements": [
+        {
+          "a11yRef": "e18",
+          "a11yName": "Board",
+          "role": null,
+          "agruneRefs": [
+            "nav_board_tab"
+          ],
+          "name": "Board tab",
+          "desc": "Open the kanban board.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e21",
+          "a11yName": "Members",
+          "role": null,
+          "agruneRefs": [
+            "nav_members_tab"
+          ],
+          "name": "Members tab",
+          "desc": "Open the team member table.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e27",
+          "a11yName": "Docs",
+          "role": null,
+          "agruneRefs": [
+            "nav_docs_tab"
+          ],
+          "name": "Docs tab",
+          "desc": "Open the document viewer.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e31",
+          "a11yName": "Workflow",
+          "role": null,
+          "agruneRefs": [
+            "nav_workflow_tab"
+          ],
+          "name": "Workflow tab",
+          "desc": "Open the workflow editor.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e371",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "workflow_canvas_pane"
+          ],
+          "name": "Workflow canvas pane",
+          "desc": "The interactive React Flow pane.",
+          "actionKinds": [
+            "click",
+            "contextmenu",
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e429",
+          "a11yName": "Zoom In",
+          "role": null,
+          "agruneRefs": [
+            "workflow_zoom_in_button"
+          ],
+          "name": "Workflow zoom in",
+          "desc": "Zoom into the workflow canvas.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e432",
+          "a11yName": "Zoom Out",
+          "role": null,
+          "agruneRefs": [
+            "workflow_zoom_out_button"
+          ],
+          "name": "Workflow zoom out",
+          "desc": "Zoom out of the workflow canvas.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e435",
+          "a11yName": "Fit View",
+          "role": null,
+          "agruneRefs": [
+            "workflow_fit_view_button"
+          ],
+          "name": "Workflow fit view",
+          "desc": "Fit the workflow to the viewport.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e438",
+          "a11yName": "Toggle Interactivity",
+          "role": null,
+          "agruneRefs": [
+            "workflow_interactive_toggle"
+          ],
+          "name": "Workflow interactive toggle",
+          "desc": "Toggle interactive mode for the workflow canvas.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e442",
+          "a11yName": "Mini Map",
+          "role": null,
+          "agruneRefs": [
+            "workflow_minimap"
+          ],
+          "name": "Workflow minimap",
+          "desc": "The workflow minimap viewport.",
+          "actionKinds": [
+            "hover"
+          ]
+        },
+        {
+          "a11yRef": "e380",
+          "a11yName": "",
+          "role": null,
+          "agruneRefs": [
+            "workflow_node_body_indexed",
+            "workflow_nodes[key=planning].workflow_node_body"
+          ],
+          "name": "Workflow node",
+          "desc": "A draggable workflow node by index.",
+          "actionKinds": [
+            "click",
+            "contextmenu",
+            "hover"
+          ]
+        }
+      ]
+    },
+    {
+      "state": "task_wizard",
+      "label": "작업 생성 마법사",
+      "elements": [
+        {
+          "a11yRef": "e475",
+          "a11yName": "Task Name *",
+          "role": null,
+          "agruneRefs": [
+            "wizard_title_input"
+          ],
+          "name": "Wizard task name",
+          "desc": "Fill the task name in the new task wizard.",
+          "actionKinds": [
+            "fill"
+          ]
+        },
+        {
+          "a11yRef": "e478",
+          "a11yName": "Status",
+          "role": null,
+          "agruneRefs": [
+            "wizard_status_select"
+          ],
+          "name": "Wizard status",
+          "desc": "Open the task status picker in the new task wizard.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e482",
+          "a11yName": "Priority",
+          "role": null,
+          "agruneRefs": [
+            "wizard_priority_select"
+          ],
+          "name": "Wizard priority",
+          "desc": "Open the priority picker in the new task wizard.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e487",
+          "a11yName": "Assignee *",
+          "role": null,
+          "agruneRefs": [
+            "wizard_assignee_select"
+          ],
+          "name": "Wizard assignee",
+          "desc": "Open the assignee picker in the new task wizard.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e491",
+          "a11yName": "Next",
+          "role": null,
+          "agruneRefs": [
+            "wizard_next_button"
+          ],
+          "name": "Wizard next",
+          "desc": "Move to the next wizard step.",
+          "actionKinds": [
+            "click"
+          ]
+        },
+        {
+          "a11yRef": "e492",
+          "a11yName": "Close",
+          "role": null,
+          "agruneRefs": [
+            "wizard_close_button"
+          ],
+          "name": "Wizard close",
+          "desc": "Close the task creation wizard.",
+          "actionKinds": [
+            "click"
+          ]
+        }
+      ]
+    }
+  ]
+}
