@@ -1,29 +1,29 @@
 {
   "state": "workflow",
   "label": "워크플로우 편집기",
-  "url": "http://127.0.0.1:50962/",
+  "url": "http://127.0.0.1:55603/",
   "capturedWith": {
     "tokenizer": "cl100k_base",
     "viewport": "1280x900"
   },
   "tokens": {
-    "agruneFull": 595,
-    "agruneNameOnly": 415,
+    "agruneFull": 630,
+    "agruneNameOnly": 436,
     "agruneOutline": 110,
-    "rawA11y": 909,
-    "a11yInteractive": 156
+    "rawA11y": 934,
+    "a11yInteractive": 168
   },
   "counts": {
-    "agruneVisibleTargets": 16,
-    "a11yRefs": 70,
+    "agruneVisibleTargets": 17,
+    "a11yRefs": 72,
     "a11yInteractiveRefs": 0,
-    "bridged": 12
+    "bridged": 13
   },
-  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Workflow canvas pane\" [ref=workflow_canvas_pane]:\n  - description: \"The interactive React Flow pane.\"\n  - group: \"workflow\"\n- target \"Workflow zoom in\" [ref=workflow_zoom_in_button]:\n  - description: \"Zoom into the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow zoom out\" [ref=workflow_zoom_out_button]:\n  - description: \"Zoom out of the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow fit view\" [ref=workflow_fit_view_button]:\n  - description: \"Fit the workflow to the viewport.\"\n  - group: \"workflow\"\n- target \"Workflow interactive toggle\" [ref=workflow_interactive_toggle]:\n  - description: \"Toggle interactive mode for the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow minimap\" [ref=workflow_minimap]:\n  - description: \"The workflow minimap viewport.\"\n  - group: \"workflow\"\n- target \"Workflow node\" [ref=workflow_node_body_indexed]:\n  - description: \"A draggable workflow node by index.\"\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_source_handle_indexed]:\n  - description: \"Connection source handle by index.\"\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_target_handle_indexed]:\n  - description: \"Connection target handle by index.\"\n  - group: \"workflow\"\n- target \"기획요구사항 분석 및 기획\" [ref=workflow_nodes[key=planning].workflow_node_body]:\n  - description: \"A draggable workflow node.\"\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_nodes[key=__idx_0].workflow_source_handle]:\n  - description: \"Connection source handle for this node.\"\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_nodes[key=__idx_0].workflow_target_handle]:\n  - description: \"Connection target handle for this node.\"\n  - group: \"workflow\"\n```",
-  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Workflow canvas pane\" [ref=workflow_canvas_pane]:\n  - group: \"workflow\"\n- target \"Workflow zoom in\" [ref=workflow_zoom_in_button]:\n  - group: \"workflow\"\n- target \"Workflow zoom out\" [ref=workflow_zoom_out_button]:\n  - group: \"workflow\"\n- target \"Workflow fit view\" [ref=workflow_fit_view_button]:\n  - group: \"workflow\"\n- target \"Workflow interactive toggle\" [ref=workflow_interactive_toggle]:\n  - group: \"workflow\"\n- target \"Workflow minimap\" [ref=workflow_minimap]:\n  - group: \"workflow\"\n- target \"Workflow node\" [ref=workflow_node_body_indexed]:\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_source_handle_indexed]:\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_target_handle_indexed]:\n  - group: \"workflow\"\n- target \"기획요구사항 분석 및 기획\" [ref=workflow_nodes[key=planning].workflow_node_body]:\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_nodes[key=__idx_0].workflow_source_handle]:\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_nodes[key=__idx_0].workflow_target_handle]:\n  - group: \"workflow\"\n```",
-  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 4\n- group \"Workflow editor\" [ref=workflow]:\n  - description: \"Targets for workflow canvas controls, nodes, handles, and edges.\"\n  - targets: 12\n```",
-  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [active] [selected] [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n      - tabpanel \"Workflow\" [ref=e364]:\n        - generic [ref=e365]:\n          - generic [ref=e366]:\n            - generic [ref=e367]: Workflow Editor\n            - generic [ref=e368]: 같은 카드 쌍은 한 번만 연결됩니다. 선을 클릭하면 연결이 삭제됩니다.\n          - application [ref=e371]:\n            - generic [ref=e373]:\n              - generic:\n                - generic:\n                  - img:\n                    - group \"Edge from planning to design\"\n                  - img:\n                    - group \"Edge from design to dev\"\n                  - img:\n                    - group \"Edge from dev to review\"\n                  - img:\n                    - group \"Edge from review to qa\"\n                  - img:\n                    - group \"Edge from qa to deploy\"\n                  - img:\n                    - group \"Edge from dev to labeling\" [ref=e374] [cursor=pointer]\n                  - img:\n                    - group \"Edge from qa to monitoring\" [ref=e377] [cursor=pointer]\n                - generic:\n                  - group [ref=e380]:\n                    - generic [ref=e381]:\n                      - generic [ref=e382]: 기획\n                      - generic [ref=e383]: 요구사항 분석 및 기획\n                  - group [ref=e386]:\n                    - generic [ref=e387]:\n                      - generic [ref=e388]: 디자인\n                      - generic [ref=e389]: UI/UX 디자인\n                  - group [ref=e392]:\n                    - generic [ref=e393]:\n                      - generic [ref=e394]: 개발\n                      - generic [ref=e395]: 기능 구현\n                  - group [ref=e398]:\n                    - generic [ref=e399]:\n                      - generic [ref=e400]: 코드 리뷰\n                      - generic [ref=e401]: PR 리뷰 및 피드백\n                  - group [ref=e404]:\n                    - generic [ref=e405]:\n                      - generic [ref=e406]: QA 테스트\n                      - generic [ref=e407]: 품질 검증\n                  - group [ref=e410]:\n                    - generic [ref=e411]:\n                      - generic [ref=e412]: 배포\n                      - generic [ref=e413]: 프로덕션 배포\n                  - group [ref=e416]:\n                    - generic [ref=e417]:\n                      - generic [ref=e418]: 라벨링\n                      - generic [ref=e419]: 데이터 라벨링 작업\n                  - group [ref=e422]:\n                    - generic [ref=e423]:\n                      - generic [ref=e424]: 모니터링\n                      - generic [ref=e425]: 서비스 모니터링 설정\n            - img\n            - generic \"Control Panel\" [ref=e428]:\n              - button \"Zoom In\" [ref=e429] [cursor=pointer]:\n                - img [ref=e430]\n              - button \"Zoom Out\" [ref=e432] [cursor=pointer]:\n                - img [ref=e433]\n              - button \"Fit View\" [ref=e435] [cursor=pointer]:\n                - img [ref=e436]\n              - button \"Toggle Interactivity\" [ref=e438] [cursor=pointer]:\n                - img [ref=e439]\n            - img \"Mini Map\" [ref=e442]\n            - link \"React Flow attribution\" [ref=e452] [cursor=pointer]:\n              - /url: https://reactflow.dev\n              - text: React Flow",
-  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [ref=e18]:\n  - - tab \"Members\" [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [active] [selected] [ref=e31]:\n  - - button \"Zoom In\" [ref=e429] [cursor=pointer]:\n  - - button \"Zoom Out\" [ref=e432] [cursor=pointer]:\n  - - button \"Fit View\" [ref=e435] [cursor=pointer]:\n  - - button \"Toggle Interactivity\" [ref=e438] [cursor=pointer]:\n  - - link \"React Flow attribution\" [ref=e452] [cursor=pointer]:",
+  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - description: \"Open the team messenger to direct-message teammates.\"\n  - group: \"navigation\"\n- target \"Workflow canvas pane\" [ref=workflow_canvas_pane]:\n  - description: \"The interactive React Flow pane.\"\n  - group: \"workflow\"\n- target \"Workflow zoom in\" [ref=workflow_zoom_in_button]:\n  - description: \"Zoom into the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow zoom out\" [ref=workflow_zoom_out_button]:\n  - description: \"Zoom out of the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow fit view\" [ref=workflow_fit_view_button]:\n  - description: \"Fit the workflow to the viewport.\"\n  - group: \"workflow\"\n- target \"Workflow interactive toggle\" [ref=workflow_interactive_toggle]:\n  - description: \"Toggle interactive mode for the workflow canvas.\"\n  - group: \"workflow\"\n- target \"Workflow minimap\" [ref=workflow_minimap]:\n  - description: \"The workflow minimap viewport.\"\n  - group: \"workflow\"\n- target \"Workflow node\" [ref=workflow_node_body_indexed]:\n  - description: \"A draggable workflow node by index.\"\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_source_handle_indexed]:\n  - description: \"Connection source handle by index.\"\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_target_handle_indexed]:\n  - description: \"Connection target handle by index.\"\n  - group: \"workflow\"\n- target \"기획요구사항 분석 및 기획\" [ref=workflow_nodes[key=planning].workflow_node_body]:\n  - description: \"A draggable workflow node.\"\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_nodes[key=__idx_0].workflow_source_handle]:\n  - description: \"Connection source handle for this node.\"\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_nodes[key=__idx_0].workflow_target_handle]:\n  - description: \"Connection target handle for this node.\"\n  - group: \"workflow\"\n```",
+  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - group: \"navigation\"\n- target \"Workflow canvas pane\" [ref=workflow_canvas_pane]:\n  - group: \"workflow\"\n- target \"Workflow zoom in\" [ref=workflow_zoom_in_button]:\n  - group: \"workflow\"\n- target \"Workflow zoom out\" [ref=workflow_zoom_out_button]:\n  - group: \"workflow\"\n- target \"Workflow fit view\" [ref=workflow_fit_view_button]:\n  - group: \"workflow\"\n- target \"Workflow interactive toggle\" [ref=workflow_interactive_toggle]:\n  - group: \"workflow\"\n- target \"Workflow minimap\" [ref=workflow_minimap]:\n  - group: \"workflow\"\n- target \"Workflow node\" [ref=workflow_node_body_indexed]:\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_source_handle_indexed]:\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_target_handle_indexed]:\n  - group: \"workflow\"\n- target \"기획요구사항 분석 및 기획\" [ref=workflow_nodes[key=planning].workflow_node_body]:\n  - group: \"workflow\"\n- target \"Workflow source handle\" [ref=workflow_nodes[key=__idx_0].workflow_source_handle]:\n  - group: \"workflow\"\n- target \"Workflow target handle\" [ref=workflow_nodes[key=__idx_0].workflow_target_handle]:\n  - group: \"workflow\"\n```",
+  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 5\n- group \"Workflow editor\" [ref=workflow]:\n  - description: \"Targets for workflow canvas controls, nodes, handles, and edges.\"\n  - targets: 12\n```",
+  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [active] [selected] [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n        - tab \"Messenger\" [ref=e36]:\n          - img [ref=e37]\n          - text: Messenger\n      - tabpanel \"Workflow\" [ref=e393]:\n        - generic [ref=e394]:\n          - generic [ref=e395]:\n            - generic [ref=e396]: Workflow Editor\n            - generic [ref=e397]: 같은 카드 쌍은 한 번만 연결됩니다. 선을 클릭하면 연결이 삭제됩니다.\n          - application [ref=e400]:\n            - generic [ref=e402]:\n              - generic:\n                - generic:\n                  - img:\n                    - group \"Edge from planning to design\"\n                  - img:\n                    - group \"Edge from design to dev\"\n                  - img:\n                    - group \"Edge from dev to review\"\n                  - img:\n                    - group \"Edge from review to qa\"\n                  - img:\n                    - group \"Edge from qa to deploy\"\n                  - img:\n                    - group \"Edge from dev to labeling\" [ref=e403] [cursor=pointer]\n                  - img:\n                    - group \"Edge from qa to monitoring\" [ref=e406] [cursor=pointer]\n                - generic:\n                  - group [ref=e409]:\n                    - generic [ref=e410]:\n                      - generic [ref=e411]: 기획\n                      - generic [ref=e412]: 요구사항 분석 및 기획\n                  - group [ref=e415]:\n                    - generic [ref=e416]:\n                      - generic [ref=e417]: 디자인\n                      - generic [ref=e418]: UI/UX 디자인\n                  - group [ref=e421]:\n                    - generic [ref=e422]:\n                      - generic [ref=e423]: 개발\n                      - generic [ref=e424]: 기능 구현\n                  - group [ref=e427]:\n                    - generic [ref=e428]:\n                      - generic [ref=e429]: 코드 리뷰\n                      - generic [ref=e430]: PR 리뷰 및 피드백\n                  - group [ref=e433]:\n                    - generic [ref=e434]:\n                      - generic [ref=e435]: QA 테스트\n                      - generic [ref=e436]: 품질 검증\n                  - group [ref=e439]:\n                    - generic [ref=e440]:\n                      - generic [ref=e441]: 배포\n                      - generic [ref=e442]: 프로덕션 배포\n                  - group [ref=e445]:\n                    - generic [ref=e446]:\n                      - generic [ref=e447]: 라벨링\n                      - generic [ref=e448]: 데이터 라벨링 작업\n                  - group [ref=e451]:\n                    - generic [ref=e452]:\n                      - generic [ref=e453]: 모니터링\n                      - generic [ref=e454]: 서비스 모니터링 설정\n            - img\n            - generic \"Control Panel\" [ref=e457]:\n              - button \"Zoom In\" [ref=e458] [cursor=pointer]:\n                - img [ref=e459]\n              - button \"Zoom Out\" [ref=e461] [cursor=pointer]:\n                - img [ref=e462]\n              - button \"Fit View\" [ref=e464] [cursor=pointer]:\n                - img [ref=e465]\n              - button \"Toggle Interactivity\" [ref=e467] [cursor=pointer]:\n                - img [ref=e468]\n            - img \"Mini Map\" [ref=e471]\n            - link \"React Flow attribution\" [ref=e481] [cursor=pointer]:\n              - /url: https://reactflow.dev\n              - text: React Flow",
+  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [ref=e18]:\n  - - tab \"Members\" [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [active] [selected] [ref=e31]:\n  - - tab \"Messenger\" [ref=e36]:\n  - - button \"Zoom In\" [ref=e458] [cursor=pointer]:\n  - - button \"Zoom Out\" [ref=e461] [cursor=pointer]:\n  - - button \"Fit View\" [ref=e464] [cursor=pointer]:\n  - - button \"Toggle Interactivity\" [ref=e467] [cursor=pointer]:\n  - - link \"React Flow attribution\" [ref=e481] [cursor=pointer]:",
   "elements": [
     {
       "targetId": "nav_board_tab",
@@ -34,7 +34,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "83,123",
+      "center": "94,123",
       "a11yRef": "e18",
       "a11yRole": "tab",
       "a11yName": "Board",
@@ -49,7 +49,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "193,123",
+      "center": "227,123",
       "a11yRef": "e21",
       "a11yRole": "tab",
       "a11yName": "Members",
@@ -64,7 +64,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "303,123",
+      "center": "360,123",
       "a11yRef": "e27",
       "a11yRole": "tab",
       "a11yName": "Docs",
@@ -79,10 +79,25 @@
       "actionKinds": [
         "click"
       ],
-      "center": "413,123",
+      "center": "493,123",
       "a11yRef": "e31",
       "a11yRole": "tab",
       "a11yName": "Workflow",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_messenger_tab",
+      "ref": "nav_messenger_tab",
+      "name": "Messenger tab",
+      "desc": "Open the team messenger to direct-message teammates.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "626,123",
+      "a11yRef": "e36",
+      "a11yRole": "tab",
+      "a11yName": "Messenger",
       "bridgeDist": 0
     },
     {
@@ -97,7 +112,7 @@
         "hover"
       ],
       "center": "640,568",
-      "a11yRef": "e371",
+      "a11yRef": "e400",
       "a11yRole": "application",
       "a11yName": "",
       "bridgeDist": 0
@@ -112,7 +127,7 @@
         "click"
       ],
       "center": "53,762",
-      "a11yRef": "e429",
+      "a11yRef": "e458",
       "a11yRole": "button",
       "a11yName": "Zoom In",
       "bridgeDist": 0
@@ -127,7 +142,7 @@
         "click"
       ],
       "center": "53,788",
-      "a11yRef": "e432",
+      "a11yRef": "e461",
       "a11yRole": "button",
       "a11yName": "Zoom Out",
       "bridgeDist": 0
@@ -142,7 +157,7 @@
         "click"
       ],
       "center": "53,814",
-      "a11yRef": "e435",
+      "a11yRef": "e464",
       "a11yRole": "button",
       "a11yName": "Fit View",
       "bridgeDist": 0
@@ -157,7 +172,7 @@
         "click"
       ],
       "center": "53,840",
-      "a11yRef": "e438",
+      "a11yRef": "e467",
       "a11yRole": "button",
       "a11yName": "Toggle Interactivity",
       "bridgeDist": 0
@@ -172,7 +187,7 @@
         "hover"
       ],
       "center": "1140,778",
-      "a11yRef": "e442",
+      "a11yRef": "e471",
       "a11yRole": "img",
       "a11yName": "Mini Map",
       "bridgeDist": 0
@@ -189,7 +204,7 @@
         "hover"
       ],
       "center": "182,495",
-      "a11yRef": "e380",
+      "a11yRef": "e409",
       "a11yRole": "group",
       "a11yName": "",
       "bridgeDist": 0
@@ -238,7 +253,7 @@
         "hover"
       ],
       "center": "182,495",
-      "a11yRef": "e380",
+      "a11yRef": "e409",
       "a11yRole": "group",
       "a11yName": "",
       "bridgeDist": 0

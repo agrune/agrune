@@ -1,29 +1,29 @@
 {
   "state": "board",
   "label": "칸반 보드",
-  "url": "http://127.0.0.1:50962/",
+  "url": "http://127.0.0.1:55603/",
   "capturedWith": {
     "tokenizer": "cl100k_base",
     "viewport": "1280x900"
   },
   "tokens": {
-    "agruneFull": 580,
-    "agruneNameOnly": 388,
+    "agruneFull": 615,
+    "agruneNameOnly": 409,
     "agruneOutline": 112,
-    "rawA11y": 1557,
-    "a11yInteractive": 339
+    "rawA11y": 1582,
+    "a11yInteractive": 351
   },
   "counts": {
-    "agruneVisibleTargets": 15,
-    "a11yRefs": 133,
+    "agruneVisibleTargets": 16,
+    "a11yRefs": 135,
     "a11yInteractiveRefs": 0,
-    "bridged": 15
+    "bridged": 16
   },
-  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"New task\" [ref=board_new_task_button]:\n  - description: \"Open the task creation wizard.\"\n  - group: \"board\"\n- target \"To Do column\" [ref=board_column_todo]:\n  - description: \"Drop tasks into the To Do column.\"\n  - group: \"board\"\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - description: \"Drop tasks into the In Progress column.\"\n  - group: \"board\"\n- target \"In Review column\" [ref=board_column_in_review]:\n  - description: \"Drop tasks into the In Review column.\"\n  - group: \"board\"\n- target \"Done column\" [ref=board_column_done]:\n  - description: \"Drop tasks into the Done column.\"\n  - group: \"board\"\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - description: \"Open one of the visible task cards by index.\"\n  - group: \"board\"\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - description: \"Use one of the visible task cards as a drag source by index.\"\n  - group: \"board\"\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - description: \"Delete one of the visible task cards by index.\"\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - description: \"Open a task card details dialog.\"\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - description: \"Use the task card as a drag source for board moves.\"\n  - group: \"board\"\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - description: \"Delete this task card.\"\n  - group: \"board\"\n```",
-  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"New task\" [ref=board_new_task_button]:\n  - group: \"board\"\n- target \"To Do column\" [ref=board_column_todo]:\n  - group: \"board\"\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - group: \"board\"\n- target \"In Review column\" [ref=board_column_in_review]:\n  - group: \"board\"\n- target \"Done column\" [ref=board_column_done]:\n  - group: \"board\"\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - group: \"board\"\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - group: \"board\"\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - group: \"board\"\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - group: \"board\"\n```",
-  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 4\n- group \"Kanban board\" [ref=board]:\n  - description: \"Targets for creating, opening, editing, deleting, and moving tasks.\"\n  - targets: 11\n```",
-  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [active] [selected] [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n      - tabpanel \"Board\" [ref=e36]:\n        - generic [ref=e37]:\n          - generic [ref=e38]:\n            - generic [ref=e39]:\n              - heading \"Kanban Board\" [level=2] [ref=e40]\n              - paragraph [ref=e41]: Drag tasks between columns, or double-click any card to inspect and edit it.\n            - button \"New Task\" [ref=e42]:\n              - img\n              - text: New Task\n          - generic [ref=e43]:\n            - region \"To Do column\" [ref=e44]:\n              - generic [ref=e46]:\n                - generic [ref=e47]: To Do\n                - generic [ref=e48]: \"3\"\n              - generic [ref=e49]:\n                - button \"Open task Write API documentation\" [ref=e50]:\n                  - generic [ref=e52]:\n                    - generic [ref=e53]:\n                      - img [ref=e54]\n                      - generic [ref=e61]: Write API documentation\n                    - button \"Delete task Write API documentation\" [ref=e62]:\n                      - img\n                  - generic [ref=e63]:\n                    - paragraph [ref=e64]: Document all REST API endpoints with request/response examples using OpenAPI spec.\n                    - generic [ref=e65]:\n                      - generic [ref=e66]: medium\n                      - generic [ref=e67]: Diana Lee\n                - button \"Open task Database schema optimization\" [ref=e68]:\n                  - generic [ref=e70]:\n                    - generic [ref=e71]:\n                      - img [ref=e72]\n                      - generic [ref=e79]: Database schema optimization\n                    - button \"Delete task Database schema optimization\" [ref=e80]:\n                      - img\n                  - generic [ref=e81]:\n                    - paragraph [ref=e82]: Review and optimize database queries, add missing indexes for performance improvement.\n                    - generic [ref=e83]:\n                      - generic [ref=e84]: low\n                      - generic [ref=e85]: Bob Kim\n                - button \"Open task User acceptance testing\" [ref=e86]:\n                  - generic [ref=e88]:\n                    - generic [ref=e89]:\n                      - img [ref=e90]\n                      - generic [ref=e97]: User acceptance testing\n                    - button \"Delete task User acceptance testing\" [ref=e98]:\n                      - img\n                  - generic [ref=e99]:\n                    - paragraph [ref=e100]: Coordinate UAT sessions with stakeholders and gather feedback for the beta release.\n                    - generic [ref=e101]:\n                      - generic [ref=e102]: high\n                      - generic [ref=e103]: Eve Wang\n            - region \"In Progress column\" [ref=e104]:\n              - generic [ref=e106]:\n                - generic [ref=e107]: In Progress\n                - generic [ref=e108]: \"2\"\n              - generic [ref=e109]:\n                - button \"Open task Implement authentication flow\" [ref=e110]:\n                  - generic [ref=e112]:\n                    - generic [ref=e113]:\n                      - img [ref=e114]\n                      - generic [ref=e121]: Implement authentication flow\n                    - button \"Delete task Implement authentication flow\" [ref=e122]:\n                      - img\n                  - generic [ref=e123]:\n                    - paragraph [ref=e124]: Build login, registration, and password reset flows using OAuth2 and JWT tokens.\n                    - generic [ref=e125]:\n                      - generic [ref=e126]: high\n                      - generic [ref=e127]: Bob Kim\n                - button \"Open task Mobile responsive fixes\" [ref=e128]:\n                  - generic [ref=e130]:\n                    - generic [ref=e131]:\n                      - img [ref=e132]\n                      - generic [ref=e139]: Mobile responsive fixes\n                    - button \"Delete task Mobile responsive fixes\" [ref=e140]:\n                      - img\n                  - generic [ref=e141]:\n                    - paragraph [ref=e142]: Fix layout issues on tablet and mobile viewports for the dashboard pages.\n                    - generic [ref=e143]:\n                      - generic [ref=e144]: medium\n                      - generic [ref=e145]: Alice Chen\n            - region \"In Review column\" [ref=e146]:\n              - generic [ref=e148]:\n                - generic [ref=e149]: In Review\n                - generic [ref=e150]: \"2\"\n              - generic [ref=e151]:\n                - button \"Open task Set up CI/CD pipeline\" [ref=e152]:\n                  - generic [ref=e154]:\n                    - generic [ref=e155]:\n                      - img [ref=e156]\n                      - generic [ref=e163]: Set up CI/CD pipeline\n                    - button \"Delete task Set up CI/CD pipeline\" [ref=e164]:\n                      - img\n                  - generic [ref=e165]:\n                    - paragraph [ref=e166]: Configure GitHub Actions for automated testing, linting, and deployment to staging.\n                    - generic [ref=e167]:\n                      - generic [ref=e168]: medium\n                      - generic [ref=e169]: Charlie Park\n                - button \"Open task Performance audit\" [ref=e170]:\n                  - generic [ref=e172]:\n                    - generic [ref=e173]:\n                      - img [ref=e174]\n                      - generic [ref=e181]: Performance audit\n                    - button \"Delete task Performance audit\" [ref=e182]:\n                      - img\n                  - generic [ref=e183]:\n                    - paragraph [ref=e184]: Run Lighthouse audits and fix critical performance bottlenecks to achieve 90+ score.\n                    - generic [ref=e185]:\n                      - generic [ref=e186]: low\n                      - generic [ref=e187]: Frank Zhang\n            - region \"Done column\" [ref=e188]:\n              - generic [ref=e190]:\n                - generic [ref=e191]: Done\n                - generic [ref=e192]: \"1\"\n              - button \"Open task Design landing page mockups\" [ref=e194]:\n                - generic [ref=e196]:\n                  - generic [ref=e197]:\n                    - img [ref=e198]\n                    - generic [ref=e205]: Design landing page mockups\n                  - button \"Delete task Design landing page mockups\" [ref=e206]:\n                    - img\n                - generic [ref=e207]:\n                  - paragraph [ref=e208]: Create high-fidelity mockups for the new landing page including mobile and desktop views.\n                  - generic [ref=e209]:\n                    - generic [ref=e210]: high\n                    - generic [ref=e211]: Alice Chen",
-  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [active] [selected] [ref=e18]:\n  - - tab \"Members\" [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [ref=e31]:\n  - - button \"New Task\" [ref=e42]:\n  - - button \"Open task Write API documentation\" [ref=e50]:\n  - - button \"Delete task Write API documentation\" [ref=e62]:\n  - - button \"Open task Database schema optimization\" [ref=e68]:\n  - - button \"Delete task Database schema optimization\" [ref=e80]:\n  - - button \"Open task User acceptance testing\" [ref=e86]:\n  - - button \"Delete task User acceptance testing\" [ref=e98]:\n  - - button \"Open task Implement authentication flow\" [ref=e110]:\n  - - button \"Delete task Implement authentication flow\" [ref=e122]:\n  - - button \"Open task Mobile responsive fixes\" [ref=e128]:\n  - - button \"Delete task Mobile responsive fixes\" [ref=e140]:\n  - - button \"Open task Set up CI/CD pipeline\" [ref=e152]:\n  - - button \"Delete task Set up CI/CD pipeline\" [ref=e164]:\n  - - button \"Open task Performance audit\" [ref=e170]:\n  - - button \"Delete task Performance audit\" [ref=e182]:\n  - - button \"Open task Design landing page mockups\" [ref=e194]:\n  - - button \"Delete task Design landing page mockups\" [ref=e206]:",
+  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - description: \"Open the team messenger to direct-message teammates.\"\n  - group: \"navigation\"\n- target \"New task\" [ref=board_new_task_button]:\n  - description: \"Open the task creation wizard.\"\n  - group: \"board\"\n- target \"To Do column\" [ref=board_column_todo]:\n  - description: \"Drop tasks into the To Do column.\"\n  - group: \"board\"\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - description: \"Drop tasks into the In Progress column.\"\n  - group: \"board\"\n- target \"In Review column\" [ref=board_column_in_review]:\n  - description: \"Drop tasks into the In Review column.\"\n  - group: \"board\"\n- target \"Done column\" [ref=board_column_done]:\n  - description: \"Drop tasks into the Done column.\"\n  - group: \"board\"\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - description: \"Open one of the visible task cards by index.\"\n  - group: \"board\"\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - description: \"Use one of the visible task cards as a drag source by index.\"\n  - group: \"board\"\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - description: \"Delete one of the visible task cards by index.\"\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - description: \"Open a task card details dialog.\"\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - description: \"Use the task card as a drag source for board moves.\"\n  - group: \"board\"\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - description: \"Delete this task card.\"\n  - group: \"board\"\n```",
+  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - group: \"navigation\"\n- target \"New task\" [ref=board_new_task_button]:\n  - group: \"board\"\n- target \"To Do column\" [ref=board_column_todo]:\n  - group: \"board\"\n- target \"In Progress column\" [ref=board_column_in_progress]:\n  - group: \"board\"\n- target \"In Review column\" [ref=board_column_in_review]:\n  - group: \"board\"\n- target \"Done column\" [ref=board_column_done]:\n  - group: \"board\"\n- target \"Open task card\" [ref=task_card_open_indexed]:\n  - group: \"board\"\n- target \"Task card drag source\" [ref=task_card_drag_source_indexed]:\n  - group: \"board\"\n- target \"Delete task\" [ref=task_card_delete_indexed]:\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_open]:\n  - group: \"board\"\n- target \"Write API documentation\" [ref=task_cards[key=task-4].task_card_drag_source]:\n  - group: \"board\"\n- target \"Delete task\" [ref=task_cards[key=__idx_0].task_card_delete]:\n  - group: \"board\"\n```",
+  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 5\n- group \"Kanban board\" [ref=board]:\n  - description: \"Targets for creating, opening, editing, deleting, and moving tasks.\"\n  - targets: 11\n```",
+  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [active] [selected] [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n        - tab \"Messenger\" [ref=e36]:\n          - img [ref=e37]\n          - text: Messenger\n      - tabpanel \"Board\" [ref=e39]:\n        - generic [ref=e40]:\n          - generic [ref=e41]:\n            - generic [ref=e42]:\n              - heading \"Kanban Board\" [level=2] [ref=e43]\n              - paragraph [ref=e44]: Drag tasks between columns, or double-click any card to inspect and edit it.\n            - button \"New Task\" [ref=e45]:\n              - img\n              - text: New Task\n          - generic [ref=e46]:\n            - region \"To Do column\" [ref=e47]:\n              - generic [ref=e49]:\n                - generic [ref=e50]: To Do\n                - generic [ref=e51]: \"3\"\n              - generic [ref=e52]:\n                - button \"Open task Write API documentation\" [ref=e53]:\n                  - generic [ref=e55]:\n                    - generic [ref=e56]:\n                      - img [ref=e57]\n                      - generic [ref=e64]: Write API documentation\n                    - button \"Delete task Write API documentation\" [ref=e65]:\n                      - img\n                  - generic [ref=e66]:\n                    - paragraph [ref=e67]: Document all REST API endpoints with request/response examples using OpenAPI spec.\n                    - generic [ref=e68]:\n                      - generic [ref=e69]: medium\n                      - generic [ref=e70]: Diana Lee\n                - button \"Open task Database schema optimization\" [ref=e71]:\n                  - generic [ref=e73]:\n                    - generic [ref=e74]:\n                      - img [ref=e75]\n                      - generic [ref=e82]: Database schema optimization\n                    - button \"Delete task Database schema optimization\" [ref=e83]:\n                      - img\n                  - generic [ref=e84]:\n                    - paragraph [ref=e85]: Review and optimize database queries, add missing indexes for performance improvement.\n                    - generic [ref=e86]:\n                      - generic [ref=e87]: low\n                      - generic [ref=e88]: Bob Kim\n                - button \"Open task User acceptance testing\" [ref=e89]:\n                  - generic [ref=e91]:\n                    - generic [ref=e92]:\n                      - img [ref=e93]\n                      - generic [ref=e100]: User acceptance testing\n                    - button \"Delete task User acceptance testing\" [ref=e101]:\n                      - img\n                  - generic [ref=e102]:\n                    - paragraph [ref=e103]: Coordinate UAT sessions with stakeholders and gather feedback for the beta release.\n                    - generic [ref=e104]:\n                      - generic [ref=e105]: high\n                      - generic [ref=e106]: Eve Wang\n            - region \"In Progress column\" [ref=e107]:\n              - generic [ref=e109]:\n                - generic [ref=e110]: In Progress\n                - generic [ref=e111]: \"2\"\n              - generic [ref=e112]:\n                - button \"Open task Implement authentication flow\" [ref=e113]:\n                  - generic [ref=e115]:\n                    - generic [ref=e116]:\n                      - img [ref=e117]\n                      - generic [ref=e124]: Implement authentication flow\n                    - button \"Delete task Implement authentication flow\" [ref=e125]:\n                      - img\n                  - generic [ref=e126]:\n                    - paragraph [ref=e127]: Build login, registration, and password reset flows using OAuth2 and JWT tokens.\n                    - generic [ref=e128]:\n                      - generic [ref=e129]: high\n                      - generic [ref=e130]: Bob Kim\n                - button \"Open task Mobile responsive fixes\" [ref=e131]:\n                  - generic [ref=e133]:\n                    - generic [ref=e134]:\n                      - img [ref=e135]\n                      - generic [ref=e142]: Mobile responsive fixes\n                    - button \"Delete task Mobile responsive fixes\" [ref=e143]:\n                      - img\n                  - generic [ref=e144]:\n                    - paragraph [ref=e145]: Fix layout issues on tablet and mobile viewports for the dashboard pages.\n                    - generic [ref=e146]:\n                      - generic [ref=e147]: medium\n                      - generic [ref=e148]: Alice Chen\n            - region \"In Review column\" [ref=e149]:\n              - generic [ref=e151]:\n                - generic [ref=e152]: In Review\n                - generic [ref=e153]: \"2\"\n              - generic [ref=e154]:\n                - button \"Open task Set up CI/CD pipeline\" [ref=e155]:\n                  - generic [ref=e157]:\n                    - generic [ref=e158]:\n                      - img [ref=e159]\n                      - generic [ref=e166]: Set up CI/CD pipeline\n                    - button \"Delete task Set up CI/CD pipeline\" [ref=e167]:\n                      - img\n                  - generic [ref=e168]:\n                    - paragraph [ref=e169]: Configure GitHub Actions for automated testing, linting, and deployment to staging.\n                    - generic [ref=e170]:\n                      - generic [ref=e171]: medium\n                      - generic [ref=e172]: Charlie Park\n                - button \"Open task Performance audit\" [ref=e173]:\n                  - generic [ref=e175]:\n                    - generic [ref=e176]:\n                      - img [ref=e177]\n                      - generic [ref=e184]: Performance audit\n                    - button \"Delete task Performance audit\" [ref=e185]:\n                      - img\n                  - generic [ref=e186]:\n                    - paragraph [ref=e187]: Run Lighthouse audits and fix critical performance bottlenecks to achieve 90+ score.\n                    - generic [ref=e188]:\n                      - generic [ref=e189]: low\n                      - generic [ref=e190]: Frank Zhang\n            - region \"Done column\" [ref=e191]:\n              - generic [ref=e193]:\n                - generic [ref=e194]: Done\n                - generic [ref=e195]: \"1\"\n              - button \"Open task Design landing page mockups\" [ref=e197]:\n                - generic [ref=e199]:\n                  - generic [ref=e200]:\n                    - img [ref=e201]\n                    - generic [ref=e208]: Design landing page mockups\n                  - button \"Delete task Design landing page mockups\" [ref=e209]:\n                    - img\n                - generic [ref=e210]:\n                  - paragraph [ref=e211]: Create high-fidelity mockups for the new landing page including mobile and desktop views.\n                  - generic [ref=e212]:\n                    - generic [ref=e213]: high\n                    - generic [ref=e214]: Alice Chen",
+  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [active] [selected] [ref=e18]:\n  - - tab \"Members\" [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [ref=e31]:\n  - - tab \"Messenger\" [ref=e36]:\n  - - button \"New Task\" [ref=e45]:\n  - - button \"Open task Write API documentation\" [ref=e53]:\n  - - button \"Delete task Write API documentation\" [ref=e65]:\n  - - button \"Open task Database schema optimization\" [ref=e71]:\n  - - button \"Delete task Database schema optimization\" [ref=e83]:\n  - - button \"Open task User acceptance testing\" [ref=e89]:\n  - - button \"Delete task User acceptance testing\" [ref=e101]:\n  - - button \"Open task Implement authentication flow\" [ref=e113]:\n  - - button \"Delete task Implement authentication flow\" [ref=e125]:\n  - - button \"Open task Mobile responsive fixes\" [ref=e131]:\n  - - button \"Delete task Mobile responsive fixes\" [ref=e143]:\n  - - button \"Open task Set up CI/CD pipeline\" [ref=e155]:\n  - - button \"Delete task Set up CI/CD pipeline\" [ref=e167]:\n  - - button \"Open task Performance audit\" [ref=e173]:\n  - - button \"Delete task Performance audit\" [ref=e185]:\n  - - button \"Open task Design landing page mockups\" [ref=e197]:\n  - - button \"Delete task Design landing page mockups\" [ref=e209]:",
   "elements": [
     {
       "targetId": "nav_board_tab",
@@ -34,7 +34,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "83,123",
+      "center": "94,123",
       "a11yRef": "e18",
       "a11yRole": "tab",
       "a11yName": "Board",
@@ -49,7 +49,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "193,123",
+      "center": "227,123",
       "a11yRef": "e21",
       "a11yRole": "tab",
       "a11yName": "Members",
@@ -64,7 +64,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "303,123",
+      "center": "360,123",
       "a11yRef": "e27",
       "a11yRole": "tab",
       "a11yName": "Docs",
@@ -79,10 +79,25 @@
       "actionKinds": [
         "click"
       ],
-      "center": "413,123",
+      "center": "493,123",
       "a11yRef": "e31",
       "a11yRole": "tab",
       "a11yName": "Workflow",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_messenger_tab",
+      "ref": "nav_messenger_tab",
+      "name": "Messenger tab",
+      "desc": "Open the team messenger to direct-message teammates.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "626,123",
+      "a11yRef": "e36",
+      "a11yRole": "tab",
+      "a11yName": "Messenger",
       "bridgeDist": 0
     },
     {
@@ -95,7 +110,7 @@
         "click"
       ],
       "center": "1202,193",
-      "a11yRef": "e42",
+      "a11yRef": "e45",
       "a11yRole": "button",
       "a11yName": "New Task",
       "bridgeDist": 0
@@ -110,7 +125,7 @@
         "hover"
       ],
       "center": "172,487",
-      "a11yRef": "e68",
+      "a11yRef": "e71",
       "a11yRole": "button",
       "a11yName": "Open task Database schema optimization",
       "bridgeDist": 16
@@ -125,7 +140,7 @@
         "hover"
       ],
       "center": "484,487",
-      "a11yRef": "e104",
+      "a11yRef": "e107",
       "a11yRole": "region",
       "a11yName": "In Progress column",
       "bridgeDist": 0
@@ -140,7 +155,7 @@
         "hover"
       ],
       "center": "796,487",
-      "a11yRef": "e146",
+      "a11yRef": "e149",
       "a11yRole": "region",
       "a11yName": "In Review column",
       "bridgeDist": 0
@@ -155,7 +170,7 @@
         "hover"
       ],
       "center": "1108,487",
-      "a11yRef": "e188",
+      "a11yRef": "e191",
       "a11yRole": "region",
       "a11yName": "Done column",
       "bridgeDist": 0
@@ -170,7 +185,7 @@
         "dblclick"
       ],
       "center": "172,343",
-      "a11yRef": "e50",
+      "a11yRef": "e53",
       "a11yRole": "button",
       "a11yName": "Open task Write API documentation",
       "bridgeDist": 1
@@ -185,7 +200,7 @@
         "dblclick"
       ],
       "center": "172,343",
-      "a11yRef": "e50",
+      "a11yRef": "e53",
       "a11yRole": "button",
       "a11yName": "Open task Write API documentation",
       "bridgeDist": 1
@@ -200,7 +215,7 @@
         "click"
       ],
       "center": "281,310",
-      "a11yRef": "e62",
+      "a11yRef": "e65",
       "a11yRole": "button",
       "a11yName": "Delete task Write API documentation",
       "bridgeDist": 0
@@ -215,7 +230,7 @@
         "dblclick"
       ],
       "center": "172,343",
-      "a11yRef": "e50",
+      "a11yRef": "e53",
       "a11yRole": "button",
       "a11yName": "Open task Write API documentation",
       "bridgeDist": 1
@@ -230,7 +245,7 @@
         "dblclick"
       ],
       "center": "172,343",
-      "a11yRef": "e50",
+      "a11yRef": "e53",
       "a11yRole": "button",
       "a11yName": "Open task Write API documentation",
       "bridgeDist": 1
@@ -245,7 +260,7 @@
         "click"
       ],
       "center": "281,310",
-      "a11yRef": "e62",
+      "a11yRef": "e65",
       "a11yRole": "button",
       "a11yName": "Delete task Write API documentation",
       "bridgeDist": 0

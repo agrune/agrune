@@ -1,29 +1,29 @@
 {
   "state": "members",
   "label": "멤버 테이블",
-  "url": "http://127.0.0.1:50962/",
+  "url": "http://127.0.0.1:55603/",
   "capturedWith": {
     "tokenizer": "cl100k_base",
     "viewport": "1280x900"
   },
   "tokens": {
-    "agruneFull": 517,
-    "agruneNameOnly": 356,
+    "agruneFull": 639,
+    "agruneNameOnly": 434,
     "agruneOutline": 109,
-    "rawA11y": 1221,
-    "a11yInteractive": 182
+    "rawA11y": 1729,
+    "a11yInteractive": 344
   },
   "counts": {
-    "agruneVisibleTargets": 14,
-    "a11yRefs": 97,
+    "agruneVisibleTargets": 17,
+    "a11yRefs": 125,
     "a11yInteractiveRefs": 0,
-    "bridged": 13
+    "bridged": 16
   },
-  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Member search\" [ref=member_search_input]:\n  - description: \"Search members by name or email.\"\n  - group: \"members\"\n- target \"Member role filter\" [ref=member_role_filter_select]:\n  - description: \"Open the member role filter.\"\n  - group: \"members\"\n- target \"Member status filter\" [ref=member_status_filter_select]:\n  - description: \"Open the member status filter.\"\n  - group: \"members\"\n- target \"Member page size\" [ref=member_page_size_select]:\n  - description: \"Open the member table page size picker.\"\n  - group: \"members\"\n- target \"Previous member page\" [ref=member_pagination_previous]:\n  - description: \"Go to the previous member page.\"\n  - group: \"members\"\n  - reason: covered\n- target \"Next member page\" [ref=member_pagination_next]:\n  - description: \"Go to the next member page.\"\n  - group: \"members\"\n- target \"Member row\" [ref=member_row_indexed]:\n  - description: \"Visible member table row by index.\"\n  - group: \"members\"\n- target \"Member page button\" [ref=member_page_button_indexed]:\n  - description: \"Go to a numbered member page by index.\"\n  - group: \"members\"\n- target \"Alice Chen\" [ref=member_rows[key=member-1].member_row]:\n  - description: \"Visible member table row.\"\n  - group: \"members\"\n- target \"1\" [ref=member_page_buttons[key=1].member_page_button]:\n  - description: \"Go to a numbered member page.\"\n  - group: \"members\"\n```",
-  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Member search\" [ref=member_search_input]:\n  - group: \"members\"\n- target \"Member role filter\" [ref=member_role_filter_select]:\n  - group: \"members\"\n- target \"Member status filter\" [ref=member_status_filter_select]:\n  - group: \"members\"\n- target \"Member page size\" [ref=member_page_size_select]:\n  - group: \"members\"\n- target \"Previous member page\" [ref=member_pagination_previous]:\n  - group: \"members\"\n  - reason: covered\n- target \"Next member page\" [ref=member_pagination_next]:\n  - group: \"members\"\n- target \"Member row\" [ref=member_row_indexed]:\n  - group: \"members\"\n- target \"Member page button\" [ref=member_page_button_indexed]:\n  - group: \"members\"\n- target \"Alice Chen\" [ref=member_rows[key=member-1].member_row]:\n  - group: \"members\"\n- target \"1\" [ref=member_page_buttons[key=1].member_page_button]:\n  - group: \"members\"\n```",
-  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:50962/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 4\n- group \"Team members\" [ref=members]:\n  - description: \"Targets for member search, filtering, rows, and pagination.\"\n  - targets: 10\n```",
-  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [active] [selected] [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n      - tabpanel \"Members\" [ref=e212]:\n        - generic [ref=e213]:\n          - generic [ref=e214]:\n            - heading \"Team Members\" [level=2] [ref=e215]:\n              - img [ref=e216]\n              - text: Team Members\n            - paragraph [ref=e221]: Manage your team members. Use filters and search to find specific members.\n          - generic [ref=e222]:\n            - generic [ref=e223]:\n              - img [ref=e224]\n              - textbox \"Search by name or email...\" [ref=e227]\n            - combobox [ref=e228]:\n              - generic: All Roles\n              - img [ref=e229]\n            - combobox [ref=e231]:\n              - generic: All Status\n              - img [ref=e232]\n            - generic [ref=e234]: 22 members\n          - table [ref=e237]:\n            - rowgroup [ref=e238]:\n              - row \"Name Email Role Status Joined\" [ref=e239]:\n                - columnheader \"Name\" [ref=e240]\n                - columnheader \"Email\" [ref=e241]\n                - columnheader \"Role\" [ref=e242]\n                - columnheader \"Status\" [ref=e243]\n                - columnheader \"Joined\" [ref=e244]\n            - rowgroup [ref=e245]:\n              - row \"Alice Chen alice@example.com designer active Jun 15, 2025\" [ref=e246]:\n                - cell \"Alice Chen\" [ref=e247]\n                - cell \"alice@example.com\" [ref=e248]\n                - cell \"designer\" [ref=e249]:\n                  - generic [ref=e250]: designer\n                - cell \"active\" [ref=e251]:\n                  - generic [ref=e252]: active\n                - cell \"Jun 15, 2025\" [ref=e253]\n              - row \"Bob Kim bob@example.com developer active Jul 1, 2025\" [ref=e254]:\n                - cell \"Bob Kim\" [ref=e255]\n                - cell \"bob@example.com\" [ref=e256]\n                - cell \"developer\" [ref=e257]:\n                  - generic [ref=e258]: developer\n                - cell \"active\" [ref=e259]:\n                  - generic [ref=e260]: active\n                - cell \"Jul 1, 2025\" [ref=e261]\n              - row \"Charlie Park charlie@example.com developer active Aug 20, 2025\" [ref=e262]:\n                - cell \"Charlie Park\" [ref=e263]\n                - cell \"charlie@example.com\" [ref=e264]\n                - cell \"developer\" [ref=e265]:\n                  - generic [ref=e266]: developer\n                - cell \"active\" [ref=e267]:\n                  - generic [ref=e268]: active\n                - cell \"Aug 20, 2025\" [ref=e269]\n              - row \"Diana Lee diana@example.com qa active Sep 10, 2025\" [ref=e270]:\n                - cell \"Diana Lee\" [ref=e271]\n                - cell \"diana@example.com\" [ref=e272]\n                - cell \"qa\" [ref=e273]:\n                  - generic [ref=e274]: qa\n                - cell \"active\" [ref=e275]:\n                  - generic [ref=e276]: active\n                - cell \"Sep 10, 2025\" [ref=e277]\n              - row \"Eve Wang eve@example.com admin active May 1, 2025\" [ref=e278]:\n                - cell \"Eve Wang\" [ref=e279]\n                - cell \"eve@example.com\" [ref=e280]\n                - cell \"admin\" [ref=e281]:\n                  - generic [ref=e282]: admin\n                - cell \"active\" [ref=e283]:\n                  - generic [ref=e284]: active\n                - cell \"May 1, 2025\" [ref=e285]\n          - generic [ref=e286]:\n            - generic [ref=e287]:\n              - paragraph [ref=e288]: Showing 1 to 5 of 22\n              - generic [ref=e289]:\n                - generic [ref=e290]: \"Rows:\"\n                - combobox [ref=e291]:\n                  - generic: \"5\"\n                  - img [ref=e292]\n            - generic [ref=e294]:\n              - button \"Previous\" [disabled]:\n                - img\n                - text: Previous\n              - generic [ref=e295]:\n                - button \"1\" [ref=e296]\n                - button \"2\" [ref=e297]\n                - button \"3\" [ref=e298]\n                - button \"4\" [ref=e299]\n                - button \"5\" [ref=e300]\n              - button \"Next\" [ref=e301]:\n                - text: Next\n                - img",
-  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [ref=e18]:\n  - - tab \"Members\" [active] [selected] [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [ref=e31]:\n  - - textbox \"Search by name or email...\" [ref=e227]\n  - - combobox [ref=e228]:\n  - - combobox [ref=e231]:\n  - - combobox [ref=e291]:\n  - - button \"1\" [ref=e296]\n  - - button \"2\" [ref=e297]\n  - - button \"3\" [ref=e298]\n  - - button \"4\" [ref=e299]\n  - - button \"5\" [ref=e300]\n  - - button \"Next\" [ref=e301]:",
+  "agruneFullText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - description: \"Open the kanban board.\"\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - description: \"Open the team member table.\"\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - description: \"Open the document viewer.\"\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - description: \"Open the workflow editor.\"\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - description: \"Open the team messenger to direct-message teammates.\"\n  - group: \"navigation\"\n- target \"Member search\" [ref=member_search_input]:\n  - description: \"Search members by name or email.\"\n  - group: \"members\"\n- target \"Member role filter\" [ref=member_role_filter_select]:\n  - description: \"Open the member role filter.\"\n  - group: \"members\"\n- target \"Member status filter\" [ref=member_status_filter_select]:\n  - description: \"Open the member status filter.\"\n  - group: \"members\"\n- target \"Member page size\" [ref=member_page_size_select]:\n  - description: \"Open the member table page size picker.\"\n  - group: \"members\"\n- target \"Previous member page\" [ref=member_pagination_previous]:\n  - description: \"Go to the previous member page.\"\n  - group: \"members\"\n  - reason: covered\n- target \"Next member page\" [ref=member_pagination_next]:\n  - description: \"Go to the next member page.\"\n  - group: \"members\"\n- target \"Member row\" [ref=member_row_indexed]:\n  - description: \"Visible member table row by index.\"\n  - group: \"members\"\n- target \"Member page button\" [ref=member_page_button_indexed]:\n  - description: \"Go to a numbered member page by index.\"\n  - group: \"members\"\n- target \"Alice Chen\" [ref=member_rows[key=member-1].member_row]:\n  - description: \"Visible member table row.\"\n  - group: \"members\"\n- target \"Create ticket for member\" [ref=member_rows[key=member-1].member_create_ticket]:\n  - description: \"Open the new-task wizard with this member pre-assigned.\"\n  - group: \"members\"\n- target \"Message member\" [ref=member_rows[key=member-1].member_message]:\n  - description: \"Open the messenger conversation with this member.\"\n  - group: \"members\"\n- target \"1\" [ref=member_page_buttons[key=1].member_page_button]:\n  - description: \"Go to a numbered member page.\"\n  - group: \"members\"\n```",
+  "agruneNameOnlyText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- target \"Board tab\" [ref=nav_board_tab]:\n  - group: \"navigation\"\n- target \"Members tab\" [ref=nav_members_tab]:\n  - group: \"navigation\"\n- target \"Docs tab\" [ref=nav_docs_tab]:\n  - group: \"navigation\"\n- target \"Workflow tab\" [ref=nav_workflow_tab]:\n  - group: \"navigation\"\n- target \"Messenger tab\" [ref=nav_messenger_tab]:\n  - group: \"navigation\"\n- target \"Member search\" [ref=member_search_input]:\n  - group: \"members\"\n- target \"Member role filter\" [ref=member_role_filter_select]:\n  - group: \"members\"\n- target \"Member status filter\" [ref=member_status_filter_select]:\n  - group: \"members\"\n- target \"Member page size\" [ref=member_page_size_select]:\n  - group: \"members\"\n- target \"Previous member page\" [ref=member_pagination_previous]:\n  - group: \"members\"\n  - reason: covered\n- target \"Next member page\" [ref=member_pagination_next]:\n  - group: \"members\"\n- target \"Member row\" [ref=member_row_indexed]:\n  - group: \"members\"\n- target \"Member page button\" [ref=member_page_button_indexed]:\n  - group: \"members\"\n- target \"Alice Chen\" [ref=member_rows[key=member-1].member_row]:\n  - group: \"members\"\n- target \"Create ticket for member\" [ref=member_rows[key=member-1].member_create_ticket]:\n  - group: \"members\"\n- target \"Message member\" [ref=member_rows[key=member-1].member_message]:\n  - group: \"members\"\n- target \"1\" [ref=member_page_buttons[key=1].member_page_button]:\n  - group: \"members\"\n```",
+  "agruneOutlineText": "### Page\n- Page URL: http://127.0.0.1:55603/\n- Page Title: Project Management Tool\n- Snapshot Version: 1\n### Snapshot\n```yaml\n- group \"Primary navigation\" [ref=navigation]:\n  - description: \"Top-level tabs for the project manager demo.\"\n  - targets: 5\n- group \"Team members\" [ref=members]:\n  - description: \"Targets for member search, filtering, rows, and pagination.\"\n  - targets: 12\n```",
+  "rawA11yText": "- generic [ref=e3]:\n  - banner [ref=e4]:\n    - generic [ref=e6]:\n      - img [ref=e7]\n      - generic [ref=e12]:\n        - heading \"Project Manager\" [level=1] [ref=e13]\n        - paragraph [ref=e14]: Manage tasks, team members, and documentation\n  - main [ref=e15]:\n    - generic [ref=e16]:\n      - tablist [ref=e17]:\n        - tab \"Board\" [ref=e18]:\n          - img [ref=e19]\n          - text: Board\n        - tab \"Members\" [active] [selected] [ref=e21]:\n          - img [ref=e22]\n          - text: Members\n        - tab \"Docs\" [ref=e27]:\n          - img [ref=e28]\n          - text: Docs\n        - tab \"Workflow\" [ref=e31]:\n          - img [ref=e32]\n          - text: Workflow\n        - tab \"Messenger\" [ref=e36]:\n          - img [ref=e37]\n          - text: Messenger\n      - tabpanel \"Members\" [ref=e215]:\n        - generic [ref=e216]:\n          - generic [ref=e217]:\n            - heading \"Team Members\" [level=2] [ref=e218]:\n              - img [ref=e219]\n              - text: Team Members\n            - paragraph [ref=e224]: Manage your team members. Use filters and search to find specific members.\n          - generic [ref=e225]:\n            - generic [ref=e226]:\n              - img [ref=e227]\n              - textbox \"Search by name or email...\" [ref=e230]\n            - combobox [ref=e231]:\n              - generic: All Roles\n              - img [ref=e232]\n            - combobox [ref=e234]:\n              - generic: All Status\n              - img [ref=e235]\n            - generic [ref=e237]: 22 members\n          - table [ref=e240]:\n            - rowgroup [ref=e241]:\n              - row \"Name Email Role Skills Status Actions\" [ref=e242]:\n                - columnheader \"Name\" [ref=e243]\n                - columnheader \"Email\" [ref=e244]\n                - columnheader \"Role\" [ref=e245]\n                - columnheader \"Skills\" [ref=e246]\n                - columnheader \"Status\" [ref=e247]\n                - columnheader \"Actions\" [ref=e248]\n            - rowgroup [ref=e249]:\n              - row \"Alice Chen alice@example.com designer UI Design, Figma Design active Create ticket for Alice Chen Message Alice Chen\" [ref=e250]:\n                - cell \"Alice Chen\" [ref=e251]\n                - cell \"alice@example.com\" [ref=e252]\n                - cell \"designer\" [ref=e253]:\n                  - generic [ref=e254]: designer\n                - cell \"UI Design, Figma Design\" [ref=e255]:\n                  - text: UI Design, Figma\n                  - generic [ref=e256]: Design\n                - cell \"active\" [ref=e257]:\n                  - generic [ref=e258]: active\n                - cell \"Create ticket for Alice Chen Message Alice Chen\" [ref=e259]:\n                  - generic [ref=e260]:\n                    - button \"Create ticket for Alice Chen\" [ref=e261]:\n                      - img\n                      - text: Ticket\n                    - button \"Message Alice Chen\" [ref=e262]:\n                      - img\n              - row \"Bob Kim bob@example.com developer React, TypeScript, Node.js Frontend active Create ticket for Bob Kim Message Bob Kim\" [ref=e263]:\n                - cell \"Bob Kim\" [ref=e264]\n                - cell \"bob@example.com\" [ref=e265]\n                - cell \"developer\" [ref=e266]:\n                  - generic [ref=e267]: developer\n                - cell \"React, TypeScript, Node.js Frontend\" [ref=e268]:\n                  - text: React, TypeScript, Node.js\n                  - generic [ref=e269]: Frontend\n                - cell \"active\" [ref=e270]:\n                  - generic [ref=e271]: active\n                - cell \"Create ticket for Bob Kim Message Bob Kim\" [ref=e272]:\n                  - generic [ref=e273]:\n                    - button \"Create ticket for Bob Kim\" [ref=e274]:\n                      - img\n                      - text: Ticket\n                    - button \"Message Bob Kim\" [ref=e275]:\n                      - img\n              - row \"Charlie Park charlie@example.com developer CI/CD, Docker, Kubernetes Platform active Create ticket for Charlie Park Message Charlie Park\" [ref=e276]:\n                - cell \"Charlie Park\" [ref=e277]\n                - cell \"charlie@example.com\" [ref=e278]\n                - cell \"developer\" [ref=e279]:\n                  - generic [ref=e280]: developer\n                - cell \"CI/CD, Docker, Kubernetes Platform\" [ref=e281]:\n                  - text: CI/CD, Docker, Kubernetes\n                  - generic [ref=e282]: Platform\n                - cell \"active\" [ref=e283]:\n                  - generic [ref=e284]: active\n                - cell \"Create ticket for Charlie Park Message Charlie Park\" [ref=e285]:\n                  - generic [ref=e286]:\n                    - button \"Create ticket for Charlie Park\" [ref=e287]:\n                      - img\n                      - text: Ticket\n                    - button \"Message Charlie Park\" [ref=e288]:\n                      - img\n              - row \"Diana Lee diana@example.com qa Test Automation, Cypress QA active Create ticket for Diana Lee Message Diana Lee\" [ref=e289]:\n                - cell \"Diana Lee\" [ref=e290]\n                - cell \"diana@example.com\" [ref=e291]\n                - cell \"qa\" [ref=e292]:\n                  - generic [ref=e293]: qa\n                - cell \"Test Automation, Cypress QA\" [ref=e294]:\n                  - text: Test Automation, Cypress\n                  - generic [ref=e295]: QA\n                - cell \"active\" [ref=e296]:\n                  - generic [ref=e297]: active\n                - cell \"Create ticket for Diana Lee Message Diana Lee\" [ref=e298]:\n                  - generic [ref=e299]:\n                    - button \"Create ticket for Diana Lee\" [ref=e300]:\n                      - img\n                      - text: Ticket\n                    - button \"Message Diana Lee\" [ref=e301]:\n                      - img\n              - row \"Eve Wang eve@example.com admin Project Management Operations active Create ticket for Eve Wang Message Eve Wang\" [ref=e302]:\n                - cell \"Eve Wang\" [ref=e303]\n                - cell \"eve@example.com\" [ref=e304]\n                - cell \"admin\" [ref=e305]:\n                  - generic [ref=e306]: admin\n                - cell \"Project Management Operations\" [ref=e307]:\n                  - text: Project Management\n                  - generic [ref=e308]: Operations\n                - cell \"active\" [ref=e309]:\n                  - generic [ref=e310]: active\n                - cell \"Create ticket for Eve Wang Message Eve Wang\" [ref=e311]:\n                  - generic [ref=e312]:\n                    - button \"Create ticket for Eve Wang\" [ref=e313]:\n                      - img\n                      - text: Ticket\n                    - button \"Message Eve Wang\" [ref=e314]:\n                      - img\n          - generic [ref=e315]:\n            - generic [ref=e316]:\n              - paragraph [ref=e317]: Showing 1 to 5 of 22\n              - generic [ref=e318]:\n                - generic [ref=e319]: \"Rows:\"\n                - combobox [ref=e320]:\n                  - generic: \"5\"\n                  - img [ref=e321]\n            - generic [ref=e323]:\n              - button \"Previous\" [disabled]:\n                - img\n                - text: Previous\n              - generic [ref=e324]:\n                - button \"1\" [ref=e325]\n                - button \"2\" [ref=e326]\n                - button \"3\" [ref=e327]\n                - button \"4\" [ref=e328]\n                - button \"5\" [ref=e329]\n              - button \"Next\" [ref=e330]:\n                - text: Next\n                - img",
+  "a11yInteractiveText": "- interactive elements (filtered from the accessibility tree):\n  - - tab \"Board\" [ref=e18]:\n  - - tab \"Members\" [active] [selected] [ref=e21]:\n  - - tab \"Docs\" [ref=e27]:\n  - - tab \"Workflow\" [ref=e31]:\n  - - tab \"Messenger\" [ref=e36]:\n  - - textbox \"Search by name or email...\" [ref=e230]\n  - - combobox [ref=e231]:\n  - - combobox [ref=e234]:\n  - - button \"Create ticket for Alice Chen\" [ref=e261]:\n  - - button \"Message Alice Chen\" [ref=e262]:\n  - - button \"Create ticket for Bob Kim\" [ref=e274]:\n  - - button \"Message Bob Kim\" [ref=e275]:\n  - - button \"Create ticket for Charlie Park\" [ref=e287]:\n  - - button \"Message Charlie Park\" [ref=e288]:\n  - - button \"Create ticket for Diana Lee\" [ref=e300]:\n  - - button \"Message Diana Lee\" [ref=e301]:\n  - - button \"Create ticket for Eve Wang\" [ref=e313]:\n  - - button \"Message Eve Wang\" [ref=e314]:\n  - - combobox [ref=e320]:\n  - - button \"1\" [ref=e325]\n  - - button \"2\" [ref=e326]\n  - - button \"3\" [ref=e327]\n  - - button \"4\" [ref=e328]\n  - - button \"5\" [ref=e329]\n  - - button \"Next\" [ref=e330]:",
   "elements": [
     {
       "targetId": "nav_board_tab",
@@ -34,7 +34,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "83,123",
+      "center": "94,123",
       "a11yRef": "e18",
       "a11yRole": "tab",
       "a11yName": "Board",
@@ -49,7 +49,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "193,123",
+      "center": "227,123",
       "a11yRef": "e21",
       "a11yRole": "tab",
       "a11yName": "Members",
@@ -64,7 +64,7 @@
       "actionKinds": [
         "click"
       ],
-      "center": "303,123",
+      "center": "360,123",
       "a11yRef": "e27",
       "a11yRole": "tab",
       "a11yName": "Docs",
@@ -79,10 +79,25 @@
       "actionKinds": [
         "click"
       ],
-      "center": "413,123",
+      "center": "493,123",
       "a11yRef": "e31",
       "a11yRole": "tab",
       "a11yName": "Workflow",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "nav_messenger_tab",
+      "ref": "nav_messenger_tab",
+      "name": "Messenger tab",
+      "desc": "Open the team messenger to direct-message teammates.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "626,123",
+      "a11yRef": "e36",
+      "a11yRole": "tab",
+      "a11yName": "Messenger",
       "bridgeDist": 0
     },
     {
@@ -95,7 +110,7 @@
         "fill"
       ],
       "center": "216,255",
-      "a11yRef": "e227",
+      "a11yRef": "e230",
       "a11yRole": "textbox",
       "a11yName": "Search by name or email...",
       "bridgeDist": 0
@@ -110,7 +125,7 @@
         "click"
       ],
       "center": "490,255",
-      "a11yRef": "e228",
+      "a11yRef": "e231",
       "a11yRole": "combobox",
       "a11yName": "",
       "bridgeDist": 0
@@ -125,7 +140,7 @@
         "click"
       ],
       "center": "642,255",
-      "a11yRef": "e231",
+      "a11yRef": "e234",
       "a11yRole": "combobox",
       "a11yName": "",
       "bridgeDist": 0
@@ -139,11 +154,11 @@
       "actionKinds": [
         "click"
       ],
-      "center": "247,558",
-      "a11yRef": "e291",
+      "center": "247,594",
+      "a11yRef": "e320",
       "a11yRole": "combobox",
       "a11yName": "",
-      "bridgeDist": 1
+      "bridgeDist": 0
     },
     {
       "targetId": "member_pagination_previous",
@@ -169,11 +184,11 @@
       "actionKinds": [
         "click"
       ],
-      "center": "1218,558",
-      "a11yRef": "e301",
+      "center": "1218,594",
+      "a11yRef": "e330",
       "a11yRole": "button",
       "a11yName": "Next",
-      "bridgeDist": 1
+      "bridgeDist": 0
     },
     {
       "targetId": "member_row_indexed",
@@ -184,11 +199,11 @@
       "actionKinds": [
         "hover"
       ],
-      "center": "640,350",
-      "a11yRef": "e246",
+      "center": "640,353",
+      "a11yRef": "e250",
       "a11yRole": "row",
-      "a11yName": "Alice Chen alice@example.com designer active Jun 15, 2025",
-      "bridgeDist": 1
+      "a11yName": "Alice Chen alice@example.com designer UI Design, Figma Design active Create ticket for Alice Chen Message Alice Chen",
+      "bridgeDist": 0
     },
     {
       "targetId": "member_page_button_indexed",
@@ -199,11 +214,11 @@
       "actionKinds": [
         "click"
       ],
-      "center": "1011,558",
-      "a11yRef": "e296",
+      "center": "1011,594",
+      "a11yRef": "e325",
       "a11yRole": "button",
       "a11yName": "1",
-      "bridgeDist": 1
+      "bridgeDist": 0
     },
     {
       "targetId": "member_rows__agrune_repeatKey_member-1.member_row",
@@ -214,10 +229,40 @@
       "actionKinds": [
         "hover"
       ],
-      "center": "640,350",
-      "a11yRef": "e246",
+      "center": "640,353",
+      "a11yRef": "e250",
       "a11yRole": "row",
-      "a11yName": "Alice Chen alice@example.com designer active Jun 15, 2025",
+      "a11yName": "Alice Chen alice@example.com designer UI Design, Figma Design active Create ticket for Alice Chen Message Alice Chen",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "member_rows__agrune_repeatKey_member-1.member_create_ticket",
+      "ref": "member_rows[key=member-1].member_create_ticket",
+      "name": "Create ticket for member",
+      "desc": "Open the new-task wizard with this member pre-assigned.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "1152,353",
+      "a11yRef": "e261",
+      "a11yRole": "button",
+      "a11yName": "Create ticket for Alice Chen",
+      "bridgeDist": 0
+    },
+    {
+      "targetId": "member_rows__agrune_repeatKey_member-1.member_message",
+      "ref": "member_rows[key=member-1].member_message",
+      "name": "Message member",
+      "desc": "Open the messenger conversation with this member.",
+      "role": null,
+      "actionKinds": [
+        "click"
+      ],
+      "center": "1211,353",
+      "a11yRef": "e262",
+      "a11yRole": "button",
+      "a11yName": "Message Alice Chen",
       "bridgeDist": 1
     },
     {
@@ -229,11 +274,11 @@
       "actionKinds": [
         "click"
       ],
-      "center": "1011,558",
-      "a11yRef": "e296",
+      "center": "1011,594",
+      "a11yRef": "e325",
       "a11yRole": "button",
       "a11yName": "1",
-      "bridgeDist": 1
+      "bridgeDist": 0
     }
   ]
 }
