@@ -4,7 +4,7 @@ const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   createMcpServer
-} from "../chunk-6WDDW3KO.js";
+} from "../chunk-C7IQKSHM.js";
 
 // ../../node_modules/.pnpm/@modelcontextprotocol+sdk@1.27.1_zod@4.3.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
@@ -162,7 +162,9 @@ var DEFAULT_RUNTIME_CONFIG = {
   autoScroll: true,
   cursorName: "default",
   auroraGlow: true,
-  auroraTheme: "light"
+  auroraTheme: "light",
+  surfaceScreenMessages: true,
+  detectUnmapped: true
 };
 function mergeRuntimeConfig(base, patch) {
   if (!patch) {
@@ -175,7 +177,9 @@ function mergeRuntimeConfig(base, patch) {
     autoScroll: patch.autoScroll ?? base.autoScroll,
     cursorName: patch.cursorName ?? base.cursorName,
     auroraGlow: patch.auroraGlow ?? base.auroraGlow,
-    auroraTheme: patch.auroraTheme ?? base.auroraTheme
+    auroraTheme: patch.auroraTheme ?? base.auroraTheme,
+    surfaceScreenMessages: patch.surfaceScreenMessages ?? base.surfaceScreenMessages,
+    detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped
   });
 }
 function normalizeRuntimeConfig(input) {
@@ -188,7 +192,9 @@ function normalizeRuntimeConfig(input) {
     autoScroll: typeof input?.autoScroll === "boolean" ? input.autoScroll : DEFAULT_RUNTIME_CONFIG.autoScroll,
     cursorName: typeof input?.cursorName === "string" && input.cursorName.trim() ? input.cursorName.trim() : DEFAULT_RUNTIME_CONFIG.cursorName,
     auroraGlow: typeof input?.auroraGlow === "boolean" ? input.auroraGlow : DEFAULT_RUNTIME_CONFIG.auroraGlow,
-    auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme
+    auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme,
+    surfaceScreenMessages: typeof input?.surfaceScreenMessages === "boolean" ? input.surfaceScreenMessages : DEFAULT_RUNTIME_CONFIG.surfaceScreenMessages,
+    detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped
   };
 }
 function createCommandError(code, message, details) {
@@ -13846,7 +13852,12 @@ var TargetSchema = external_exports.object({
   actionKinds: external_exports.array(ActionKindSchema).min(1),
   selector: SelectorLadderSchema,
   // false 차단 — MANIFEST-04 OR-only lock. z.boolean()을 쓰면 false가 통과됨 (Pitfall 5)
-  sensitive: external_exports.literal(true).optional()
+  sensitive: external_exports.literal(true).optional(),
+  // Authored post-action feedback (gated on a real screen change). Optional; a
+  // target with neither field simply produces no feedback line.
+  onSuccess: external_exports.string().optional(),
+  onNoEffect: external_exports.string().optional(),
+  alwaysDesc: external_exports.boolean().optional()
 });
 var RepeatSchema = external_exports.object({
   repeatId: external_exports.string().min(1),
@@ -14042,6 +14053,16 @@ async function resolveLocator(scope, ladder) {
         strategy: candidate.strategy,
         locator: candidate.locator.first()
       };
+    }
+  }
+  return null;
+}
+async function resolveLocatorMulti(scope, ladder) {
+  const candidates = buildLocatorCandidates(scope, ladder);
+  for (const candidate of candidates) {
+    const count = await candidate.locator.count().catch(() => 0);
+    if (count > 0) {
+      return { strategy: candidate.strategy, locator: candidate.locator };
     }
   }
   return null;
@@ -14607,7 +14628,7 @@ async function readRepeatLogicalSize(page, repeat) {
   return container.locator.first().evaluate(readContainerLogicalSize).catch(() => null);
 }
 async function inspectRepeatTarget(page, group, repeat, target) {
-  const resolved = await resolveLocator(page, target.selector);
+  const resolved = await resolveLocatorMulti(page, target.selector);
   if (!resolved) return [];
   const rows = await resolved.locator.evaluateAll(expandRepeatRows, {
     keyFrom: repeat.keyFrom,
@@ -14666,7 +14687,10 @@ async function inspectLocator(group, target, targetId, locator, opts = {}) {
     sourceLine: 0,
     sourceColumn: 0,
     domResolved: true,
-    repeatInstance: opts.repeatInstance
+    repeatInstance: opts.repeatInstance,
+    ...target.onSuccess ? { onSuccess: target.onSuccess } : {},
+    ...target.onNoEffect ? { onNoEffect: target.onNoEffect } : {},
+    ...target.alwaysDesc ? { alwaysDesc: true } : {}
   };
 }
 function missingTarget(group, target, targetId, opts = {}) {
@@ -14692,9 +14716,70 @@ function missingTarget(group, target, targetId, opts = {}) {
     sourceLine: 0,
     sourceColumn: 0,
     domResolved: false,
-    repeatInstance: opts.repeatInstance
+    repeatInstance: opts.repeatInstance,
+    ...target.onSuccess ? { onSuccess: target.onSuccess } : {},
+    ...target.onNoEffect ? { onNoEffect: target.onNoEffect } : {},
+    ...target.alwaysDesc ? { alwaysDesc: true } : {}
   };
 }
+var INTERACTIVE_SELECTOR = 'button, a[href], input, select, textarea, [role="button"], [role="textbox"], [role="combobox"], [role="checkbox"], [role="radio"], [role="switch"], [contenteditable=""], [contenteditable="true"]';
+var COVERED_ATTR = "data-agrune-cov";
+async function markCovered(locator, max) {
+  const n = Math.min(await locator.count(), max);
+  for (let i = 0; i < n; i++) {
+    await locator.nth(i).evaluate((el, attr) => el.setAttribute(attr, "1"), COVERED_ATTR).catch(() => {
+    });
+  }
+}
+async function detectUnmapped(page, manifest, limit = 8) {
+  for (const group of manifest.groups) {
+    for (const target of group.targets ?? []) {
+      try {
+        const resolved = await resolveLocator(page, target.selector);
+        if (resolved) await markCovered(resolved.locator, 20);
+      } catch {
+      }
+    }
+    for (const repeat of group.repeats ?? []) {
+      for (const target of repeat.targets ?? []) {
+        try {
+          const resolved = await resolveLocatorMulti(page, target.selector);
+          if (resolved) await markCovered(resolved.locator, 40);
+        } catch {
+        }
+      }
+    }
+  }
+  const dialog = page.locator('[role="dialog"]');
+  const region = await dialog.count().catch(() => 0) ? dialog.last() : page.locator("body");
+  const found = await region.locator(INTERACTIVE_SELECTOR).evaluateAll((nodes, coveredAttr) => {
+    return nodes.slice(0, 80).map((node) => {
+      const el = node;
+      if (el.getAttribute(coveredAttr) === "1" || el.closest(`[${coveredAttr}="1"]`)) return null;
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") return null;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return null;
+      const tag = el.tagName.toLowerCase();
+      const role = el.getAttribute("role") || "";
+      const type = (el.getAttribute("type") || "text").toLowerCase();
+      const isFill = tag === "input" && !["button", "submit", "checkbox", "radio", "file", "range"].includes(type) || tag === "textarea" || role === "textbox" || el.isContentEditable;
+      const input = el;
+      const lbl = input.labels && input.labels[0] ? input.labels[0].textContent : "";
+      const name = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.getAttribute("title") || lbl || el.textContent || "").replace(/\s+/g, " ").trim().slice(0, 60);
+      let selector = "";
+      if (el.id) selector = "#" + CSS.escape(el.id);
+      else if (el.getAttribute("data-testid")) selector = `[data-testid="${el.getAttribute("data-testid")}"]`;
+      else if (el.getAttribute("name")) selector = `${tag}[name="${el.getAttribute("name")}"]`;
+      return selector ? { verb: isFill ? "fill" : "click", name, selector } : null;
+    });
+  }, COVERED_ATTR).then((rows) => rows.filter((row) => row !== null)).catch(() => []);
+  await page.evaluate((attr) => document.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr)), COVERED_ATTR).catch(() => {
+  });
+  return found.slice(0, limit).map((info, i) => ({ ref: `x${i + 1}`, ...info }));
+}
+var UNMAPPED_GROUP_ID = "unmapped";
+var UNMAPPED_GROUP_NAME = "Unmapped (not in manifest)";
 var PlaywrightSession = class {
   constructor(options = {}) {
     this.options = options;
@@ -14704,6 +14789,12 @@ var PlaywrightSession = class {
   pages = /* @__PURE__ */ new Map();
   activeTabId = null;
   nextTabId = 1;
+  /**
+   * Per-tab registry of unmapped controls discovered on the last snapshot, keyed
+   * by their synthetic `x`-ref. resolveTargetLocator consults this before manifest
+   * resolution so every action verb can target an unmapped control by its raw ref.
+   */
+  unmappedRegistry = /* @__PURE__ */ new Map();
   async start() {
     if (this.context) return;
     const connection2 = this.options.connection ?? { mode: "launch", headless: this.options.headless ?? false };
@@ -14735,6 +14826,7 @@ var PlaywrightSession = class {
     this.browser = null;
     this.context = null;
     this.pages.clear();
+    this.unmappedRegistry.clear();
     this.activeTabId = null;
   }
   listTabs() {
@@ -14943,7 +15035,66 @@ var PlaywrightSession = class {
     };
   }
   async snapshot(tabId, options = {}) {
-    return this.refreshSnapshot(this.resolveTabId(tabId), options);
+    const resolvedTabId = this.resolveTabId(tabId);
+    const snapshot = await this.refreshSnapshot(resolvedTabId, options);
+    if (options.detectUnmapped) {
+      return this.augmentWithUnmapped(resolvedTabId, snapshot);
+    }
+    this.unmappedRegistry.delete(resolvedTabId);
+    return snapshot;
+  }
+  /**
+   * Run deterministic unmapped-control detection, record the results in the
+   * per-tab registry (so resolveTargetLocator can act on the raw refs), and graft
+   * synthetic targets onto the snapshot under an `unmapped` group so the agent can
+   * see them. Detection runs AFTER the manifest snapshot, so snapshot.version
+   * still reflects the mapped-screen identity (unmapped controls are supplementary).
+   */
+  async augmentWithUnmapped(tabId, snapshot) {
+    const entry = this.requireTab(tabId);
+    let manifest;
+    try {
+      manifest = await loadManifestFromPage(entry.page);
+    } catch {
+      manifest = { version: 3, groups: [] };
+    }
+    const found = await detectUnmapped(entry.page, manifest).catch(() => []);
+    const registry2 = /* @__PURE__ */ new Map();
+    for (const item of found) registry2.set(item.ref, item);
+    this.unmappedRegistry.set(tabId, registry2);
+    if (found.length === 0) return snapshot;
+    const syntheticTargets = found.map((item) => ({
+      targetId: item.ref,
+      groupId: UNMAPPED_GROUP_ID,
+      groupName: UNMAPPED_GROUP_NAME,
+      name: item.name || "(unnamed control)",
+      description: "On screen but not in the manifest \u2014 raw ref, prefer mapped targets when one fits.",
+      actionKinds: [item.verb],
+      selector: { css: item.selector },
+      visible: true,
+      inViewport: true,
+      enabled: true,
+      covered: false,
+      actionableNow: true,
+      reason: "ready",
+      overlay: false,
+      sensitive: false,
+      sourceFile: "unmapped",
+      sourceLine: 0,
+      sourceColumn: 0,
+      domResolved: true
+    }));
+    const unmappedGroup = {
+      groupId: UNMAPPED_GROUP_ID,
+      groupName: UNMAPPED_GROUP_NAME,
+      groupDesc: "Interactive controls present on screen that no manifest target covers.",
+      targetIds: syntheticTargets.map((target) => target.targetId)
+    };
+    return {
+      ...snapshot,
+      groups: [...snapshot.groups, unmappedGroup],
+      targets: [...snapshot.targets, ...syntheticTargets]
+    };
   }
   async ariaSnapshot(tabId, options = {}) {
     const resolvedTabId = this.resolveTabId(tabId);
@@ -15321,6 +15472,8 @@ var PlaywrightSession = class {
   }
   async resolveTargetLocator(tabId, targetRef) {
     const entry = this.requireTab(tabId);
+    const unmapped = this.unmappedRegistry.get(tabId)?.get(targetRef);
+    if (unmapped) return entry.page.locator(unmapped.selector).first();
     const manifest = await loadManifestFromPage(entry.page);
     const normalized = normalizeAgentTargetId(targetRef);
     const found = await findTargetLocator(entry.page, manifest, normalized);
@@ -15911,6 +16064,19 @@ async function pollUntil(check2, timeoutMs) {
   }
   throw new AgruneBackendError("TIMEOUT", `Timed out after ${timeoutMs}ms.`);
 }
+var AX_MESSAGE_LINE = /^-\s+(text|alert|status|heading|note|caption|tooltip):/i;
+function axMessageDelta(prevLines, curLines) {
+  const prev = new Set(prevLines);
+  const out = [];
+  for (const line of curLines) {
+    if (prev.has(line)) continue;
+    const trimmed = line.trim();
+    if (!AX_MESSAGE_LINE.test(trimmed)) continue;
+    const msg = trimmed.replace(/^-\s+\w+:\s*/, "").trim();
+    if (msg && !out.includes(msg)) out.push(msg);
+  }
+  return out.slice(0, 6);
+}
 var cached2;
 function loadVisualRuntimeSource() {
   if (cached2 !== void 0) return cached2;
@@ -15959,6 +16125,8 @@ var PlaywrightDriver = class {
   connected = false;
   commandCounter = 0;
   snapshots = /* @__PURE__ */ new Map();
+  /** Last-captured accessibility-tree lines per tab (for the screen-message delta). */
+  axLines = /* @__PURE__ */ new Map();
   config = normalizeRuntimeConfig(void 0);
   visualsInstalled = false;
   async connect() {
@@ -15977,6 +16145,7 @@ var PlaywrightDriver = class {
   async disconnect() {
     await this.session.stop();
     this.snapshots.clear();
+    this.axLines.clear();
     this.connected = false;
   }
   isConnected() {
@@ -16027,15 +16196,19 @@ var PlaywrightDriver = class {
         )
       };
     }
+    const before = this.snapshots.get(tabId) ?? null;
+    const beforeAx = this.axLines.get(tabId) ?? null;
     try {
       const blocked = await this.flowBlockGate(tabId, command);
       if (blocked) return { ...blocked, commandId };
       const result = await this.dispatchCommand(tabId, command);
       const snapshot = await this.refreshSnapshot(tabId).catch(() => null);
+      const feedback = this.actionFeedback(command, before, result, snapshot);
+      const screenMessages = this.screenMessageDelta(beforeAx, this.axLines.get(tabId) ?? null);
       return {
         commandId,
         ok: true,
-        result,
+        result: this.withActionInsights(result, feedback, screenMessages),
         ...snapshotEnvelope(snapshot)
       };
     } catch (error48) {
@@ -16223,9 +16396,73 @@ var PlaywrightDriver = class {
         "Page is blocked by a pending dialog. Handle it with browser_handle_dialog first."
       );
     }
-    const snapshot = await this.session.snapshot(tabId, { allowMissingManifest: true });
+    const snapshot = await this.session.snapshot(tabId, {
+      allowMissingManifest: true,
+      detectUnmapped: this.config.detectUnmapped
+    });
     this.snapshots.set(tabId, snapshot);
+    if (this.config.surfaceScreenMessages) {
+      this.axLines.set(tabId, await this.captureAxLines(tabId));
+    }
     return snapshot;
+  }
+  /**
+   * Live accessibility-tree lines for the screen-message delta. The full tree is
+   * never shown to the agent — only the frame-to-frame delta of informational
+   * lines (see screen-delta.ts). Returns [] on any failure so the delta degrades
+   * to "no new messages" rather than throwing.
+   */
+  async captureAxLines(tabId) {
+    try {
+      const yaml = await this.session.page(tabId).locator("body").ariaSnapshot();
+      return yaml.split("\n");
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * App-authored on-screen messages (validation errors, toasts) that appeared
+   * after the action — the informational delta of the accessibility tree. Empty
+   * when disabled, when there is no baseline, or when nothing new surfaced.
+   */
+  screenMessageDelta(beforeAx, afterAx) {
+    if (!this.config.surfaceScreenMessages || !beforeAx || !afterAx) return [];
+    return axMessageDelta(beforeAx, afterAx);
+  }
+  /**
+   * Fold the optional authored feedback line and the screen-message delta into
+   * the dispatch result, leaving the result untouched when neither is present
+   * (keeps the legacy result shape for actions that surface no insights).
+   */
+  withActionInsights(result, feedback, screenMessages) {
+    if (!feedback && screenMessages.length === 0) return result;
+    return {
+      ...result,
+      ...feedback ? { feedback } : {},
+      ...screenMessages.length > 0 ? { screenMessages } : {}
+    };
+  }
+  /**
+   * Manifest-authored post-action feedback, gated on a REAL screen change rather
+   * than "the action didn't throw". After an act/fill, compare the pre-action
+   * snapshot version to the post-action one: a delta means the screen changed
+   * (emit the acted target's `onSuccess`); no delta means the action was a
+   * mechanical no-op (emit `onNoEffect`, e.g. a Next blocked by an empty required
+   * field). The message is read from the PRE-action snapshot, where the acted
+   * target is guaranteed present (it may be gone from the post-action screen).
+   * Returns null when the command isn't an action, the target isn't found, or the
+   * target authored no message for the relevant outcome.
+   */
+  actionFeedback(command, before, result, after) {
+    if (command.kind !== "act" && command.kind !== "fill") return null;
+    if (!before) return null;
+    const actedId = typeof result?.targetId === "string" ? result.targetId : null;
+    if (!actedId) return null;
+    const entry = before.targets.find((target) => target.targetId === actedId);
+    if (!entry) return null;
+    const changed = after == null || after.version !== before.version;
+    const message = changed ? entry.onSuccess : entry.onNoEffect;
+    return message && message.length > 0 ? message : null;
   }
   hasPendingDialog(tabId) {
     try {

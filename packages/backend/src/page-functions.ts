@@ -38,6 +38,10 @@ export interface ElementCapturedState {
   reason: ElementStateReason
   textContent: string
   valuePreview: string | null
+  /** Fillable target holds a non-empty value (signature signal; never leaks the value). */
+  hasValue: boolean
+  /** Fillable target is required (HTML `required` or `aria-required="true"`). */
+  required: boolean
   center?: { x: number; y: number }
   size?: { w: number; h: number }
 }
@@ -255,7 +259,15 @@ export function captureElementState(
   else if (opts?.fillAction === true && sensitive) reason = 'sensitive'
 
   const textContent = el.textContent?.trim() ?? ''
-  const valuePreview = isFillable(el) && !sensitive ? el.value : null
+  const fillable = isFillable(el)
+  const valuePreview = fillable && !sensitive ? el.value : null
+  // Presence-only signal (no value, no length) so a sensitive fill still changes
+  // the signature without leaking the secret.
+  const hasValue = fillable ? el.value.length > 0 : false
+  // Required intent: native constraint or the ARIA equivalent. Scoped to fillable
+  // targets — the "still-needed fields" nudge pairs this with hasValue.
+  const required =
+    fillable && ((el as HTMLInputElement).required === true || el.getAttribute('aria-required') === 'true')
 
   let center: ElementCapturedState['center']
   let size: ElementCapturedState['size']
@@ -279,6 +291,8 @@ export function captureElementState(
     reason,
     textContent,
     valuePreview,
+    hasValue,
+    required,
     center,
     size,
   }

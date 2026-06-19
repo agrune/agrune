@@ -45,6 +45,40 @@ export interface ManifestTarget {
   selector: SelectorLadder
   /** sensitive는 OR-only 계약: true만 허용, false는 타입 레벨에서 차단 — MANIFEST-04 */
   sensitive?: true
+  /**
+   * Authored post-action feedback, surfaced to the agent AFTER it acts on this
+   * target, gated on whether the action actually changed the screen (snapshot
+   * version delta). `onSuccess` explains the new screen / what to do next;
+   * `onNoEffect` explains why a mechanically-successful action produced no change
+   * (e.g. a Next blocked by an empty required field). Authoring rule: keep them at
+   * the manifest's abstraction level — describe the semantic role, never bake in
+   * dynamic facts (step counts, item counts) that drift even when selectors don't.
+   */
+  onSuccess?: string
+  onNoEffect?: string
+  /**
+   * Render this target's `desc` even when descriptions are otherwise suppressed
+   * (compact/no-desc rendering modes). Use it to pin an explanation onto the few
+   * targets that actually need it — a required-field gotcha, a non-obvious
+   * control — instead of paying the desc token cost on every target every turn.
+   */
+  alwaysDesc?: boolean
+  /**
+   * Exclude this target's text/value from the snapshot signature, so its own
+   * churn (a clock, a "x seconds ago" stamp, a live counter, an animation label)
+   * does NOT bump the snapshot version. Without this, a self-updating target makes
+   * every action look like it "changed the screen" — corrupting the onSuccess /
+   * onNoEffect gate and forcing needless re-renders. The target is still shown;
+   * it just no longer counts as a screen change.
+   */
+  volatile?: boolean
+  /**
+   * Mark this fillable target as required even when the DOM carries no `required`
+   * / `aria-required` attribute. Feeds the deterministic "still-needed fields"
+   * nudge (pendingRequired) so the agent learns which inputs gate a Create/Next/
+   * Submit. DOM-detected required intent is honored regardless of this flag.
+   */
+  required?: boolean
 }
 
 export interface ManifestRepeat {
@@ -128,6 +162,17 @@ export const TargetSchema = z.object({
   selector: SelectorLadderSchema,
   // false 차단 — MANIFEST-04 OR-only lock. z.boolean()을 쓰면 false가 통과됨 (Pitfall 5)
   sensitive: z.literal(true).optional(),
+  // Authored post-action feedback (gated on a real screen change). Optional; a
+  // target with neither field simply produces no feedback line.
+  onSuccess: z.string().optional(),
+  onNoEffect: z.string().optional(),
+  alwaysDesc: z.boolean().optional(),
+  // Exclude this target's text/value from the snapshot signature (self-updating
+  // controls like clocks/counters must not register as screen changes).
+  volatile: z.boolean().optional(),
+  // Author-marked required (DOM-detected required intent is honored regardless);
+  // feeds the deterministic pendingRequired nudge.
+  required: z.boolean().optional(),
 })
 
 export const RepeatSchema = z.object({

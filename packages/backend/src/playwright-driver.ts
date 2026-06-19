@@ -37,6 +37,8 @@ import type {
 import { createCommandError, mergeRuntimeConfig, normalizeRuntimeConfig } from '@agrune/core'
 import { AgruneBackendError } from './errors.js'
 import { PlaywrightSession, type PlaywrightConnection } from './playwright-session.js'
+import { axMessageDelta } from './screen-delta.js'
+import { pendingRequiredFields } from './required-nudge.js'
 import { loadVisualRuntimeSource, visualInstallExpression } from './visual-effects.js'
 
 export interface PlaywrightDriverOptions {
@@ -56,6 +58,8 @@ export class PlaywrightDriver implements BrowserDriver {
   private connected = false
   private commandCounter = 0
   private readonly snapshots = new Map<number, PageSnapshot>()
+  /** Last-captured accessibility-tree lines per tab (for the screen-message delta). */
+  private readonly axLines = new Map<number, string[]>()
   private config: AgruneRuntimeConfig = normalizeRuntimeConfig(undefined)
   private visualsInstalled = false
 
@@ -82,6 +86,7 @@ export class PlaywrightDriver implements BrowserDriver {
   async disconnect(): Promise<void> {
     await this.session.stop()
     this.snapshots.clear()
+    this.axLines.clear()
     this.connected = false
   }
 
@@ -149,16 +154,29 @@ export class PlaywrightDriver implements BrowserDriver {
       }
     }
 
+    // The snapshot the agent is currently acting from (set by the previous
+    // command's refresh). Captured BEFORE any intermediate refresh so its version
+    // is the true pre-action baseline for the screen-change gate below.
+    const before = this.snapshots.get(tabId) ?? null
+    // Accessibility-tree lines as of the pre-action screen (set by the previous
+    // refresh). refreshSnapshot below overwrites this.axLines with the post-action
+    // frame, so read the baseline now.
+    const beforeAx = this.axLines.get(tabId) ?? null
+
     try {
       const blocked = await this.flowBlockGate(tabId, command)
       if (blocked) return { ...blocked, commandId }
 
       const result = await this.dispatchCommand(tabId, command)
-      const snapshot = await this.refreshSnapshot(tabId).catch(() => null)
+      const snapshot = await this.settle(tabId).catch(() => null)
+      const changed = this.actionChanged(command, before, snapshot)
+      const feedback = this.actionFeedback(before, result, changed)
+      const screenMessages = this.screenMessageDelta(beforeAx, this.axLines.get(tabId) ?? null, snapshot)
+      const pendingRequired = this.pendingRequired(command, snapshot)
       return {
         commandId,
         ok: true,
-        result,
+        result: this.withActionInsights(result, feedback, screenMessages, changed, pendingRequired),
         ...snapshotEnvelope(snapshot),
       }
     } catch (error) {
@@ -400,9 +418,162 @@ export class PlaywrightDriver implements BrowserDriver {
         'Page is blocked by a pending dialog. Handle it with browser_handle_dialog first.',
       )
     }
-    const snapshot = await this.session.snapshot(tabId, { allowMissingManifest: true })
+    const snapshot = await this.session.snapshot(tabId, {
+      allowMissingManifest: true,
+      detectUnmapped: this.config.detectUnmapped,
+    })
     this.snapshots.set(tabId, snapshot)
+    if (this.config.surfaceScreenMessages) {
+      this.axLines.set(tabId, await this.captureAxLines(tabId))
+    }
     return snapshot
+  }
+
+  /**
+   * Refresh the snapshot, then (when settleAfterActionMs > 0) keep re-capturing
+   * until the snapshot signature stops changing or the budget is spent — so an
+   * async effect (debounced validation, a button enabled after a fetch, a
+   * next-tick re-render) is reflected rather than missed by an immediate capture.
+   * Quiescence is judged on the snapshot VERSION, which excludes volatile targets,
+   * so a ticking clock cannot keep the page "busy" forever. Returns the settled
+   * snapshot.
+   */
+  private async settle(tabId: number): Promise<PageSnapshot> {
+    let snapshot = await this.refreshSnapshot(tabId)
+    const budget = this.config.settleAfterActionMs
+    if (budget <= 0) return snapshot
+    const deadline = Date.now() + budget
+    const step = Math.min(50, budget)
+    // A delayed effect (e.g. enable after a 300ms debounce) appears only AFTER a
+    // quiet period, so we cannot early-exit on the first stable poll — that would
+    // return the pre-effect state. Instead: once we have OBSERVED a change, return
+    // as soon as it stabilizes; if nothing ever changes, wait out the full budget.
+    let sawChange = false
+    while (Date.now() < deadline) {
+      await this.session.page(tabId).waitForTimeout(step).catch(() => {})
+      const next = await this.refreshSnapshot(tabId)
+      if (next.version !== snapshot.version) {
+        sawChange = true
+        snapshot = next
+        continue
+      }
+      if (sawChange) return next // changed earlier, now stable → settled
+      snapshot = next // still quiet; keep waiting for a possible delayed effect
+    }
+    return snapshot
+  }
+
+  /**
+   * Live accessibility-tree lines for the screen-message delta. The full tree is
+   * never shown to the agent — only the frame-to-frame delta of informational
+   * lines (see screen-delta.ts). Returns [] on any failure so the delta degrades
+   * to "no new messages" rather than throwing.
+   */
+  private async captureAxLines(tabId: number): Promise<string[]> {
+    try {
+      const yaml = await this.session.page(tabId).locator('body').ariaSnapshot()
+      return yaml.split('\n')
+    } catch {
+      return []
+    }
+  }
+
+  /**
+   * App-authored on-screen messages (validation errors, toasts) that appeared
+   * after the action — the informational delta of the accessibility tree. Empty
+   * when disabled, when there is no baseline, or when nothing new surfaced.
+   */
+  private screenMessageDelta(
+    beforeAx: string[] | null,
+    afterAx: string[] | null,
+    after: PageSnapshot | null,
+  ): string[] {
+    if (!this.config.surfaceScreenMessages || !beforeAx || !afterAx) return []
+    // Exclude the live text of volatile targets (clocks, counters) so their churn
+    // does not leak into the delta as a fake message. Robust for event-driven and
+    // second-granularity updates; sub-refresh self-ticking can still skew a value.
+    const volatileTexts = (after?.targets ?? [])
+      .filter(target => target.volatile && target.textContent)
+      .map(target => target.textContent as string)
+    return axMessageDelta(beforeAx, afterAx, volatileTexts)
+  }
+
+  /**
+   * Fold the optional authored feedback line, the screen-message delta, and the
+   * deterministic `changed` bit into the dispatch result, leaving the result
+   * untouched when none apply (keeps the legacy result shape for non-action
+   * commands that surface no insights).
+   */
+  private withActionInsights(
+    result: Record<string, unknown>,
+    feedback: string | null,
+    screenMessages: string[],
+    changed: boolean | null,
+    pendingRequired: string[],
+  ): Record<string, unknown> {
+    const hasChanged = typeof changed === 'boolean'
+    if (!feedback && screenMessages.length === 0 && !hasChanged && pendingRequired.length === 0) {
+      return result
+    }
+    return {
+      ...result,
+      ...(feedback ? { feedback } : {}),
+      ...(screenMessages.length > 0 ? { screenMessages } : {}),
+      ...(hasChanged ? { changed } : {}),
+      ...(pendingRequired.length > 0 ? { pendingRequired } : {}),
+    }
+  }
+
+  /**
+   * Deterministic "still-needed fields" nudge (Problem 3): after an act/fill, the
+   * names of visible required fillable fields that are still empty. Lets the agent
+   * see WHICH inputs gate a Create/Next/Submit instead of inferring it from a
+   * disabled button. Pure filter over the captured snapshot — no extra cost; gated
+   * to action commands and off when surfaceRequiredFields is disabled.
+   */
+  private pendingRequired(command: { kind: string }, after: PageSnapshot | null): string[] {
+    if (!this.config.surfaceRequiredFields) return []
+    if (command.kind !== 'act' && command.kind !== 'fill') return []
+    if (!after) return []
+    return pendingRequiredFields(after.targets)
+  }
+
+  /**
+   * Whether an act/fill actually changed the screen (snapshot version delta).
+   * Surfaced to the agent as an explicit `changed` bit so an "ok but nothing
+   * happened" outcome is unambiguous rather than something it must infer from the
+   * snapshot. null for non-action commands or when there is no pre-action baseline.
+   */
+  private actionChanged(
+    command: { kind: string },
+    before: PageSnapshot | null,
+    after: PageSnapshot | null,
+  ): boolean | null {
+    if (command.kind !== 'act' && command.kind !== 'fill') return null
+    if (!before) return null
+    return after == null || after.version !== before.version
+  }
+
+  /**
+   * Manifest-authored post-action feedback, gated on the REAL screen-change bit
+   * rather than "the action didn't throw". A change emits the acted target's
+   * `onSuccess`; no change emits `onNoEffect` (e.g. a Next blocked by an empty
+   * required field). The message is read from the PRE-action snapshot, where the
+   * acted target is guaranteed present (it may be gone from the post-action
+   * screen). Returns null when the outcome is N/A or no message was authored.
+   */
+  private actionFeedback(
+    before: PageSnapshot | null,
+    result: Record<string, unknown>,
+    changed: boolean | null,
+  ): string | null {
+    if (changed === null || !before) return null
+    const actedId = typeof result?.targetId === 'string' ? result.targetId : null
+    if (!actedId) return null
+    const entry = before.targets.find(target => target.targetId === actedId)
+    if (!entry) return null
+    const message = changed ? entry.onSuccess : entry.onNoEffect
+    return message && message.length > 0 ? message : null
   }
 
   private hasPendingDialog(tabId: number): boolean {

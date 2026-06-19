@@ -23,6 +23,10 @@ describe('core helpers', () => {
       cursorName: 'default',
       auroraGlow: true,
       auroraTheme: 'light',
+      surfaceScreenMessages: true,
+      detectUnmapped: true,
+      settleAfterActionMs: 0,
+      surfaceRequiredFields: true,
     })
   })
 

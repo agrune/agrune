@@ -27,6 +27,26 @@ export async function resolveLocator(
   return null
 }
 
+/**
+ * Like resolveLocator, but returns the FULL multi-element locator (no `.first()`)
+ * for the first ladder strategy that matches anything. Repeat enumeration must
+ * see every matching row — resolveLocator's `.first()` narrowing silently
+ * collapses an N-row repeat to its first instance.
+ */
+export async function resolveLocatorMulti(
+  scope: LocatorScope,
+  ladder: SelectorLadder,
+): Promise<ResolvedLocator | null> {
+  const candidates = buildLocatorCandidates(scope, ladder)
+  for (const candidate of candidates) {
+    const count = await candidate.locator.count().catch(() => 0)
+    if (count > 0) {
+      return { strategy: candidate.strategy, locator: candidate.locator }
+    }
+  }
+  return null
+}
+
 export function buildLocatorCandidates(
   scope: LocatorScope,
   ladder: SelectorLadder,

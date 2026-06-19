@@ -100,6 +100,37 @@ export interface AgruneRuntimeConfig {
   cursorName: string
   auroraGlow: boolean
   auroraTheme: AuroraTheme
+  /**
+   * Surface app-authored on-screen messages (validation errors, toasts) that
+   * appear after an action by diffing the accessibility tree frame-to-frame.
+   * Deterministic (no model in the loop). Adds one aria snapshot per action.
+   */
+  surfaceScreenMessages: boolean
+  /**
+   * Detect interactive controls present on screen but NOT covered by the manifest
+   * and surface them with raw `x`-refs (graceful degradation when the manifest is
+   * stale/incomplete). Deterministic. Adds per-snapshot DOM enumeration cost.
+   */
+  detectUnmapped: boolean
+  /**
+   * After an action, wait up to this many ms for the page signature to stabilize
+   * before capturing the snapshot — so async effects (debounced validation, a
+   * button that enables after a fetch, a next-tick re-render) are reflected rather
+   * than missed by an immediate capture. Volatile targets are excluded from the
+   * signature, so a ticking clock does not defeat the wait. 0 disables it (the
+   * immediate-capture default). Trade-off: a settled action costs an extra
+   * snapshot build, so this compounds with detectUnmapped — enable it for
+   * async-heavy apps rather than universally.
+   */
+  settleAfterActionMs: number
+  /**
+   * After an act/fill, surface `pendingRequired` — the names of visible required
+   * fillable fields still empty — so the agent learns WHICH inputs gate a
+   * Create/Next/Submit instead of inferring it from a disabled button (Problem 3).
+   * Deterministic and effectively free (a filter over the already-captured
+   * snapshot targets — no extra DOM/snapshot cost).
+   */
+  surfaceRequiredFields: boolean
 }
 
 export const DEFAULT_RUNTIME_CONFIG: AgruneRuntimeConfig = {
@@ -110,6 +141,10 @@ export const DEFAULT_RUNTIME_CONFIG: AgruneRuntimeConfig = {
   cursorName: 'default',
   auroraGlow: true,
   auroraTheme: 'light',
+  surfaceScreenMessages: true,
+  detectUnmapped: true,
+  settleAfterActionMs: 0,
+  surfaceRequiredFields: true,
 }
 
 export interface ViewportTransform {
@@ -168,6 +203,37 @@ export interface PageTarget {
     index: number
     key: string
   }
+  /**
+   * Authored post-action feedback carried from the manifest target. NOT rendered
+   * into the agent-facing snapshot text (zero token cost per turn) — read by the
+   * driver after an action to emit a feedback line, gated on a snapshot-version
+   * delta (onSuccess when the screen changed, onNoEffect when it did not).
+   */
+  onSuccess?: string
+  onNoEffect?: string
+  /** Pin this target's description to render even in compact/no-desc modes. */
+  alwaysDesc?: boolean
+  /**
+   * Exclude this target's text/value from the snapshot signature so its own churn
+   * (clock, live counter, relative timestamp) does not bump the snapshot version.
+   * Carried from the manifest `volatile` flag. Still rendered; just not a change.
+   */
+  volatile?: boolean
+  /**
+   * Whether a fillable target currently holds a non-empty value. Feeds the
+   * snapshot signature so that filling a SENSITIVE field (whose `valuePreview`
+   * stays null to avoid leaking the secret) still registers as a screen change.
+   * Not rendered into the agent-facing snapshot.
+   */
+  hasValue?: boolean
+  /**
+   * Whether this fillable target is required (DOM `required`/`aria-required`, or
+   * authored `required` in the manifest). Combined with `hasValue` it powers the
+   * deterministic "still-needed fields" nudge so the agent learns WHICH required
+   * inputs gate a Create/Next/Submit instead of inferring it from a disabled
+   * button. Only carried when true.
+   */
+  required?: boolean
 }
 
 export interface PageSnapshot {
@@ -307,6 +373,10 @@ export function mergeRuntimeConfig(
     cursorName: patch.cursorName ?? base.cursorName,
     auroraGlow: patch.auroraGlow ?? base.auroraGlow,
     auroraTheme: patch.auroraTheme ?? base.auroraTheme,
+    surfaceScreenMessages: patch.surfaceScreenMessages ?? base.surfaceScreenMessages,
+    detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped,
+    settleAfterActionMs: patch.settleAfterActionMs ?? base.settleAfterActionMs,
+    surfaceRequiredFields: patch.surfaceRequiredFields ?? base.surfaceRequiredFields,
   })
 }
 
@@ -345,6 +415,22 @@ export function normalizeRuntimeConfig(
       input?.auroraTheme === 'light' || input?.auroraTheme === 'dark'
         ? input.auroraTheme
         : DEFAULT_RUNTIME_CONFIG.auroraTheme,
+    surfaceScreenMessages:
+      typeof input?.surfaceScreenMessages === 'boolean'
+        ? input.surfaceScreenMessages
+        : DEFAULT_RUNTIME_CONFIG.surfaceScreenMessages,
+    detectUnmapped:
+      typeof input?.detectUnmapped === 'boolean'
+        ? input.detectUnmapped
+        : DEFAULT_RUNTIME_CONFIG.detectUnmapped,
+    settleAfterActionMs:
+      Number.isFinite(Number(input?.settleAfterActionMs)) && Number(input?.settleAfterActionMs) >= 0
+        ? Math.floor(Number(input?.settleAfterActionMs))
+        : DEFAULT_RUNTIME_CONFIG.settleAfterActionMs,
+    surfaceRequiredFields:
+      typeof input?.surfaceRequiredFields === 'boolean'
+        ? input.surfaceRequiredFields
+        : DEFAULT_RUNTIME_CONFIG.surfaceRequiredFields,
   }
 }
 

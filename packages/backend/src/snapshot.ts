@@ -17,7 +17,7 @@ import type {
   ManifestTarget,
   SelectorLadder,
 } from '@agrune/manifest'
-import { resolveLocator } from './locator.js'
+import { resolveLocator, resolveLocatorMulti } from './locator.js'
 import { routeApplies } from './manifest-loader.js'
 import {
   REPEAT_MAX_INSTANCES,
@@ -105,12 +105,18 @@ export async function buildSnapshotFromManifest(
       covered: target.covered,
       domResolved: target.domResolved,
       enabled: target.enabled,
+      // Presence-only fill signal so a sensitive fill (valuePreview stays null to
+      // avoid leaking the secret) still counts as a screen change.
+      hasValue: target.hasValue,
       inViewport: target.inViewport,
       reason: target.reason,
       sensitive: target.sensitive,
       targetId: target.targetId,
-      textContent: target.textContent,
-      valuePreview: target.valuePreview,
+      // Volatile targets (clocks, live counters, relative timestamps) self-update;
+      // their text/value must NOT count as a screen change, or every action would
+      // look like it changed the page (corrupting the onSuccess/onNoEffect gate).
+      textContent: target.volatile ? undefined : target.textContent,
+      valuePreview: target.volatile ? undefined : target.valuePreview,
       visible: target.visible,
       repeatInstance: target.repeatInstance,
     })),
@@ -147,7 +153,9 @@ async function inspectRepeatTarget(
   repeat: ManifestRepeat,
   target: ManifestTarget,
 ): Promise<PageTarget[]> {
-  const resolved = await resolveLocator(page, target.selector)
+  // resolveLocatorMulti (not resolveLocator) so every matching row is enumerated;
+  // resolveLocator's `.first()` would collapse the repeat to one instance.
+  const resolved = await resolveLocatorMulti(page, target.selector)
   if (!resolved) return []
 
   const rows: RepeatRow[] = await resolved.locator
@@ -224,6 +232,7 @@ async function inspectLocator(
     sensitive: state.sensitive,
     textContent: state.textContent || undefined,
     valuePreview: state.valuePreview,
+    hasValue: state.hasValue,
     center: state.center,
     size: state.size,
     ...(state.center ? { coordSpace: 'viewport' as const } : {}),
@@ -232,6 +241,11 @@ async function inspectLocator(
     sourceColumn: 0,
     domResolved: true,
     repeatInstance: opts.repeatInstance,
+    ...(target.onSuccess ? { onSuccess: target.onSuccess } : {}),
+    ...(target.onNoEffect ? { onNoEffect: target.onNoEffect } : {}),
+    ...(target.alwaysDesc ? { alwaysDesc: true } : {}),
+    ...(target.volatile ? { volatile: true } : {}),
+    ...(target.required || state.required ? { required: true } : {}),
   }
 }
 
@@ -262,11 +276,17 @@ function missingTarget(
     overlay: false,
     sensitive: target.sensitive === true,
     valuePreview: null,
+    hasValue: false,
     sourceFile: 'page-manifest',
     sourceLine: 0,
     sourceColumn: 0,
     domResolved: false,
     repeatInstance: opts.repeatInstance,
+    ...(target.onSuccess ? { onSuccess: target.onSuccess } : {}),
+    ...(target.onNoEffect ? { onNoEffect: target.onNoEffect } : {}),
+    ...(target.alwaysDesc ? { alwaysDesc: true } : {}),
+    ...(target.volatile ? { volatile: true } : {}),
+    ...(target.required ? { required: true } : {}),
   }
 }
 
@@ -293,6 +313,13 @@ export function filterSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFi
 export function formatSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFilterOptions & {
   full?: boolean
   includeTextContent?: boolean
+  /**
+   * Token-saving render: omit per-target `description` lines. A target may still
+   * force its description through by setting `alwaysDesc` in the manifest (the
+   * "pin a hint only where the agent struggled" lever). Default (false) keeps the
+   * legacy behavior of always rendering descriptions.
+   */
+  compact?: boolean
 } = {}): string {
   const lines = [
     '### Page',
@@ -308,7 +335,8 @@ export function formatSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFi
   if (options.full || filter.requestedGroupIds.size > 0 || filter.requestedTargetId) {
     for (const target of filteredSnapshot.targets) {
       lines.push(`- target ${quote(target.name)} [ref=${toAgentTargetRef(target)}]:`)
-      if (target.description) lines.push(`  - description: ${quote(target.description)}`)
+      const showDesc = !options.compact || target.alwaysDesc === true
+      if (target.description && showDesc) lines.push(`  - description: ${quote(target.description)}`)
       lines.push(`  - group: ${quote(target.groupId)}`)
       if (target.reason !== 'ready') lines.push(`  - reason: ${target.reason}`)
       if (target.textContent && options.includeTextContent) lines.push(`  - text: ${quote(target.textContent)}`)

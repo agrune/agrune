@@ -2,7 +2,7 @@ import type { Browser, BrowserContext, ConsoleMessage, Dialog as PlaywrightDialo
 import { chromium } from 'playwright'
 import { mkdir, readFile } from 'node:fs/promises'
 import { basename, dirname, extname, resolve } from 'node:path'
-import type { FillStrategy, PageSnapshot } from '@agrune/core'
+import type { FillStrategy, PageSnapshot, PageSnapshotGroup, PageTarget } from '@agrune/core'
 import {
   REPEATED_TARGET_KEY_DELIMITER,
   normalizeAgentTargetId,
@@ -19,6 +19,7 @@ import {
   type RepairOutcome,
 } from './self-heal.js'
 import { buildSnapshotFromManifest, createSnapshotStore, type SnapshotStore } from './snapshot.js'
+import { detectUnmapped, type UnmappedTarget } from './unmapped.js'
 import type { ClickButton, ClickModifier, ConsoleLevel, ConsoleMessageEntry, DialogInfo, FileChooserInfo, FillFormField, NetworkRequestPart, NetworkRequestSummary, PublicTab } from './types.js'
 
 export type PlaywrightConnection =
@@ -118,12 +119,22 @@ interface InternalNetworkRequest {
   failureText?: string
 }
 
+/** Synthetic group that holds unmapped (manifest-uncovered) controls. */
+const UNMAPPED_GROUP_ID = 'unmapped'
+const UNMAPPED_GROUP_NAME = 'Unmapped (not in manifest)'
+
 export class PlaywrightSession {
   private browser: Browser | null = null
   private context: BrowserContext | null = null
   private readonly pages = new Map<number, ManagedPage>()
   private activeTabId: number | null = null
   private nextTabId = 1
+  /**
+   * Per-tab registry of unmapped controls discovered on the last snapshot, keyed
+   * by their synthetic `x`-ref. resolveTargetLocator consults this before manifest
+   * resolution so every action verb can target an unmapped control by its raw ref.
+   */
+  private readonly unmappedRegistry = new Map<number, Map<string, UnmappedTarget>>()
 
   constructor(private readonly options: PlaywrightSessionOptions = {}) {}
 
@@ -162,6 +173,7 @@ export class PlaywrightSession {
     this.browser = null
     this.context = null
     this.pages.clear()
+    this.unmappedRegistry.clear()
     this.activeTabId = null
   }
 
@@ -414,9 +426,70 @@ export class PlaywrightSession {
 
   async snapshot(
     tabId?: number,
-    options: { allowMissingManifest?: boolean } = {},
+    options: { allowMissingManifest?: boolean; detectUnmapped?: boolean } = {},
   ): Promise<PageSnapshot> {
-    return this.refreshSnapshot(this.resolveTabId(tabId), options)
+    const resolvedTabId = this.resolveTabId(tabId)
+    const snapshot = await this.refreshSnapshot(resolvedTabId, options)
+    if (options.detectUnmapped) {
+      return this.augmentWithUnmapped(resolvedTabId, snapshot)
+    }
+    this.unmappedRegistry.delete(resolvedTabId)
+    return snapshot
+  }
+
+  /**
+   * Run deterministic unmapped-control detection, record the results in the
+   * per-tab registry (so resolveTargetLocator can act on the raw refs), and graft
+   * synthetic targets onto the snapshot under an `unmapped` group so the agent can
+   * see them. Detection runs AFTER the manifest snapshot, so snapshot.version
+   * still reflects the mapped-screen identity (unmapped controls are supplementary).
+   */
+  private async augmentWithUnmapped(tabId: number, snapshot: PageSnapshot): Promise<PageSnapshot> {
+    const entry = this.requireTab(tabId)
+    let manifest: AgruneManifest
+    try {
+      manifest = await loadManifestFromPage(entry.page)
+    } catch {
+      manifest = { version: 3, groups: [] }
+    }
+    const found = await detectUnmapped(entry.page, manifest).catch(() => [] as UnmappedTarget[])
+    const registry = new Map<string, UnmappedTarget>()
+    for (const item of found) registry.set(item.ref, item)
+    this.unmappedRegistry.set(tabId, registry)
+    if (found.length === 0) return snapshot
+
+    const syntheticTargets: PageTarget[] = found.map(item => ({
+      targetId: item.ref,
+      groupId: UNMAPPED_GROUP_ID,
+      groupName: UNMAPPED_GROUP_NAME,
+      name: item.name || '(unnamed control)',
+      description: 'On screen but not in the manifest — raw ref, prefer mapped targets when one fits.',
+      actionKinds: [item.verb],
+      selector: { css: item.selector },
+      visible: true,
+      inViewport: true,
+      enabled: true,
+      covered: false,
+      actionableNow: true,
+      reason: 'ready',
+      overlay: false,
+      sensitive: false,
+      sourceFile: 'unmapped',
+      sourceLine: 0,
+      sourceColumn: 0,
+      domResolved: true,
+    }))
+    const unmappedGroup: PageSnapshotGroup = {
+      groupId: UNMAPPED_GROUP_ID,
+      groupName: UNMAPPED_GROUP_NAME,
+      groupDesc: 'Interactive controls present on screen that no manifest target covers.',
+      targetIds: syntheticTargets.map(target => target.targetId),
+    }
+    return {
+      ...snapshot,
+      groups: [...snapshot.groups, unmappedGroup],
+      targets: [...snapshot.targets, ...syntheticTargets],
+    }
   }
 
   async ariaSnapshot(
@@ -899,6 +972,11 @@ export class PlaywrightSession {
 
   private async resolveTargetLocator(tabId: number, targetRef: string): Promise<Locator> {
     const entry = this.requireTab(tabId)
+    // Unmapped raw refs (x1, x2, …) resolve directly from their derived selector,
+    // bypassing manifest lookup. Re-resolved live, so the control is found at the
+    // current DOM state rather than where it sat at snapshot time.
+    const unmapped = this.unmappedRegistry.get(tabId)?.get(targetRef)
+    if (unmapped) return entry.page.locator(unmapped.selector).first()
     const manifest = await loadManifestFromPage(entry.page)
     const normalized = normalizeAgentTargetId(targetRef)
     const found = await findTargetLocator(entry.page, manifest, normalized)

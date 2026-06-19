@@ -34,7 +34,9 @@ var __agrune_visual__ = (() => {
     autoScroll: true,
     cursorName: "default",
     auroraGlow: true,
-    auroraTheme: "light"
+    auroraTheme: "light",
+    surfaceScreenMessages: true,
+    detectUnmapped: true
   };
   function mergeRuntimeConfig(base, patch) {
     if (!patch) {
@@ -47,7 +49,9 @@ var __agrune_visual__ = (() => {
       autoScroll: patch.autoScroll ?? base.autoScroll,
       cursorName: patch.cursorName ?? base.cursorName,
       auroraGlow: patch.auroraGlow ?? base.auroraGlow,
-      auroraTheme: patch.auroraTheme ?? base.auroraTheme
+      auroraTheme: patch.auroraTheme ?? base.auroraTheme,
+      surfaceScreenMessages: patch.surfaceScreenMessages ?? base.surfaceScreenMessages,
+      detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped
     });
   }
   function normalizeRuntimeConfig(input) {
@@ -60,7 +64,9 @@ var __agrune_visual__ = (() => {
       autoScroll: typeof input?.autoScroll === "boolean" ? input.autoScroll : DEFAULT_RUNTIME_CONFIG.autoScroll,
       cursorName: typeof input?.cursorName === "string" && input.cursorName.trim() ? input.cursorName.trim() : DEFAULT_RUNTIME_CONFIG.cursorName,
       auroraGlow: typeof input?.auroraGlow === "boolean" ? input.auroraGlow : DEFAULT_RUNTIME_CONFIG.auroraGlow,
-      auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme
+      auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme,
+      surfaceScreenMessages: typeof input?.surfaceScreenMessages === "boolean" ? input.surfaceScreenMessages : DEFAULT_RUNTIME_CONFIG.surfaceScreenMessages,
+      detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped
     };
   }
 
