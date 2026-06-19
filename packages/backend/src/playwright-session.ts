@@ -7,10 +7,11 @@ import {
   REPEATED_TARGET_KEY_DELIMITER,
   normalizeAgentTargetId,
 } from '@agrune/core'
-import type { AgruneManifest, ManifestGroup, ManifestRepeat, ManifestTarget, SelectorLadder } from '@agrune/manifest'
+import type { CanvasConfig, AgruneManifest, ManifestGroup, ManifestRepeat, ManifestTarget, SelectorLadder } from '@agrune/manifest'
 import { CliError } from './errors.js'
 import { loadManifestFromPage, routeApplies } from './manifest-loader.js'
-import { resolveLocator } from './locator.js'
+import { resolveLocator, resolveLocatorMulti } from './locator.js'
+import type { CanvasTransformResult } from './page-functions.js'
 import {
   intentFromTarget,
   rankRepairCandidates,
@@ -18,7 +19,7 @@ import {
   type ObservedElement,
   type RepairOutcome,
 } from './self-heal.js'
-import { buildSnapshotFromManifest, createSnapshotStore, type SnapshotStore } from './snapshot.js'
+import { buildSnapshotFromManifest, createSnapshotStore, readCanvasTransform, type SnapshotStore } from './snapshot.js'
 import { detectUnmapped, type UnmappedTarget } from './unmapped.js'
 import type { ClickButton, ClickModifier, ConsoleLevel, ConsoleMessageEntry, DialogInfo, FileChooserInfo, FillFormField, NetworkRequestPart, NetworkRequestSummary, PublicTab } from './types.js'
 
@@ -670,6 +671,58 @@ export class PlaywrightSession {
     const source = await this.resolveTargetLocator(resolvedTabId, sourceRef)
     const destination = await this.resolveTargetLocator(resolvedTabId, destinationRef)
     await source.dragTo(destination)
+  }
+
+  /**
+   * The `canvas` config of the manifest group that declares `targetRef`, or null
+   * when the target's group is not a canvas. Drives coordinate-space inference
+   * and the off-pane guard for coordinate drags. Honors route scoping and repeat
+   * instance refs (the base target's group is what matters).
+   */
+  async canvasConfigForTarget(
+    tabId: number | undefined,
+    targetRef: string,
+  ): Promise<CanvasConfig | null> {
+    const entry = this.requireTab(this.resolveTabId(tabId))
+    let manifest: AgruneManifest
+    try {
+      manifest = await loadManifestFromPage(entry.page)
+    } catch {
+      return null
+    }
+    const url = entry.page.url()
+    const normalized = normalizeAgentTargetId(targetRef)
+    const repeated = parseRepeatedTargetId(normalized)
+    for (const group of manifest.groups) {
+      if (!routeApplies(group.route, url)) continue
+      if (!group.canvas) continue
+      if (!repeated && group.targets.some(target => target.targetId === normalized)) {
+        return group.canvas
+      }
+      if (
+        repeated &&
+        group.repeats?.some(repeat =>
+          repeat.repeatId === repeated.repeatId &&
+          repeat.targets.some(target => target.targetId === repeated.baseTargetId),
+        )
+      ) {
+        return group.canvas
+      }
+    }
+    return null
+  }
+
+  /**
+   * Read the live pan/zoom transform + pane rect of a canvas viewport. Read
+   * immediately before a drag (pan/zoom and scroll both move it), then combine
+   * with @agrune/core's canvasToViewport/viewportToCanvas. Null when the
+   * viewport/pane element is absent.
+   */
+  async readCanvasTransform(
+    tabId: number | undefined,
+    canvas: CanvasConfig,
+  ): Promise<CanvasTransformResult | null> {
+    return readCanvasTransform(this.requireTab(this.resolveTabId(tabId)).page, canvas)
   }
 
   async read(tabId?: number): Promise<string> {
@@ -1658,7 +1711,10 @@ async function findLocatorByRepeatKey(
   target: ManifestTarget,
   key: string,
 ): Promise<Locator | null> {
-  const resolved = await resolveLocator(page, target.selector)
+  // resolveLocatorMulti (not resolveLocator) — the latter narrows to `.first()`,
+  // which would only ever enumerate the FIRST matching row, so every repeat
+  // instance except index 0 would fail to resolve by key (TARGET_NOT_FOUND).
+  const resolved = await resolveLocatorMulti(page, target.selector)
   if (!resolved) return null
 
   const count = await resolved.locator.count().catch(() => 0)

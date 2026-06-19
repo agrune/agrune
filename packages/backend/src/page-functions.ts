@@ -12,6 +12,10 @@
  * `captureElementState` so the inline copies are what tests exercise.
  */
 
+// Type-only import (erased at build) — the serialized page functions never
+// reference module scope at runtime.
+import type { CanvasViewportTransform } from '@agrune/core'
+
 export interface ElementStateOptions {
   /** Manifest `sensitive: true` flag — OR-only, cannot clear a DOM heuristic. */
   sensitiveFlag?: boolean
@@ -295,6 +299,75 @@ export function captureElementState(
     required,
     center,
     size,
+  }
+}
+
+/**
+ * Live pan/zoom transform of a canvas viewport element plus its pane's screen
+ * rect. Read FRESH immediately before a canvas drag (pan/zoom and page scroll
+ * both move it), then combined with the pure `canvasToViewport`/`viewportToCanvas`
+ * helpers in @agrune/core to map a stable canvas coordinate to a viewport pixel.
+ * Returns null when the viewport or pane element is not on the page.
+ *
+ * A structural superset of core's `CanvasViewportTransform` (adds the pane's
+ * right/bottom edges for the off-pane bounds check), so it can be passed anywhere
+ * a `CanvasViewportTransform` is expected with no field remapping.
+ */
+export interface CanvasTransformResult extends CanvasViewportTransform {
+  /** Right/bottom of the pane rect (paneLeft/paneTop are inherited). */
+  paneRight: number
+  paneBottom: number
+}
+
+export function readCanvasTransformInBrowser(
+  arg: { viewportSelector: string; paneSelector?: string | null },
+): CanvasTransformResult | null {
+  const viewport = document.querySelector(arg.viewportSelector) as HTMLElement | null
+  if (!viewport) return null
+  // The pane is the NON-transformed container that provides the screen origin.
+  // Default to the viewport's parent (the renderer); the viewport itself is
+  // transformed, so its own rect must NOT be used as the origin.
+  const pane = (arg.paneSelector
+    ? (document.querySelector(arg.paneSelector) as HTMLElement | null)
+    : viewport.parentElement) as HTMLElement | null
+  if (!pane) return null
+  const paneRect = pane.getBoundingClientRect()
+
+  let scale = 1
+  let translateX = 0
+  let translateY = 0
+  const style = window.getComputedStyle(viewport)
+  const transform = style.transform && style.transform !== 'none'
+    ? style.transform
+    : 'matrix(1, 0, 0, 1, 0, 0)'
+  try {
+    const Matrix = (window as unknown as { DOMMatrixReadOnly?: typeof DOMMatrixReadOnly }).DOMMatrixReadOnly
+    if (Matrix) {
+      const m = new Matrix(transform)
+      scale = m.a || 1
+      translateX = m.e
+      translateY = m.f
+    } else {
+      // Fallback parse of "matrix(a, b, c, d, e, f)".
+      const nums = transform.replace(/^matrix\(|\)$/g, '').split(',').map(v => Number(v.trim()))
+      if (nums.length === 6 && nums.every(n => Number.isFinite(n))) {
+        scale = nums[0] || 1
+        translateX = nums[4]
+        translateY = nums[5]
+      }
+    }
+  } catch {
+    // leave identity defaults
+  }
+
+  return {
+    paneLeft: paneRect.left,
+    paneTop: paneRect.top,
+    paneRight: paneRect.right,
+    paneBottom: paneRect.bottom,
+    translateX,
+    translateY,
+    scale,
   }
 }
 

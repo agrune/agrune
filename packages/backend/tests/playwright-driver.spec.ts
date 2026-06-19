@@ -176,6 +176,57 @@ const REQUIRED_FORM_PAGE = pageUrl(
   },
 )
 
+// Canvas drag: a React-Flow-like pane. The `.react-flow__viewport` carries a CSS
+// matrix (pan 40,40 / zoom 1); a node sits at flow (100,50). A 1:1 mouse-drag
+// handler (grab origin = mousedown, i.e. nodeDragThreshold=0 semantics) moves the
+// node by the pointer delta. The manifest marks the group as a canvas, so the
+// driver converts canvas destinationCoords → viewport px, drags, and reads the
+// node's final canvas center back as movedTarget.
+const CANVAS_PAGE = pageUrl(
+  `
+  <div id="cv" data-agrune-demo="workflow-canvas" style="position:relative;width:600px;height:400px;overflow:hidden;background:#eee">
+    <div class="react-flow__viewport" style="position:absolute;top:0;left:0;transform:translate(40px,40px) scale(1);transform-origin:0 0">
+      <div data-agrune-demo="workflow-node" data-workflow-node-id="n1" style="position:absolute;transform:translate(100px,50px);width:80px;height:40px;background:#9cf">N1</div>
+      <div data-agrune-demo="workflow-node" data-workflow-node-id="n2" style="position:absolute;transform:translate(300px,160px);width:80px;height:40px;background:#fc9">N2</div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var scale=1;
+    function flowPos(node){ var m=new DOMMatrixReadOnly(node.style.transform); return {x:m.e,y:m.f}; }
+    document.querySelectorAll('[data-agrune-demo="workflow-node"]').forEach(function(node){
+      node.addEventListener('mousedown', function(e){
+        var start=flowPos(node); var px0=e.clientX, py0=e.clientY;
+        function mv(ev){ if(!(ev.buttons&1)) return; node.style.transform='translate('+(start.x+(ev.clientX-px0)/scale)+'px,'+(start.y+(ev.clientY-py0)/scale)+'px)'; }
+        function up(){ window.removeEventListener('mousemove',mv); window.removeEventListener('mouseup',up); }
+        window.addEventListener('mousemove',mv); window.addEventListener('mouseup',up);
+      });
+    });
+  })();
+  </script>
+  `,
+  {
+    version: 3,
+    groups: [{
+      groupId: 'wf',
+      name: 'Workflow',
+      canvas: { viewportSelector: '.react-flow__viewport' },
+      targets: [
+        { targetId: 'node1', name: 'Node 1', desc: 'a draggable node', actionKinds: ['click'], selector: { css: '[data-workflow-node-id="n1"]' } },
+      ],
+      repeats: [{
+        repeatId: 'wf_nodes',
+        template: 'wf_${key}',
+        keyFrom: 'el.dataset.workflowNodeId ?? ""',
+        strategy: 'dom',
+        targets: [
+          { targetId: 'node', name: 'Node', desc: '', actionKinds: ['click'], selector: { css: '[data-agrune-demo="workflow-node"]' } },
+        ],
+      }],
+    }],
+  },
+)
+
 const OVERLAY_PAGE = pageUrl(
   `
   <button id="outside">outside</button>
@@ -351,6 +402,88 @@ describeSmoke('PlaywrightDriver (headless chromium smoke)', () => {
     // Fill the last required field — nothing remains, so no nudge is emitted.
     const second = await driver.execute(opened.tabId, { kind: 'fill', targetId: 'assignee', value: 'Bob Kim' })
     expect((second.result as { pendingRequired?: string[] } | undefined)?.pendingRequired).toBeUndefined()
+  }, 30_000)
+
+  it('surfaces canvas-group nodes in stable canvas coords with a group viewportTransform', async () => {
+    const opened = await driver.openTab(CANVAS_PAGE)
+    expect(await driver.ensureReady()).toBe(null)
+
+    const snapshot = driver.getSnapshot(opened.tabId)
+    const node = snapshot?.targets.find(entry => entry.targetId === 'node1')
+    // center is reported in CANVAS coords (flow center = (100+40/2*... ) → (140,70)),
+    // not viewport px, and labeled coordSpace:'canvas'.
+    expect(node?.coordSpace).toBe('canvas')
+    expect(node?.center?.x).toBeGreaterThanOrEqual(138)
+    expect(node?.center?.x).toBeLessThanOrEqual(142)
+    expect(node?.center?.y).toBeGreaterThanOrEqual(68)
+    expect(node?.center?.y).toBeLessThanOrEqual(72)
+
+    const group = snapshot?.groups.find(g => g.groupId === 'wf')
+    expect(group?.viewportTransform).toEqual({ translateX: 40, translateY: 40, scale: 1 })
+  }, 30_000)
+
+  it('drags a canvas node to exact canvas coords and reports movedTarget', async () => {
+    const opened = await driver.openTab(CANVAS_PAGE)
+    expect(await driver.ensureReady()).toBe(null)
+
+    const res = await driver.execute(opened.tabId, {
+      kind: 'drag',
+      sourceTargetId: 'node1',
+      destinationCoords: { x: 300, y: 200 },
+    })
+    expect(res.ok).toBe(true)
+    const result = res.result as {
+      coordSpace?: string
+      moved?: boolean
+      movedTarget?: { from?: { x: number; y: number }; to?: { x: number; y: number }; movedPx?: number }
+    }
+    expect(result.coordSpace).toBe('canvas')
+    expect(result.moved).toBe(true)
+    // The node's center lands at canvas (300, 200) within rounding tolerance.
+    expect(result.movedTarget?.to?.x).toBeGreaterThanOrEqual(297)
+    expect(result.movedTarget?.to?.x).toBeLessThanOrEqual(303)
+    expect(result.movedTarget?.to?.y).toBeGreaterThanOrEqual(197)
+    expect(result.movedTarget?.to?.y).toBeLessThanOrEqual(203)
+    // from is the node's original canvas center (≈140,70).
+    expect(result.movedTarget?.from?.x).toBeGreaterThanOrEqual(138)
+    expect(result.movedTarget?.from?.x).toBeLessThanOrEqual(142)
+  }, 30_000)
+
+  it('drags a NON-first repeat-instance node by its key (resolveLocatorMulti)', async () => {
+    const opened = await driver.openTab(CANVAS_PAGE)
+    expect(await driver.ensureReady()).toBe(null)
+
+    // The second node, addressed by its repeat-instance ref (key=n2). Before the
+    // resolveLocatorMulti fix this resolved to .first() and failed TARGET_NOT_FOUND.
+    const snapshot = driver.getSnapshot(opened.tabId)
+    const n2 = snapshot?.targets.find(
+      t => t.groupId === 'wf' && t.repeatInstance?.key === 'n2' && t.center,
+    )
+    expect(n2, 'second repeat-instance node resolved with a center').toBeTruthy()
+
+    const res = await driver.execute(opened.tabId, {
+      kind: 'drag',
+      sourceTargetId: n2!.targetId,
+      destinationCoords: { x: 150, y: 90 },
+    })
+    expect(res.ok, JSON.stringify(res.ok ? {} : res.error)).toBe(true)
+    const result = res.result as { moved?: boolean; movedTarget?: { to?: { x: number; y: number } } }
+    expect(result.moved).toBe(true)
+    expect(result.movedTarget?.to?.x).toBeGreaterThanOrEqual(147)
+    expect(result.movedTarget?.to?.x).toBeLessThanOrEqual(153)
+  }, 30_000)
+
+  it('rejects a canvas drag whose destination maps outside the visible pane', async () => {
+    const opened = await driver.openTab(CANVAS_PAGE)
+    expect(await driver.ensureReady()).toBe(null)
+
+    const res = await driver.execute(opened.tabId, {
+      kind: 'drag',
+      sourceTargetId: 'node1',
+      destinationCoords: { x: 100000, y: 200 },
+    })
+    expect(res.ok).toBe(false)
+    if (!res.ok) expect(res.error.code).toBe('DESTINATION_OUTSIDE_CANVAS')
   }, 30_000)
 
   it('produces an empty snapshot for pages without an Agrune manifest', async () => {

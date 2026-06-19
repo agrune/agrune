@@ -109,12 +109,30 @@ export interface ManifestMacro {
   }
 }
 
+/**
+ * Marks a group as a pan/zoom canvas (React Flow / xyflow and friends) so the
+ * backend can map stable canvas coordinates to live viewport pixels for drags.
+ * `viewportSelector` points at the transformed element whose CSS matrix encodes
+ * pan+zoom; the pane that provides the screen origin defaults to that element's
+ * parent (override with `paneSelector`).
+ */
+export interface CanvasConfig {
+  viewportSelector: string
+  paneSelector?: string
+}
+
 export interface ManifestGroup {
   groupId: string
   name?: string
   desc?: string
   /** URL/route 범위 (빈 = 전역). RegExp은 JSON 직렬화 불가이므로 string만 허용 */
   route?: string
+  /**
+   * Present when this group is a draggable canvas. Enables coordinate-space
+   * conversion (canvas ↔ viewport) and the off-pane drag guard. Targets in a
+   * canvas group are surfaced with coordSpace:'canvas'.
+   */
+  canvas?: CanvasConfig
   targets: ManifestTarget[]
   repeats?: ManifestRepeat[]
 }
@@ -215,11 +233,18 @@ export const MacroSchema = z.object({
     .optional(),
 })
 
+export const CanvasConfigSchema = z.object({
+  viewportSelector: z.string().min(1),
+  paneSelector: z.string().optional(),
+})
+
 export const GroupSchema = z.object({
   groupId: z.string().min(1),
   name: z.string().optional(),
   desc: z.string().optional(),
   route: z.string().optional(),
+  // Pan/zoom canvas marker — drives canvas↔viewport coord conversion + off-pane guard.
+  canvas: CanvasConfigSchema.optional(),
   targets: z.array(TargetSchema),
   repeats: z.array(RepeatSchema).optional(),
 })

@@ -4,7 +4,7 @@ const require = __agruneCreateRequire(import.meta.url);
 import {
   JSONRPCMessageSchema,
   createMcpServer
-} from "../chunk-C7IQKSHM.js";
+} from "../chunk-2N6RYOCE.js";
 
 // ../../node_modules/.pnpm/@modelcontextprotocol+sdk@1.27.1_zod@4.3.6/node_modules/@modelcontextprotocol/sdk/dist/esm/server/stdio.js
 import process2 from "process";
@@ -164,8 +164,27 @@ var DEFAULT_RUNTIME_CONFIG = {
   auroraGlow: true,
   auroraTheme: "light",
   surfaceScreenMessages: true,
-  detectUnmapped: true
+  detectUnmapped: true,
+  settleAfterActionMs: 0,
+  surfaceRequiredFields: true,
+  canvasDragNudgePx: 0
 };
+function canvasToViewport(cx, cy, t) {
+  return {
+    x: t.paneLeft + t.translateX + cx * t.scale,
+    y: t.paneTop + t.translateY + cy * t.scale
+  };
+}
+function viewportToCanvas(vx, vy, t) {
+  const scale = t.scale || 1;
+  return {
+    x: (vx - t.paneLeft - t.translateX) / scale,
+    y: (vy - t.paneTop - t.translateY) / scale
+  };
+}
+function isPointInsidePaneRect(vx, vy, pane) {
+  return vx >= pane.left && vy >= pane.top && vx <= pane.right && vy <= pane.bottom;
+}
 function mergeRuntimeConfig(base, patch) {
   if (!patch) {
     return { ...base };
@@ -179,7 +198,10 @@ function mergeRuntimeConfig(base, patch) {
     auroraGlow: patch.auroraGlow ?? base.auroraGlow,
     auroraTheme: patch.auroraTheme ?? base.auroraTheme,
     surfaceScreenMessages: patch.surfaceScreenMessages ?? base.surfaceScreenMessages,
-    detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped
+    detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped,
+    settleAfterActionMs: patch.settleAfterActionMs ?? base.settleAfterActionMs,
+    surfaceRequiredFields: patch.surfaceRequiredFields ?? base.surfaceRequiredFields,
+    canvasDragNudgePx: patch.canvasDragNudgePx ?? base.canvasDragNudgePx
   });
 }
 function normalizeRuntimeConfig(input) {
@@ -194,7 +216,10 @@ function normalizeRuntimeConfig(input) {
     auroraGlow: typeof input?.auroraGlow === "boolean" ? input.auroraGlow : DEFAULT_RUNTIME_CONFIG.auroraGlow,
     auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme,
     surfaceScreenMessages: typeof input?.surfaceScreenMessages === "boolean" ? input.surfaceScreenMessages : DEFAULT_RUNTIME_CONFIG.surfaceScreenMessages,
-    detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped
+    detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped,
+    settleAfterActionMs: Number.isFinite(Number(input?.settleAfterActionMs)) && Number(input?.settleAfterActionMs) >= 0 ? Math.floor(Number(input?.settleAfterActionMs)) : DEFAULT_RUNTIME_CONFIG.settleAfterActionMs,
+    surfaceRequiredFields: typeof input?.surfaceRequiredFields === "boolean" ? input.surfaceRequiredFields : DEFAULT_RUNTIME_CONFIG.surfaceRequiredFields,
+    canvasDragNudgePx: Number.isFinite(Number(input?.canvasDragNudgePx)) && Number(input?.canvasDragNudgePx) >= 0 ? Math.floor(Number(input?.canvasDragNudgePx)) : DEFAULT_RUNTIME_CONFIG.canvasDragNudgePx
   };
 }
 function createCommandError(code, message, details) {
@@ -13857,7 +13882,13 @@ var TargetSchema = external_exports.object({
   // target with neither field simply produces no feedback line.
   onSuccess: external_exports.string().optional(),
   onNoEffect: external_exports.string().optional(),
-  alwaysDesc: external_exports.boolean().optional()
+  alwaysDesc: external_exports.boolean().optional(),
+  // Exclude this target's text/value from the snapshot signature (self-updating
+  // controls like clocks/counters must not register as screen changes).
+  volatile: external_exports.boolean().optional(),
+  // Author-marked required (DOM-detected required intent is honored regardless);
+  // feeds the deterministic pendingRequired nudge.
+  required: external_exports.boolean().optional()
 });
 var RepeatSchema = external_exports.object({
   repeatId: external_exports.string().min(1),
@@ -13894,11 +13925,17 @@ var MacroSchema = external_exports.object({
     resetAfterMs: external_exports.number().int().nonnegative().optional()
   }).optional()
 });
+var CanvasConfigSchema = external_exports.object({
+  viewportSelector: external_exports.string().min(1),
+  paneSelector: external_exports.string().optional()
+});
 var GroupSchema = external_exports.object({
   groupId: external_exports.string().min(1),
   name: external_exports.string().optional(),
   desc: external_exports.string().optional(),
   route: external_exports.string().optional(),
+  // Pan/zoom canvas marker — drives canvas↔viewport coord conversion + off-pane guard.
+  canvas: CanvasConfigSchema.optional(),
   targets: external_exports.array(TargetSchema),
   repeats: external_exports.array(RepeatSchema).optional()
 });
@@ -14410,7 +14447,10 @@ function captureElementState(element, opts) {
   else if (!enabled) reason = "disabled";
   else if (opts?.fillAction === true && sensitive) reason = "sensitive";
   const textContent = el.textContent?.trim() ?? "";
-  const valuePreview = isFillable(el) && !sensitive ? el.value : null;
+  const fillable = isFillable(el);
+  const valuePreview = fillable && !sensitive ? el.value : null;
+  const hasValue = fillable ? el.value.length > 0 : false;
+  const required2 = fillable && (el.required === true || el.getAttribute("aria-required") === "true");
   let center;
   let size;
   if (actionableNow) {
@@ -14432,8 +14472,48 @@ function captureElementState(element, opts) {
     reason,
     textContent,
     valuePreview,
+    hasValue,
+    required: required2,
     center,
     size
+  };
+}
+function readCanvasTransformInBrowser(arg) {
+  const viewport = document.querySelector(arg.viewportSelector);
+  if (!viewport) return null;
+  const pane = arg.paneSelector ? document.querySelector(arg.paneSelector) : viewport.parentElement;
+  if (!pane) return null;
+  const paneRect = pane.getBoundingClientRect();
+  let scale = 1;
+  let translateX = 0;
+  let translateY = 0;
+  const style = window.getComputedStyle(viewport);
+  const transform2 = style.transform && style.transform !== "none" ? style.transform : "matrix(1, 0, 0, 1, 0, 0)";
+  try {
+    const Matrix = window.DOMMatrixReadOnly;
+    if (Matrix) {
+      const m = new Matrix(transform2);
+      scale = m.a || 1;
+      translateX = m.e;
+      translateY = m.f;
+    } else {
+      const nums = transform2.replace(/^matrix\(|\)$/g, "").split(",").map((v) => Number(v.trim()));
+      if (nums.length === 6 && nums.every((n) => Number.isFinite(n))) {
+        scale = nums[0] || 1;
+        translateX = nums[4];
+        translateY = nums[5];
+      }
+    }
+  } catch {
+  }
+  return {
+    paneLeft: paneRect.left,
+    paneTop: paneRect.top,
+    paneRight: paneRect.right,
+    paneBottom: paneRect.bottom,
+    translateX,
+    translateY,
+    scale
   };
 }
 var REPEAT_MAX_INSTANCES = 1e3;
@@ -14559,13 +14639,14 @@ async function buildSnapshotFromManifest(page, manifest, store) {
   const targets = [];
   for (const group of manifest.groups) {
     if (!routeApplies(group.route, url2)) continue;
+    const canvasTransform = group.canvas ? await readCanvasTransform(page, group.canvas) : null;
     const directTargets = await Promise.all(
-      group.targets.map((target) => inspectTarget(page, group, target, target.targetId))
+      group.targets.map((target) => inspectTarget(page, group, target, target.targetId, canvasTransform))
     );
     const repeatResults = await Promise.all(
       (group.repeats ?? []).map(async (repeat) => {
         const instances = (await Promise.all(
-          repeat.targets.map((target) => inspectRepeatTarget(page, group, repeat, target))
+          repeat.targets.map((target) => inspectRepeatTarget(page, group, repeat, target, canvasTransform))
         )).flat();
         return {
           instances,
@@ -14579,11 +14660,17 @@ async function buildSnapshotFromManifest(page, manifest, store) {
       })
     );
     const groupTargets = [...directTargets, ...repeatResults.flatMap((result) => result.instances)];
+    const viewportTransform = canvasTransform ? {
+      translateX: canvasTransform.translateX,
+      translateY: canvasTransform.translateY,
+      scale: canvasTransform.scale
+    } : void 0;
     groups.push({
       groupId: group.groupId,
       groupName: group.name,
       groupDesc: group.desc,
       targetIds: groupTargets.map((target) => target.targetId),
+      ...viewportTransform ? { viewportTransform } : {},
       ...repeatResults.length > 0 ? { repeats: repeatResults.map((result) => result.summary) } : {}
     });
     targets.push(...groupTargets);
@@ -14595,12 +14682,18 @@ async function buildSnapshotFromManifest(page, manifest, store) {
       covered: target.covered,
       domResolved: target.domResolved,
       enabled: target.enabled,
+      // Presence-only fill signal so a sensitive fill (valuePreview stays null to
+      // avoid leaking the secret) still counts as a screen change.
+      hasValue: target.hasValue,
       inViewport: target.inViewport,
       reason: target.reason,
       sensitive: target.sensitive,
       targetId: target.targetId,
-      textContent: target.textContent,
-      valuePreview: target.valuePreview,
+      // Volatile targets (clocks, live counters, relative timestamps) self-update;
+      // their text/value must NOT count as a screen change, or every action would
+      // look like it changed the page (corrupting the onSuccess/onNoEffect gate).
+      textContent: target.volatile ? void 0 : target.textContent,
+      valuePreview: target.volatile ? void 0 : target.valuePreview,
       visible: target.visible,
       repeatInstance: target.repeatInstance
     })),
@@ -14621,13 +14714,19 @@ async function buildSnapshotFromManifest(page, manifest, store) {
     targets
   };
 }
+async function readCanvasTransform(page, canvas) {
+  return page.evaluate(readCanvasTransformInBrowser, {
+    viewportSelector: canvas.viewportSelector,
+    paneSelector: canvas.paneSelector ?? null
+  }).catch(() => null);
+}
 async function readRepeatLogicalSize(page, repeat) {
   if (repeat.strategy !== "virtualized" || !repeat.containerSelector) return null;
   const container = await resolveLocator(page, repeat.containerSelector);
   if (!container) return null;
   return container.locator.first().evaluate(readContainerLogicalSize).catch(() => null);
 }
-async function inspectRepeatTarget(page, group, repeat, target) {
+async function inspectRepeatTarget(page, group, repeat, target, canvasTransform = null) {
   const resolved = await resolveLocatorMulti(page, target.selector);
   if (!resolved) return [];
   const rows = await resolved.locator.evaluateAll(expandRepeatRows, {
@@ -14641,17 +14740,18 @@ async function inspectRepeatTarget(page, group, repeat, target) {
     const targetId = `${repeat.repeatId}${REPEATED_TARGET_KEY_DELIMITER}${row.key}.${target.targetId}`;
     results.push(await inspectLocator(group, target, targetId, resolved.locator.nth(row.domIndex), {
       repeatInstance: { repeatId: repeat.repeatId, index: row.index, key: row.key },
-      displayName: row.name || target.name
+      displayName: row.name || target.name,
+      canvasTransform
     }));
   }
   return results;
 }
-async function inspectTarget(page, group, target, targetId) {
+async function inspectTarget(page, group, target, targetId, canvasTransform = null) {
   const resolved = await resolveLocator(page, target.selector);
   if (!resolved) {
     return missingTarget(group, target, targetId);
   }
-  return inspectLocator(group, target, targetId, resolved.locator);
+  return inspectLocator(group, target, targetId, resolved.locator, { canvasTransform });
 }
 async function inspectLocator(group, target, targetId, locator, opts = {}) {
   const state = await locator.evaluate(captureElementState, {
@@ -14660,6 +14760,13 @@ async function inspectLocator(group, target, targetId, locator, opts = {}) {
   }).catch(() => null);
   if (!state) {
     return missingTarget(group, target, targetId, opts);
+  }
+  let center = state.center;
+  let coordSpace = "viewport";
+  if (state.center && opts.canvasTransform) {
+    const c = viewportToCanvas(state.center.x, state.center.y, opts.canvasTransform);
+    center = { x: Math.round(c.x), y: Math.round(c.y) };
+    coordSpace = "canvas";
   }
   return {
     targetId,
@@ -14680,9 +14787,10 @@ async function inspectLocator(group, target, targetId, locator, opts = {}) {
     sensitive: state.sensitive,
     textContent: state.textContent || void 0,
     valuePreview: state.valuePreview,
-    center: state.center,
+    hasValue: state.hasValue,
+    center,
     size: state.size,
-    ...state.center ? { coordSpace: "viewport" } : {},
+    ...state.center ? { coordSpace } : {},
     sourceFile: "page-manifest",
     sourceLine: 0,
     sourceColumn: 0,
@@ -14690,7 +14798,9 @@ async function inspectLocator(group, target, targetId, locator, opts = {}) {
     repeatInstance: opts.repeatInstance,
     ...target.onSuccess ? { onSuccess: target.onSuccess } : {},
     ...target.onNoEffect ? { onNoEffect: target.onNoEffect } : {},
-    ...target.alwaysDesc ? { alwaysDesc: true } : {}
+    ...target.alwaysDesc ? { alwaysDesc: true } : {},
+    ...target.volatile ? { volatile: true } : {},
+    ...target.required || state.required ? { required: true } : {}
   };
 }
 function missingTarget(group, target, targetId, opts = {}) {
@@ -14712,6 +14822,7 @@ function missingTarget(group, target, targetId, opts = {}) {
     overlay: false,
     sensitive: target.sensitive === true,
     valuePreview: null,
+    hasValue: false,
     sourceFile: "page-manifest",
     sourceLine: 0,
     sourceColumn: 0,
@@ -14719,7 +14830,9 @@ function missingTarget(group, target, targetId, opts = {}) {
     repeatInstance: opts.repeatInstance,
     ...target.onSuccess ? { onSuccess: target.onSuccess } : {},
     ...target.onNoEffect ? { onNoEffect: target.onNoEffect } : {},
-    ...target.alwaysDesc ? { alwaysDesc: true } : {}
+    ...target.alwaysDesc ? { alwaysDesc: true } : {},
+    ...target.volatile ? { volatile: true } : {},
+    ...target.required ? { required: true } : {}
   };
 }
 var INTERACTIVE_SELECTOR = 'button, a[href], input, select, textarea, [role="button"], [role="textbox"], [role="combobox"], [role="checkbox"], [role="radio"], [role="switch"], [contenteditable=""], [contenteditable="true"]';
@@ -15219,6 +15332,46 @@ var PlaywrightSession = class {
     const source = await this.resolveTargetLocator(resolvedTabId, sourceRef);
     const destination = await this.resolveTargetLocator(resolvedTabId, destinationRef);
     await source.dragTo(destination);
+  }
+  /**
+   * The `canvas` config of the manifest group that declares `targetRef`, or null
+   * when the target's group is not a canvas. Drives coordinate-space inference
+   * and the off-pane guard for coordinate drags. Honors route scoping and repeat
+   * instance refs (the base target's group is what matters).
+   */
+  async canvasConfigForTarget(tabId, targetRef) {
+    const entry = this.requireTab(this.resolveTabId(tabId));
+    let manifest;
+    try {
+      manifest = await loadManifestFromPage(entry.page);
+    } catch {
+      return null;
+    }
+    const url2 = entry.page.url();
+    const normalized = normalizeAgentTargetId(targetRef);
+    const repeated = parseRepeatedTargetId(normalized);
+    for (const group of manifest.groups) {
+      if (!routeApplies(group.route, url2)) continue;
+      if (!group.canvas) continue;
+      if (!repeated && group.targets.some((target) => target.targetId === normalized)) {
+        return group.canvas;
+      }
+      if (repeated && group.repeats?.some(
+        (repeat) => repeat.repeatId === repeated.repeatId && repeat.targets.some((target) => target.targetId === repeated.baseTargetId)
+      )) {
+        return group.canvas;
+      }
+    }
+    return null;
+  }
+  /**
+   * Read the live pan/zoom transform + pane rect of a canvas viewport. Read
+   * immediately before a drag (pan/zoom and scroll both move it), then combine
+   * with @agrune/core's canvasToViewport/viewportToCanvas. Null when the
+   * viewport/pane element is absent.
+   */
+  async readCanvasTransform(tabId, canvas) {
+    return readCanvasTransform(this.requireTab(this.resolveTabId(tabId)).page, canvas);
   }
   async read(tabId) {
     const entry = this.requireTab(this.resolveTabId(tabId));
@@ -16040,7 +16193,7 @@ async function firstLocator(page, target) {
   return resolved?.locator ?? null;
 }
 async function findLocatorByRepeatKey(page, repeat, target, key) {
-  const resolved = await resolveLocator(page, target.selector);
+  const resolved = await resolveLocatorMulti(page, target.selector);
   if (!resolved) return null;
   const count = await resolved.locator.count().catch(() => 0);
   for (let index = 0; index < count; index += 1) {
@@ -16065,17 +16218,36 @@ async function pollUntil(check2, timeoutMs) {
   throw new AgruneBackendError("TIMEOUT", `Timed out after ${timeoutMs}ms.`);
 }
 var AX_MESSAGE_LINE = /^-\s+(text|alert|status|heading|note|caption|tooltip):/i;
-function axMessageDelta(prevLines, curLines) {
+function axMessageDelta(prevLines, curLines, exclude = []) {
   const prev = new Set(prevLines);
+  const excluded = /* @__PURE__ */ new Set();
+  for (const value of exclude) {
+    const trimmed = value.trim();
+    if (trimmed) excluded.add(trimmed);
+  }
   const out = [];
   for (const line of curLines) {
     if (prev.has(line)) continue;
     const trimmed = line.trim();
     if (!AX_MESSAGE_LINE.test(trimmed)) continue;
     const msg = trimmed.replace(/^-\s+\w+:\s*/, "").trim();
-    if (msg && !out.includes(msg)) out.push(msg);
+    if (msg && !excluded.has(msg) && !out.includes(msg)) out.push(msg);
   }
   return out.slice(0, 6);
+}
+function pendingRequiredFields(targets, limit = 8) {
+  const out = [];
+  for (const target of targets) {
+    if (!target.required) continue;
+    if (!target.visible) continue;
+    if (target.hasValue) continue;
+    if (!target.actionKinds.includes("fill")) continue;
+    const name = target.name?.trim();
+    if (!name || out.includes(name)) continue;
+    out.push(name);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 var cached2;
 function loadVisualRuntimeSource() {
@@ -16116,6 +16288,7 @@ function visualInstallExpression(source) {
   return `(() => { if (window.__agrune_visual__) return; ${source}
 ;try { window.__agrune_visual__ = __agrune_visual__ } catch {} })()`;
 }
+var CANVAS_MOVED_THRESHOLD_PX = 3;
 var PlaywrightDriver = class {
   constructor(options) {
     this.options = options;
@@ -16202,13 +16375,15 @@ var PlaywrightDriver = class {
       const blocked = await this.flowBlockGate(tabId, command);
       if (blocked) return { ...blocked, commandId };
       const result = await this.dispatchCommand(tabId, command);
-      const snapshot = await this.refreshSnapshot(tabId).catch(() => null);
-      const feedback = this.actionFeedback(command, before, result, snapshot);
-      const screenMessages = this.screenMessageDelta(beforeAx, this.axLines.get(tabId) ?? null);
+      const snapshot = await this.settle(tabId).catch(() => null);
+      const changed = this.actionChanged(command, before, snapshot, result);
+      const feedback = this.actionFeedback(before, result, changed);
+      const screenMessages = this.screenMessageDelta(beforeAx, this.axLines.get(tabId) ?? null, snapshot);
+      const pendingRequired = this.pendingRequired(command, snapshot);
       return {
         commandId,
         ok: true,
-        result: this.withActionInsights(result, feedback, screenMessages),
+        result: this.withActionInsights(result, feedback, screenMessages, changed, pendingRequired),
         ...snapshotEnvelope(snapshot)
       };
     } catch (error48) {
@@ -16407,6 +16582,36 @@ var PlaywrightDriver = class {
     return snapshot;
   }
   /**
+   * Refresh the snapshot, then (when settleAfterActionMs > 0) keep re-capturing
+   * until the snapshot signature stops changing or the budget is spent — so an
+   * async effect (debounced validation, a button enabled after a fetch, a
+   * next-tick re-render) is reflected rather than missed by an immediate capture.
+   * Quiescence is judged on the snapshot VERSION, which excludes volatile targets,
+   * so a ticking clock cannot keep the page "busy" forever. Returns the settled
+   * snapshot.
+   */
+  async settle(tabId) {
+    let snapshot = await this.refreshSnapshot(tabId);
+    const budget = this.config.settleAfterActionMs;
+    if (budget <= 0) return snapshot;
+    const deadline = Date.now() + budget;
+    const step = Math.min(50, budget);
+    let sawChange = false;
+    while (Date.now() < deadline) {
+      await this.session.page(tabId).waitForTimeout(step).catch(() => {
+      });
+      const next = await this.refreshSnapshot(tabId);
+      if (next.version !== snapshot.version) {
+        sawChange = true;
+        snapshot = next;
+        continue;
+      }
+      if (sawChange) return next;
+      snapshot = next;
+    }
+    return snapshot;
+  }
+  /**
    * Live accessibility-tree lines for the screen-message delta. The full tree is
    * never shown to the agent — only the frame-to-frame delta of informational
    * lines (see screen-delta.ts). Returns [] on any failure so the delta degrades
@@ -16425,42 +16630,71 @@ var PlaywrightDriver = class {
    * after the action — the informational delta of the accessibility tree. Empty
    * when disabled, when there is no baseline, or when nothing new surfaced.
    */
-  screenMessageDelta(beforeAx, afterAx) {
+  screenMessageDelta(beforeAx, afterAx, after) {
     if (!this.config.surfaceScreenMessages || !beforeAx || !afterAx) return [];
-    return axMessageDelta(beforeAx, afterAx);
+    const volatileTexts = (after?.targets ?? []).filter((target) => target.volatile && target.textContent).map((target) => target.textContent);
+    return axMessageDelta(beforeAx, afterAx, volatileTexts);
   }
   /**
-   * Fold the optional authored feedback line and the screen-message delta into
-   * the dispatch result, leaving the result untouched when neither is present
-   * (keeps the legacy result shape for actions that surface no insights).
+   * Fold the optional authored feedback line, the screen-message delta, and the
+   * deterministic `changed` bit into the dispatch result, leaving the result
+   * untouched when none apply (keeps the legacy result shape for non-action
+   * commands that surface no insights).
    */
-  withActionInsights(result, feedback, screenMessages) {
-    if (!feedback && screenMessages.length === 0) return result;
+  withActionInsights(result, feedback, screenMessages, changed, pendingRequired) {
+    const hasChanged = typeof changed === "boolean";
+    if (!feedback && screenMessages.length === 0 && !hasChanged && pendingRequired.length === 0) {
+      return result;
+    }
     return {
       ...result,
       ...feedback ? { feedback } : {},
-      ...screenMessages.length > 0 ? { screenMessages } : {}
+      ...screenMessages.length > 0 ? { screenMessages } : {},
+      ...hasChanged ? { changed } : {},
+      ...pendingRequired.length > 0 ? { pendingRequired } : {}
     };
   }
   /**
-   * Manifest-authored post-action feedback, gated on a REAL screen change rather
-   * than "the action didn't throw". After an act/fill, compare the pre-action
-   * snapshot version to the post-action one: a delta means the screen changed
-   * (emit the acted target's `onSuccess`); no delta means the action was a
-   * mechanical no-op (emit `onNoEffect`, e.g. a Next blocked by an empty required
-   * field). The message is read from the PRE-action snapshot, where the acted
-   * target is guaranteed present (it may be gone from the post-action screen).
-   * Returns null when the command isn't an action, the target isn't found, or the
-   * target authored no message for the relevant outcome.
+   * Deterministic "still-needed fields" nudge (Problem 3): after an act/fill, the
+   * names of visible required fillable fields that are still empty. Lets the agent
+   * see WHICH inputs gate a Create/Next/Submit instead of inferring it from a
+   * disabled button. Pure filter over the captured snapshot — no extra cost; gated
+   * to action commands and off when surfaceRequiredFields is disabled.
    */
-  actionFeedback(command, before, result, after) {
+  pendingRequired(command, after) {
+    if (!this.config.surfaceRequiredFields) return [];
+    if (command.kind !== "act" && command.kind !== "fill") return [];
+    if (!after) return [];
+    return pendingRequiredFields(after.targets);
+  }
+  /**
+   * Whether an act/fill actually changed the screen (snapshot version delta).
+   * Surfaced to the agent as an explicit `changed` bit so an "ok but nothing
+   * happened" outcome is unambiguous rather than something it must infer from the
+   * snapshot. null for non-action commands or when there is no pre-action baseline.
+   */
+  actionChanged(command, before, after, result) {
+    if (command.kind === "drag") {
+      return typeof result?.moved === "boolean" ? result.moved : null;
+    }
     if (command.kind !== "act" && command.kind !== "fill") return null;
     if (!before) return null;
-    const actedId = typeof result?.targetId === "string" ? result.targetId : null;
+    return after == null || after.version !== before.version;
+  }
+  /**
+   * Manifest-authored post-action feedback, gated on the REAL screen-change bit
+   * rather than "the action didn't throw". A change emits the acted target's
+   * `onSuccess`; no change emits `onNoEffect` (e.g. a Next blocked by an empty
+   * required field). The message is read from the PRE-action snapshot, where the
+   * acted target is guaranteed present (it may be gone from the post-action
+   * screen). Returns null when the outcome is N/A or no message was authored.
+   */
+  actionFeedback(before, result, changed) {
+    if (changed === null || !before) return null;
+    const actedId = typeof result?.targetId === "string" ? result.targetId : typeof result?.sourceTargetId === "string" ? result.sourceTargetId : null;
     if (!actedId) return null;
     const entry = before.targets.find((target) => target.targetId === actedId);
     if (!entry) return null;
-    const changed = after == null || after.version !== before.version;
     const message = changed ? entry.onSuccess : entry.onNoEffect;
     return message && message.length > 0 ? message : null;
   }
@@ -16557,14 +16791,156 @@ var PlaywrightDriver = class {
         "drag requires destinationTargetId or destinationCoords."
       );
     }
+    const [canvas, source] = await Promise.all([
+      this.session.canvasConfigForTarget(tabId, sourceTargetId),
+      this.targetCenter(tabId, sourceTargetId)
+    ]);
+    const explicitSpace = command.coordSpace === "canvas" || command.coordSpace === "viewport" ? command.coordSpace : void 0;
+    const useCanvas = explicitSpace ? explicitSpace === "canvas" : canvas !== null;
+    if (useCanvas && canvas) {
+      return this.dispatchCanvasDrag(tabId, sourceTargetId, source, coords, canvas);
+    }
     const destination = "relativeTo" in coords ? offsetFromTarget(await this.targetCenter(tabId, coords.relativeTo), coords.dx, coords.dy) : { x: coords.x, y: coords.y };
-    const source = await this.targetCenter(tabId, sourceTargetId);
+    await this.performCoordinateDrag(tabId, source, destination, 0);
+    return { sourceTargetId, destinationCoords: destination };
+  }
+  /**
+   * Canvas-aware coordinate drag. Reads the live viewport transform, converts the
+   * requested CANVAS destination to viewport px, rejects an off-pane destination
+   * up front (DESTINATION_OUTSIDE_CANVAS — never auto-pans, which canvas libs read
+   * as zoom), drags with optional threshold compensation, then reads the node's
+   * final canvas position back as `movedTarget` and a `moved` bit.
+   */
+  async dispatchCanvasDrag(tabId, sourceTargetId, source, coords, canvas) {
+    const t = await this.session.readCanvasTransform(tabId, canvas);
+    if (!t) {
+      throw new AgruneBackendError(
+        "INVALID_TARGET",
+        `Canvas viewport not found for drag source ${sourceTargetId}.`,
+        { target: sourceTargetId }
+      );
+    }
+    const transform2 = t;
+    let resolvedDestCanvas;
+    if ("relativeTo" in coords) {
+      const refCenter = await this.targetCenter(tabId, coords.relativeTo);
+      const refCanvas = viewportToCanvas(refCenter.x, refCenter.y, transform2);
+      resolvedDestCanvas = { x: refCanvas.x + coords.dx, y: refCanvas.y + coords.dy };
+    } else {
+      resolvedDestCanvas = { x: coords.x, y: coords.y };
+    }
+    const destViewport = canvasToViewport(resolvedDestCanvas.x, resolvedDestCanvas.y, transform2);
+    if (!isPointInsidePaneRect(destViewport.x, destViewport.y, {
+      left: t.paneLeft,
+      top: t.paneTop,
+      right: t.paneRight,
+      bottom: t.paneBottom
+    })) {
+      throw new AgruneBackendError(
+        "DESTINATION_OUTSIDE_CANVAS",
+        `Destination canvas point (${Math.round(resolvedDestCanvas.x)}, ${Math.round(resolvedDestCanvas.y)}) maps to viewport (${Math.round(destViewport.x)}, ${Math.round(destViewport.y)}), outside the visible canvas pane. Pick coordinates inside the currently visible canvas area, or pan/zoom first.`,
+        { target: sourceTargetId, destinationCanvas: resolvedDestCanvas, viewport: destViewport }
+      );
+    }
+    const fromCanvas = viewportToCanvas(source.x, source.y, transform2);
+    await this.performCoordinateDrag(tabId, source, destViewport, this.config.canvasDragNudgePx);
+    const movedTarget = await this.readMovedCanvasTarget(tabId, sourceTargetId, transform2, fromCanvas);
+    const moved = movedTarget && typeof movedTarget.movedPx === "number" ? movedTarget.movedPx >= CANVAS_MOVED_THRESHOLD_PX : void 0;
+    return {
+      sourceTargetId,
+      coordSpace: "canvas",
+      destinationCoords: { x: Math.round(resolvedDestCanvas.x), y: Math.round(resolvedDestCanvas.y) },
+      ...movedTarget ? { movedTarget } : {},
+      ...typeof moved === "boolean" ? { moved } : {}
+    };
+  }
+  /**
+   * Low-level coordinate drag via page.mouse. Playwright auto-carries the held
+   * button on every interpolated move (buttons=1) so React Flow sees a real drag,
+   * not a hover — no manual buttons mask needed (unlike raw CDP). When `nudge` > 0
+   * the pointer is bumped past a canvas framework's drag threshold right after
+   * mousedown and the interpolation starts from there, so net motion is exactly
+   * (destination − source) and the node lands precisely (apps with
+   * nodeDragThreshold=0 need no nudge and pass 0).
+   *
+   * When the aurora cursor is enabled, the decorative pointer flies to the source,
+   * then glides to the destination via a single smooth in-page RAF that runs
+   * concurrently with the native mouse drag — no per-step Node→page round trips
+   * (so no stutter) and no click ripple (it's a drag, not a click). With visuals
+   * off (tests/bench) the fast single-move path runs — identical landing, no added
+   * latency.
+   */
+  async performCoordinateDrag(tabId, source, destination, nudge) {
     const page = this.session.page(tabId);
+    const animate = this.visualsInstalled && this.config.pointerAnimation;
+    if (animate) await this.flyCursor(tabId, source);
     await page.mouse.move(source.x, source.y);
     await page.mouse.down();
-    await page.mouse.move(destination.x, destination.y, { steps: 12 });
-    await page.mouse.up();
-    return { sourceTargetId, destinationCoords: destination };
+    if (nudge > 0) await page.mouse.move(source.x + nudge, source.y + nudge);
+    const to = nudge > 0 ? { x: destination.x + nudge, y: destination.y + nudge } : destination;
+    if (animate) {
+      const glide = this.flyCursor(tabId, destination, 280);
+      await page.mouse.move(to.x, to.y, { steps: 16 });
+      await page.mouse.up();
+      await glide;
+    } else {
+      await page.mouse.move(to.x, to.y, { steps: 12 });
+      await page.mouse.up();
+    }
+  }
+  /**
+   * Drive the decorative aurora cursor (best-effort). Cosmetic only — the real
+   * input is the synthetic page.mouse; this just visualizes the pointer. The single
+   * home for the `__agrune_visual__` bridge, shared by the pre-act flight and the
+   * drag glide. Omit `press` for the default click ripple; pass false for a glide.
+   */
+  async animatePointerAt(tabId, x, y, options = {}) {
+    await this.session.page(tabId).evaluate(
+      ({ x: x2, y: y2, press, durationMs, config: config2 }) => {
+        const visual = window.__agrune_visual__;
+        if (!visual) return;
+        visual.applyConfig(config2);
+        return visual.animatePointer(x2, y2, {
+          ...typeof press === "boolean" ? { press } : {},
+          ...durationMs ? { durationMs } : {}
+        });
+      },
+      {
+        x,
+        y,
+        press: typeof options.press === "boolean" ? options.press : null,
+        durationMs: options.durationMs ?? null,
+        config: this.config
+      }
+    ).catch(() => void 0);
+  }
+  /** Glide the decorative cursor to a point with no click ripple (used during drags). */
+  async flyCursor(tabId, point, durationMs) {
+    await this.animatePointerAt(tabId, point.x, point.y, { press: false, durationMs });
+  }
+  /**
+   * After a canvas drag, re-resolve the source (React may have replaced the node
+   * element on re-render) and read its final canvas-space center as `movedTarget`.
+   * A detached/missing node yields undefined rather than a bogus zero position.
+   */
+  async readMovedCanvasTarget(tabId, sourceTargetId, transform2, fromCanvas) {
+    try {
+      const locator = await this.session.locatorForTarget(tabId, sourceTargetId);
+      const box = await locator.boundingBox();
+      if (!box) return void 0;
+      const toCanvasRaw = viewportToCanvas(box.x + box.width / 2, box.y + box.height / 2, transform2);
+      const to = { x: Math.round(toCanvasRaw.x), y: Math.round(toCanvasRaw.y) };
+      const from = fromCanvas ? { x: Math.round(fromCanvas.x), y: Math.round(fromCanvas.y) } : null;
+      const movedPx = from ? Math.round(Math.hypot((to.x - from.x) * transform2.scale, (to.y - from.y) * transform2.scale)) : null;
+      return {
+        targetId: sourceTargetId,
+        ...from ? { from } : {},
+        to,
+        ...movedPx !== null ? { movedPx } : {}
+      };
+    } catch {
+      return void 0;
+    }
   }
   async dispatchWait(tabId, command) {
     const timeoutMs = typeof command.timeoutMs === "number" ? command.timeoutMs : void 0;
@@ -16639,16 +17015,7 @@ var PlaywrightDriver = class {
     if (!this.visualsInstalled || !this.config.pointerAnimation) return;
     const center = this.snapshots.get(tabId)?.targets.find((t) => t.targetId === targetId)?.center;
     if (!center) return;
-    const page = this.session.page(tabId);
-    await page.evaluate(
-      ({ x, y, config: config2 }) => {
-        const visual = window.__agrune_visual__;
-        if (!visual) return;
-        visual.applyConfig(config2);
-        return visual.animatePointer(x, y);
-      },
-      { x: center.x, y: center.y, config: this.config }
-    ).catch(() => void 0);
+    await this.animatePointerAt(tabId, center.x, center.y);
   }
   async targetCenter(tabId, targetRef) {
     const locator = await this.session.locatorForTarget(tabId, targetRef);
@@ -16698,6 +17065,10 @@ function toCommandErrorCode(code) {
       return "INVALID_TARGET";
     case "NOT_VISIBLE":
       return "NOT_VISIBLE";
+    case "DESTINATION_OUTSIDE_CANVAS":
+      return "DESTINATION_OUTSIDE_CANVAS";
+    case "CANVAS_PAN_FAILED":
+      return "CANVAS_PAN_FAILED";
     case "FLOW_BLOCKED":
       return "FLOW_BLOCKED";
     case "TIMEOUT":

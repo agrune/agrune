@@ -27,6 +27,7 @@ describe('core helpers', () => {
       detectUnmapped: true,
       settleAfterActionMs: 0,
       surfaceRequiredFields: true,
+      canvasDragNudgePx: 0,
     })
   })
 

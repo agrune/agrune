@@ -1,14 +1,17 @@
 import type { Locator, Page } from 'playwright'
 import type {
+  CanvasViewportTransform,
   PageSnapshot,
   PageSnapshotGroup,
   PageTarget,
   PageTargetReason,
+  ViewportTransform,
 } from '@agrune/core'
 import {
   REPEATED_TARGET_KEY_DELIMITER,
   normalizeAgentTargetId,
   toAgentTargetRef,
+  viewportToCanvas,
 } from '@agrune/core'
 import type {
   AgruneManifest,
@@ -23,7 +26,9 @@ import {
   REPEAT_MAX_INSTANCES,
   captureElementState,
   expandRepeatRows,
+  readCanvasTransformInBrowser,
   readContainerLogicalSize,
+  type CanvasTransformResult,
   type ElementCapturedState,
   type RepeatRow,
 } from './page-functions.js'
@@ -61,17 +66,22 @@ export async function buildSnapshotFromManifest(
   for (const group of manifest.groups) {
     if (!routeApplies(group.route, url)) continue
 
+    // Canvas groups: read the live pan/zoom transform once so each node's center
+    // can be surfaced in STABLE canvas coordinates (coordSpace:'canvas') rather
+    // than pan-dependent viewport px, and so the agent sees the current pan/zoom.
+    const canvasTransform = group.canvas ? await readCanvasTransform(page, group.canvas) : null
+
     // Target inspections are independent DOM reads; run them concurrently while
     // preserving manifest order (direct targets, then each repeat's instances).
     const directTargets = await Promise.all(
-      group.targets.map(target => inspectTarget(page, group, target, target.targetId)),
+      group.targets.map(target => inspectTarget(page, group, target, target.targetId, canvasTransform)),
     )
 
     const repeatResults = await Promise.all(
       (group.repeats ?? []).map(async repeat => {
         const instances = (
           await Promise.all(
-            repeat.targets.map(target => inspectRepeatTarget(page, group, repeat, target)),
+            repeat.targets.map(target => inspectRepeatTarget(page, group, repeat, target, canvasTransform)),
           )
         ).flat()
         return {
@@ -88,11 +98,20 @@ export async function buildSnapshotFromManifest(
 
     const groupTargets = [...directTargets, ...repeatResults.flatMap(result => result.instances)]
 
+    const viewportTransform: ViewportTransform | undefined = canvasTransform
+      ? {
+          translateX: canvasTransform.translateX,
+          translateY: canvasTransform.translateY,
+          scale: canvasTransform.scale,
+        }
+      : undefined
+
     groups.push({
       groupId: group.groupId,
       groupName: group.name,
       groupDesc: group.desc,
       targetIds: groupTargets.map(target => target.targetId),
+      ...(viewportTransform ? { viewportTransform } : {}),
       ...(repeatResults.length > 0 ? { repeats: repeatResults.map(result => result.summary) } : {}),
     })
     targets.push(...groupTargets)
@@ -140,6 +159,23 @@ export async function buildSnapshotFromManifest(
   }
 }
 
+/**
+ * Read a canvas viewport's live transform + pane rect. Shared by snapshot build
+ * (to surface stable canvas coords) and the driver's drag dispatch (to convert a
+ * canvas destination to viewport px). Null when the viewport/pane is absent.
+ */
+export async function readCanvasTransform(
+  page: Page,
+  canvas: { viewportSelector: string; paneSelector?: string },
+): Promise<CanvasTransformResult | null> {
+  return page
+    .evaluate(readCanvasTransformInBrowser, {
+      viewportSelector: canvas.viewportSelector,
+      paneSelector: canvas.paneSelector ?? null,
+    })
+    .catch(() => null)
+}
+
 async function readRepeatLogicalSize(page: Page, repeat: ManifestRepeat): Promise<number | null> {
   if (repeat.strategy !== 'virtualized' || !repeat.containerSelector) return null
   const container = await resolveLocator(page, repeat.containerSelector as SelectorLadder)
@@ -152,6 +188,7 @@ async function inspectRepeatTarget(
   group: ManifestGroup,
   repeat: ManifestRepeat,
   target: ManifestTarget,
+  canvasTransform: CanvasViewportTransform | null = null,
 ): Promise<PageTarget[]> {
   // resolveLocatorMulti (not resolveLocator) so every matching row is enumerated;
   // resolveLocator's `.first()` would collapse the repeat to one instance.
@@ -173,6 +210,7 @@ async function inspectRepeatTarget(
     results.push(await inspectLocator(group, target, targetId, resolved.locator.nth(row.domIndex), {
       repeatInstance: { repeatId: repeat.repeatId, index: row.index, key: row.key },
       displayName: row.name || target.name,
+      canvasTransform,
     }))
   }
 
@@ -184,12 +222,13 @@ async function inspectTarget(
   group: ManifestGroup,
   target: ManifestTarget,
   targetId: string,
+  canvasTransform: CanvasViewportTransform | null = null,
 ): Promise<PageTarget> {
   const resolved = await resolveLocator(page, target.selector)
   if (!resolved) {
     return missingTarget(group, target, targetId)
   }
-  return inspectLocator(group, target, targetId, resolved.locator)
+  return inspectLocator(group, target, targetId, resolved.locator, { canvasTransform })
 }
 
 async function inspectLocator(
@@ -200,6 +239,7 @@ async function inspectLocator(
   opts: {
     repeatInstance?: PageTarget['repeatInstance']
     displayName?: string
+    canvasTransform?: CanvasViewportTransform | null
   } = {},
 ): Promise<PageTarget> {
   const state: ElementCapturedState | null = await locator
@@ -211,6 +251,16 @@ async function inspectLocator(
 
   if (!state) {
     return missingTarget(group, target, targetId, opts)
+  }
+
+  // Canvas groups surface centers in STABLE canvas coordinates (so the agent can
+  // supply pan-independent destinationCoords); plain groups keep viewport px.
+  let center = state.center
+  let coordSpace: 'viewport' | 'canvas' = 'viewport'
+  if (state.center && opts.canvasTransform) {
+    const c = viewportToCanvas(state.center.x, state.center.y, opts.canvasTransform)
+    center = { x: Math.round(c.x), y: Math.round(c.y) }
+    coordSpace = 'canvas'
   }
 
   return {
@@ -233,9 +283,9 @@ async function inspectLocator(
     textContent: state.textContent || undefined,
     valuePreview: state.valuePreview,
     hasValue: state.hasValue,
-    center: state.center,
+    center,
     size: state.size,
-    ...(state.center ? { coordSpace: 'viewport' as const } : {}),
+    ...(state.center ? { coordSpace } : {}),
     sourceFile: 'page-manifest',
     sourceLine: 0,
     sourceColumn: 0,

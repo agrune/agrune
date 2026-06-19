@@ -36,7 +36,10 @@ var __agrune_visual__ = (() => {
     auroraGlow: true,
     auroraTheme: "light",
     surfaceScreenMessages: true,
-    detectUnmapped: true
+    detectUnmapped: true,
+    settleAfterActionMs: 0,
+    surfaceRequiredFields: true,
+    canvasDragNudgePx: 0
   };
   function mergeRuntimeConfig(base, patch) {
     if (!patch) {
@@ -51,7 +54,10 @@ var __agrune_visual__ = (() => {
       auroraGlow: patch.auroraGlow ?? base.auroraGlow,
       auroraTheme: patch.auroraTheme ?? base.auroraTheme,
       surfaceScreenMessages: patch.surfaceScreenMessages ?? base.surfaceScreenMessages,
-      detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped
+      detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped,
+      settleAfterActionMs: patch.settleAfterActionMs ?? base.settleAfterActionMs,
+      surfaceRequiredFields: patch.surfaceRequiredFields ?? base.surfaceRequiredFields,
+      canvasDragNudgePx: patch.canvasDragNudgePx ?? base.canvasDragNudgePx
     });
   }
   function normalizeRuntimeConfig(input) {
@@ -66,7 +72,10 @@ var __agrune_visual__ = (() => {
       auroraGlow: typeof input?.auroraGlow === "boolean" ? input.auroraGlow : DEFAULT_RUNTIME_CONFIG.auroraGlow,
       auroraTheme: input?.auroraTheme === "light" || input?.auroraTheme === "dark" ? input.auroraTheme : DEFAULT_RUNTIME_CONFIG.auroraTheme,
       surfaceScreenMessages: typeof input?.surfaceScreenMessages === "boolean" ? input.surfaceScreenMessages : DEFAULT_RUNTIME_CONFIG.surfaceScreenMessages,
-      detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped
+      detectUnmapped: typeof input?.detectUnmapped === "boolean" ? input.detectUnmapped : DEFAULT_RUNTIME_CONFIG.detectUnmapped,
+      settleAfterActionMs: Number.isFinite(Number(input?.settleAfterActionMs)) && Number(input?.settleAfterActionMs) >= 0 ? Math.floor(Number(input?.settleAfterActionMs)) : DEFAULT_RUNTIME_CONFIG.settleAfterActionMs,
+      surfaceRequiredFields: typeof input?.surfaceRequiredFields === "boolean" ? input.surfaceRequiredFields : DEFAULT_RUNTIME_CONFIG.surfaceRequiredFields,
+      canvasDragNudgePx: Number.isFinite(Number(input?.canvasDragNudgePx)) && Number(input?.canvasDragNudgePx) >= 0 ? Math.floor(Number(input?.canvasDragNudgePx)) : DEFAULT_RUNTIME_CONFIG.canvasDragNudgePx
     };
   }
 

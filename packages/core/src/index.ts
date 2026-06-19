@@ -65,6 +65,10 @@ export const COMMAND_ERROR_CODES = [
   'MACRO_POSTCONDITION_FAILED',   // Phase 14-03
   'REPEAT_INDEX_OUT_OF_RANGE',    // Phase 15-01 (REPEAT-02)
   'CANVAS_PAN_FAILED',
+  // A canvas drag destination maps outside the visible canvas pane. We reject
+  // up front rather than auto-pan (a wheel "pan" is read as zoom by React Flow
+  // and most canvas libs, corrupting the scale for an LLM agent's next move).
+  'DESTINATION_OUTSIDE_CANVAS',
   'CONNECTION_LOST',
   'CHROME_CRASHED',
   'RECOVERY_FAILED',
@@ -131,6 +135,17 @@ export interface AgruneRuntimeConfig {
    * snapshot targets — no extra DOM/snapshot cost).
    */
   surfaceRequiredFields: boolean
+  /**
+   * Pixels to nudge the pointer PAST a canvas framework's drag threshold before
+   * the interpolated motion of a coordinate drag, so the grab origin is pinned
+   * and the node lands EXACTLY at the destination. d3-drag (React Flow/xyflow)
+   * only starts the drag once the pointer moves past `nodeDragThreshold` (default
+   * 1px); that trip-point becomes the grab origin, so an uncompensated drag lands
+   * short by ~1/steps. Apps that set `nodeDragThreshold={0}` (like this demo) need
+   * NO nudge — the grab origin is the pointerdown point — so this defaults to 0.
+   * Set it just above the app's threshold (e.g. 2) for canvases you do not control.
+   */
+  canvasDragNudgePx: number
 }
 
 export const DEFAULT_RUNTIME_CONFIG: AgruneRuntimeConfig = {
@@ -145,12 +160,71 @@ export const DEFAULT_RUNTIME_CONFIG: AgruneRuntimeConfig = {
   detectUnmapped: true,
   settleAfterActionMs: 0,
   surfaceRequiredFields: true,
+  canvasDragNudgePx: 0,
 }
 
 export interface ViewportTransform {
   translateX: number
   translateY: number
   scale: number
+}
+
+/**
+ * A canvas (e.g. React Flow / xyflow) viewport transform plus the absolute
+ * screen origin of its pane. `translateX/Y` and `scale` come from the
+ * `.react-flow__viewport` element's CSS matrix; `paneLeft/Top` is the
+ * `getBoundingClientRect()` top-left of the (non-transformed) pane the viewport
+ * sits in. Together they map a stable canvas coordinate to a live viewport
+ * pixel and back. The pane origin shifts with page scroll, so it must be read
+ * FRESH at drag time — never cached in a snapshot — whereas `ViewportTransform`
+ * (pan/zoom only) is stable enough to surface to the agent per snapshot.
+ */
+export interface CanvasViewportTransform extends ViewportTransform {
+  paneLeft: number
+  paneTop: number
+}
+
+/**
+ * Canvas coordinate → live viewport pixel. A node at flow-position (cx, cy)
+ * renders at paneOrigin + viewportTranslate + flowPos*scale (the CSS matrix
+ * `[[scale,0,tx],[0,scale,ty]]` applied to the flow point, then offset by the
+ * pane's screen position). Pure; the inverse is `viewportToCanvas`.
+ */
+export function canvasToViewport(
+  cx: number,
+  cy: number,
+  t: CanvasViewportTransform,
+): { x: number; y: number } {
+  return {
+    x: t.paneLeft + t.translateX + cx * t.scale,
+    y: t.paneTop + t.translateY + cy * t.scale,
+  }
+}
+
+/** Live viewport pixel → canvas coordinate. Inverse of `canvasToViewport`. */
+export function viewportToCanvas(
+  vx: number,
+  vy: number,
+  t: CanvasViewportTransform,
+): { x: number; y: number } {
+  const scale = t.scale || 1
+  return {
+    x: (vx - t.paneLeft - t.translateX) / scale,
+    y: (vy - t.paneTop - t.translateY) / scale,
+  }
+}
+
+/**
+ * Whether a viewport pixel falls inside the canvas pane's screen rect
+ * (inclusive bounds). Used to reject a canvas drag whose destination maps
+ * outside the visible pane instead of dragging a node into nowhere.
+ */
+export function isPointInsidePaneRect(
+  vx: number,
+  vy: number,
+  pane: { left: number; top: number; right: number; bottom: number },
+): boolean {
+  return vx >= pane.left && vy >= pane.top && vx <= pane.right && vy <= pane.bottom
 }
 
 export interface PageSnapshotGroup {
@@ -273,6 +347,13 @@ export interface DragCommandRequest extends BaseCommandRequest {
   sourceTargetId: string
   destinationTargetId?: string
   destinationCoords?: { x: number; y: number }
+  /**
+   * Coordinate space for `destinationCoords`. Omit to let the backend infer:
+   * 'canvas' when the source target belongs to a canvas group (coords are stable
+   * flow positions, auto-converted to viewport px before the drag), 'viewport'
+   * otherwise. Set explicitly to override the inference.
+   */
+  coordSpace?: 'viewport' | 'canvas'
   placement?: DragPlacement
   expectedVersion?: number
 }
@@ -377,6 +458,7 @@ export function mergeRuntimeConfig(
     detectUnmapped: patch.detectUnmapped ?? base.detectUnmapped,
     settleAfterActionMs: patch.settleAfterActionMs ?? base.settleAfterActionMs,
     surfaceRequiredFields: patch.surfaceRequiredFields ?? base.surfaceRequiredFields,
+    canvasDragNudgePx: patch.canvasDragNudgePx ?? base.canvasDragNudgePx,
   })
 }
 
@@ -431,6 +513,10 @@ export function normalizeRuntimeConfig(
       typeof input?.surfaceRequiredFields === 'boolean'
         ? input.surfaceRequiredFields
         : DEFAULT_RUNTIME_CONFIG.surfaceRequiredFields,
+    canvasDragNudgePx:
+      Number.isFinite(Number(input?.canvasDragNudgePx)) && Number(input?.canvasDragNudgePx) >= 0
+        ? Math.floor(Number(input?.canvasDragNudgePx))
+        : DEFAULT_RUNTIME_CONFIG.canvasDragNudgePx,
   }
 }
 

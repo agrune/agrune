@@ -34,7 +34,15 @@ import type {
   TypeTextOptions,
   TypeTextResult,
 } from '@agrune/core'
-import { createCommandError, mergeRuntimeConfig, normalizeRuntimeConfig } from '@agrune/core'
+import {
+  createCommandError,
+  mergeRuntimeConfig,
+  normalizeRuntimeConfig,
+  canvasToViewport,
+  viewportToCanvas,
+  isPointInsidePaneRect,
+  type CanvasViewportTransform,
+} from '@agrune/core'
 import { AgruneBackendError } from './errors.js'
 import { PlaywrightSession, type PlaywrightConnection } from './playwright-session.js'
 import { axMessageDelta } from './screen-delta.js'
@@ -46,6 +54,9 @@ export interface PlaywrightDriverOptions {
   /** Opened automatically right after connect(). */
   startUrl?: string
 }
+
+/** Min viewport-px a canvas node must move for a drag to count as a real change. */
+const CANVAS_MOVED_THRESHOLD_PX = 3
 
 /**
  * `BrowserDriver` adapter over `PlaywrightSession` — the Playwright-based
@@ -169,7 +180,7 @@ export class PlaywrightDriver implements BrowserDriver {
 
       const result = await this.dispatchCommand(tabId, command)
       const snapshot = await this.settle(tabId).catch(() => null)
-      const changed = this.actionChanged(command, before, snapshot)
+      const changed = this.actionChanged(command, before, snapshot, result)
       const feedback = this.actionFeedback(before, result, changed)
       const screenMessages = this.screenMessageDelta(beforeAx, this.axLines.get(tabId) ?? null, snapshot)
       const pendingRequired = this.pendingRequired(command, snapshot)
@@ -548,7 +559,15 @@ export class PlaywrightDriver implements BrowserDriver {
     command: { kind: string },
     before: PageSnapshot | null,
     after: PageSnapshot | null,
+    result: Record<string, unknown>,
   ): boolean | null {
+    // A canvas node move changes only its position, which is deliberately excluded
+    // from the snapshot signature (so node churn never bumps the version). So a
+    // drag's "did it move" cannot come from the version delta — it comes from the
+    // post-drag canvas-position readback surfaced as result.moved.
+    if (command.kind === 'drag') {
+      return typeof result?.moved === 'boolean' ? result.moved : null
+    }
     if (command.kind !== 'act' && command.kind !== 'fill') return null
     if (!before) return null
     return after == null || after.version !== before.version
@@ -568,7 +587,12 @@ export class PlaywrightDriver implements BrowserDriver {
     changed: boolean | null,
   ): string | null {
     if (changed === null || !before) return null
-    const actedId = typeof result?.targetId === 'string' ? result.targetId : null
+    const actedId =
+      typeof result?.targetId === 'string'
+        ? result.targetId
+        : typeof result?.sourceTargetId === 'string'
+          ? result.sourceTargetId
+          : null
     if (!actedId) return null
     const entry = before.targets.find(target => target.targetId === actedId)
     if (!entry) return null
@@ -682,6 +706,7 @@ export class PlaywrightDriver implements BrowserDriver {
   ): Promise<Record<string, unknown>> {
     const sourceTargetId = requireString(command, 'sourceTargetId')
 
+    // Target-to-target drag stays on Playwright's HTML5 drag-and-drop path.
     if (typeof command.destinationTargetId === 'string') {
       await this.session.drag(tabId, sourceTargetId, command.destinationTargetId)
       return { sourceTargetId, destinationTargetId: command.destinationTargetId }
@@ -698,17 +723,232 @@ export class PlaywrightDriver implements BrowserDriver {
       )
     }
 
+    // Is the source a canvas-group target? coordSpace is inferred from the
+    // manifest (the source target's group declares `canvas`) unless the command
+    // overrides it explicitly. Canvas drags interpret destinationCoords as stable
+    // canvas coordinates and convert them to live viewport px.
+    // The canvas-config lookup and the source-center read are independent — run
+    // them concurrently rather than serializing the two browser round-trips.
+    const [canvas, source] = await Promise.all([
+      this.session.canvasConfigForTarget(tabId, sourceTargetId),
+      this.targetCenter(tabId, sourceTargetId),
+    ])
+    const explicitSpace =
+      command.coordSpace === 'canvas' || command.coordSpace === 'viewport'
+        ? command.coordSpace
+        : undefined
+    const useCanvas = explicitSpace ? explicitSpace === 'canvas' : canvas !== null
+
+    if (useCanvas && canvas) {
+      return this.dispatchCanvasDrag(tabId, sourceTargetId, source, coords, canvas)
+    }
+
     const destination = 'relativeTo' in coords
       ? offsetFromTarget(await this.targetCenter(tabId, coords.relativeTo), coords.dx, coords.dy)
       : { x: coords.x, y: coords.y }
+    await this.performCoordinateDrag(tabId, source, destination, 0)
+    return { sourceTargetId, destinationCoords: destination }
+  }
 
-    const source = await this.targetCenter(tabId, sourceTargetId)
+  /**
+   * Canvas-aware coordinate drag. Reads the live viewport transform, converts the
+   * requested CANVAS destination to viewport px, rejects an off-pane destination
+   * up front (DESTINATION_OUTSIDE_CANVAS — never auto-pans, which canvas libs read
+   * as zoom), drags with optional threshold compensation, then reads the node's
+   * final canvas position back as `movedTarget` and a `moved` bit.
+   */
+  private async dispatchCanvasDrag(
+    tabId: number,
+    sourceTargetId: string,
+    source: { x: number; y: number },
+    coords: { x: number; y: number } | { relativeTo: string; dx: number; dy: number },
+    canvas: { viewportSelector: string; paneSelector?: string },
+  ): Promise<Record<string, unknown>> {
+    const t = await this.session.readCanvasTransform(tabId, canvas)
+    if (!t) {
+      throw new AgruneBackendError(
+        'INVALID_TARGET',
+        `Canvas viewport not found for drag source ${sourceTargetId}.`,
+        { target: sourceTargetId },
+      )
+    }
+    // t (CanvasTransformResult) is structurally a CanvasViewportTransform, so it
+    // feeds the coord helpers and the pane-rect guard directly — no field remap.
+    const transform = t
+
+    // Destination in CANVAS space. `relativeTo` is interpreted in canvas units
+    // off the reference target's canvas position.
+    let resolvedDestCanvas: { x: number; y: number }
+    if ('relativeTo' in coords) {
+      const refCenter = await this.targetCenter(tabId, coords.relativeTo)
+      const refCanvas = viewportToCanvas(refCenter.x, refCenter.y, transform)
+      resolvedDestCanvas = { x: refCanvas.x + coords.dx, y: refCanvas.y + coords.dy }
+    } else {
+      resolvedDestCanvas = { x: coords.x, y: coords.y }
+    }
+
+    const destViewport = canvasToViewport(resolvedDestCanvas.x, resolvedDestCanvas.y, transform)
+    if (
+      !isPointInsidePaneRect(destViewport.x, destViewport.y, {
+        left: t.paneLeft,
+        top: t.paneTop,
+        right: t.paneRight,
+        bottom: t.paneBottom,
+      })
+    ) {
+      throw new AgruneBackendError(
+        'DESTINATION_OUTSIDE_CANVAS',
+        `Destination canvas point (${Math.round(resolvedDestCanvas.x)}, ${Math.round(resolvedDestCanvas.y)}) maps to viewport (${Math.round(destViewport.x)}, ${Math.round(destViewport.y)}), outside the visible canvas pane. Pick coordinates inside the currently visible canvas area, or pan/zoom first.`,
+        { target: sourceTargetId, destinationCanvas: resolvedDestCanvas, viewport: destViewport },
+      )
+    }
+
+    const fromCanvas = viewportToCanvas(source.x, source.y, transform)
+    await this.performCoordinateDrag(tabId, source, destViewport, this.config.canvasDragNudgePx)
+
+    const movedTarget = await this.readMovedCanvasTarget(tabId, sourceTargetId, transform, fromCanvas)
+    const moved =
+      movedTarget && typeof movedTarget.movedPx === 'number'
+        ? movedTarget.movedPx >= CANVAS_MOVED_THRESHOLD_PX
+        : undefined
+
+    return {
+      sourceTargetId,
+      coordSpace: 'canvas' as const,
+      destinationCoords: { x: Math.round(resolvedDestCanvas.x), y: Math.round(resolvedDestCanvas.y) },
+      ...(movedTarget ? { movedTarget } : {}),
+      ...(typeof moved === 'boolean' ? { moved } : {}),
+    }
+  }
+
+  /**
+   * Low-level coordinate drag via page.mouse. Playwright auto-carries the held
+   * button on every interpolated move (buttons=1) so React Flow sees a real drag,
+   * not a hover — no manual buttons mask needed (unlike raw CDP). When `nudge` > 0
+   * the pointer is bumped past a canvas framework's drag threshold right after
+   * mousedown and the interpolation starts from there, so net motion is exactly
+   * (destination − source) and the node lands precisely (apps with
+   * nodeDragThreshold=0 need no nudge and pass 0).
+   *
+   * When the aurora cursor is enabled, the decorative pointer flies to the source,
+   * then glides to the destination via a single smooth in-page RAF that runs
+   * concurrently with the native mouse drag — no per-step Node→page round trips
+   * (so no stutter) and no click ripple (it's a drag, not a click). With visuals
+   * off (tests/bench) the fast single-move path runs — identical landing, no added
+   * latency.
+   */
+  private async performCoordinateDrag(
+    tabId: number,
+    source: { x: number; y: number },
+    destination: { x: number; y: number },
+    nudge: number,
+  ): Promise<void> {
     const page = this.session.page(tabId)
+    const animate = this.visualsInstalled && this.config.pointerAnimation
+
+    if (animate) await this.flyCursor(tabId, source)
+
     await page.mouse.move(source.x, source.y)
     await page.mouse.down()
-    await page.mouse.move(destination.x, destination.y, { steps: 12 })
-    await page.mouse.up()
-    return { sourceTargetId, destinationCoords: destination }
+    // Nudge past a canvas drag threshold (when configured) so the grab origin is
+    // pinned and the node lands exactly; nodeDragThreshold=0 apps pass 0 → no nudge.
+    if (nudge > 0) await page.mouse.move(source.x + nudge, source.y + nudge)
+    const to = nudge > 0 ? { x: destination.x + nudge, y: destination.y + nudge } : destination
+
+    if (animate) {
+      // Decorative cursor glides to the destination (one smooth in-page RAF) while
+      // the real synthetic drag runs concurrently — no per-step Node→page round
+      // trips, so the glide doesn't stutter. NO click/press ripple: this is a drag,
+      // not a click, and a ripple at the (lagging) cursor position looked wrong.
+      const glide = this.flyCursor(tabId, destination, 280) // snappy so it tracks the fast node
+      await page.mouse.move(to.x, to.y, { steps: 16 })
+      await page.mouse.up()
+      await glide
+    } else {
+      await page.mouse.move(to.x, to.y, { steps: 12 })
+      await page.mouse.up()
+    }
+  }
+
+  /**
+   * Drive the decorative aurora cursor (best-effort). Cosmetic only — the real
+   * input is the synthetic page.mouse; this just visualizes the pointer. The single
+   * home for the `__agrune_visual__` bridge, shared by the pre-act flight and the
+   * drag glide. Omit `press` for the default click ripple; pass false for a glide.
+   */
+  private async animatePointerAt(
+    tabId: number,
+    x: number,
+    y: number,
+    options: { press?: boolean; durationMs?: number } = {},
+  ): Promise<void> {
+    await this.session
+      .page(tabId)
+      .evaluate(
+        ({ x, y, press, durationMs, config }) => {
+          const visual = (window as unknown as {
+            __agrune_visual__?: {
+              applyConfig(config: unknown): void
+              animatePointer(
+                x: number,
+                y: number,
+                options?: { press?: boolean; durationMs?: number },
+              ): Promise<void>
+            }
+          }).__agrune_visual__
+          if (!visual) return
+          visual.applyConfig(config)
+          return visual.animatePointer(x, y, {
+            ...(typeof press === 'boolean' ? { press } : {}),
+            ...(durationMs ? { durationMs } : {}),
+          })
+        },
+        {
+          x,
+          y,
+          press: typeof options.press === 'boolean' ? options.press : null,
+          durationMs: options.durationMs ?? null,
+          config: this.config as unknown,
+        },
+      )
+      .catch(() => undefined)
+  }
+
+  /** Glide the decorative cursor to a point with no click ripple (used during drags). */
+  private async flyCursor(tabId: number, point: { x: number; y: number }, durationMs?: number): Promise<void> {
+    await this.animatePointerAt(tabId, point.x, point.y, { press: false, durationMs })
+  }
+
+  /**
+   * After a canvas drag, re-resolve the source (React may have replaced the node
+   * element on re-render) and read its final canvas-space center as `movedTarget`.
+   * A detached/missing node yields undefined rather than a bogus zero position.
+   */
+  private async readMovedCanvasTarget(
+    tabId: number,
+    sourceTargetId: string,
+    transform: CanvasViewportTransform,
+    fromCanvas: { x: number; y: number } | null,
+  ): Promise<Record<string, unknown> | undefined> {
+    try {
+      const locator = await this.session.locatorForTarget(tabId, sourceTargetId)
+      const box = await locator.boundingBox()
+      if (!box) return undefined
+      const toCanvasRaw = viewportToCanvas(box.x + box.width / 2, box.y + box.height / 2, transform)
+      const to = { x: Math.round(toCanvasRaw.x), y: Math.round(toCanvasRaw.y) }
+      const from = fromCanvas ? { x: Math.round(fromCanvas.x), y: Math.round(fromCanvas.y) } : null
+      const movedPx = from
+        ? Math.round(Math.hypot((to.x - from.x) * transform.scale, (to.y - from.y) * transform.scale))
+        : null
+      return {
+        targetId: sourceTargetId,
+        ...(from ? { from } : {}),
+        to,
+        ...(movedPx !== null ? { movedPx } : {}),
+      }
+    } catch {
+      return undefined
+    }
   }
 
   private async dispatchWait(
@@ -796,21 +1036,7 @@ export class PlaywrightDriver implements BrowserDriver {
     if (!this.visualsInstalled || !this.config.pointerAnimation) return
     const center = this.snapshots.get(tabId)?.targets.find(t => t.targetId === targetId)?.center
     if (!center) return
-    const page = this.session.page(tabId)
-    await page.evaluate(
-      ({ x, y, config }) => {
-        const visual = (window as unknown as {
-          __agrune_visual__?: {
-            applyConfig(config: unknown): void
-            animatePointer(x: number, y: number): Promise<void>
-          }
-        }).__agrune_visual__
-        if (!visual) return
-        visual.applyConfig(config)
-        return visual.animatePointer(x, y)
-      },
-      { x: center.x, y: center.y, config: this.config as unknown },
-    ).catch(() => undefined)
+    await this.animatePointerAt(tabId, center.x, center.y)
   }
 
   private async targetCenter(tabId: number, targetRef: string): Promise<{ x: number; y: number }> {
@@ -872,6 +1098,10 @@ function toCommandErrorCode(code: string): CommandErrorCode {
       return 'INVALID_TARGET'
     case 'NOT_VISIBLE':
       return 'NOT_VISIBLE'
+    case 'DESTINATION_OUTSIDE_CANVAS':
+      return 'DESTINATION_OUTSIDE_CANVAS'
+    case 'CANVAS_PAN_FAILED':
+      return 'CANVAS_PAN_FAILED'
     case 'FLOW_BLOCKED':
       return 'FLOW_BLOCKED'
     case 'TIMEOUT':
