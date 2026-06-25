@@ -22,6 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:no-internals": "node scripts/verify-no-internals.mjs",
+    "bench:token": "tsx bench/token-bench.ts",
     "verify": "npm run verify:no-internals && npm run typecheck && npm run test"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
+    "gpt-tokenizer": "^3.4.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",

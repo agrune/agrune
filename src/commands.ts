@@ -10,6 +10,9 @@ import { getBooleanFlag, getStringFlag, getPositiveIntFlag } from './args.js'
 import type { ProgramIO } from './program.js'
 import { writeResult } from './format.js'
 import { CliError } from './errors.js'
+import { formatSnapshot, type PageSnapshot } from './snapshot.js'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { resolve as resolvePath, dirname } from 'node:path'
 import { CLI_VERSION } from './version.js'
 import {
   DaemonClient,
@@ -79,6 +82,13 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
       return 0
     }
 
+    case 'targets':
+      return runTargets(flags, io)
+
+    case 'snapshot':
+    case 'aria-snapshot':
+      return runSnapshot(flags, io)
+
     case 'tabs':
     case 'tab':
       return runTabs(secondary, positionals, flags, io, print)
@@ -96,6 +106,101 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
       io.stderr.write(`Unknown command: ${command.join(' ')}\n`)
       return 1
   }
+}
+
+// ---- perception: targets / snapshot ----------------------------------------
+
+function writeOutputFile(path: string, text: string): string {
+  const abs = resolvePath(path)
+  mkdirSync(dirname(abs), { recursive: true })
+  writeFileSync(abs, text)
+  return abs
+}
+
+async function runTargets(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const json = getBooleanFlag(flags, 'json')
+  const tabId = getPositiveIntFlag(flags, 'tab')
+
+  const mode = getStringFlag(flags, 'mode')
+  if (mode !== undefined && mode !== 'outline' && mode !== 'full') {
+    throw new CliError('INVALID_COMMAND', 'targets mode must be one of: outline, full')
+  }
+
+  const groupIdsRaw = getStringFlag(flags, 'group-ids', 'groupIds')
+  let groupIds: string[] | undefined
+  if (groupIdsRaw !== undefined) {
+    groupIds = groupIdsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+    if (groupIds.length === 0) {
+      throw new CliError('INVALID_COMMAND', '--group-ids requires at least one group id')
+    }
+  }
+
+  const query = tabId !== undefined ? `?tabId=${tabId}` : ''
+  const res = await clientFromFlags(flags).request<{ ok: true; snapshot: PageSnapshot }>(
+    'GET',
+    `/targets${query}`,
+  )
+
+  if (json) {
+    writeResult(io.stdout, res, { json: true })
+    return 0
+  }
+
+  const text = formatSnapshot(res.snapshot, {
+    full: mode === 'full' || getBooleanFlag(flags, 'full'),
+    groupId: getStringFlag(flags, 'group'),
+    groupIds,
+    targetRef: getStringFlag(flags, 'target'),
+    includeTextContent: getBooleanFlag(flags, 'text', 'include-text-content'),
+  })
+
+  const filename = getStringFlag(flags, 'filename', 'output')
+  if (filename !== undefined) {
+    const path = writeOutputFile(filename, text)
+    io.stdout.write(`${path}\n`)
+    return 0
+  }
+  io.stdout.write(`${text}\n`)
+  return 0
+}
+
+async function runSnapshot(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const json = getBooleanFlag(flags, 'json')
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  const params = new URLSearchParams()
+  if (tabId !== undefined) params.set('tabId', String(tabId))
+  const target = getStringFlag(flags, 'target')
+  if (target !== undefined) params.set('target', target)
+  const mode = getStringFlag(flags, 'mode')
+  if (mode !== undefined) {
+    if (mode !== 'ai' && mode !== 'default') {
+      throw new CliError('INVALID_COMMAND', 'snapshot mode must be one of: ai, default')
+    }
+    params.set('mode', mode)
+  }
+  const depth = getPositiveIntFlag(flags, 'depth')
+  if (depth !== undefined) params.set('depth', String(depth))
+
+  const qs = params.toString()
+  const res = await clientFromFlags(flags).request<{
+    ok: true
+    text: string
+    mode: string
+    target?: string
+    depth?: number
+  }>('GET', `/snapshot${qs ? `?${qs}` : ''}`)
+
+  if (json) {
+    writeResult(io.stdout, res, { json: true })
+    return 0
+  }
+  const filename = getStringFlag(flags, 'filename', 'output')
+  if (filename !== undefined) {
+    io.stdout.write(`${writeOutputFile(filename, res.text)}\n`)
+    return 0
+  }
+  io.stdout.write(`${res.text}\n`)
+  return 0
 }
 
 function toInt(value: string | undefined, label: string): number {

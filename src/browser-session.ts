@@ -5,13 +5,23 @@
 // M4 extends this with console/network/dialog recorders, the snapshot store, and the action
 // dispatch table.
 
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+import { chromium, type Browser, type BrowserContext, type Locator, type Page } from 'playwright'
 import { CliError } from './errors.js'
 import type { PublicTab } from './types.js'
+import {
+  createSnapshotStore,
+  refreshSnapshot,
+  ariaSnapshot as ariaSnapshotImpl,
+  type PageSnapshot,
+  type SnapshotStore,
+  type AriaSnapshotOptions,
+} from './snapshot.js'
+import { resolveTargetOrSelectorLocator } from './resolver.js'
 
 interface TabEntry {
   id: number
   page: Page
+  store: SnapshotStore
 }
 
 export class BrowserSession {
@@ -51,8 +61,12 @@ export class BrowserSession {
       if (existing.page === page) return existing
     }
     const id = ++this.counter
-    const entry: TabEntry = { id, page }
+    const entry: TabEntry = { id, page, store: createSnapshotStore() }
     this.tabs.set(id, entry)
+    // Reset the snapshot version store on main-frame navigation (§4.4).
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) entry.store = createSnapshotStore()
+    })
     this.order.push(id)
     if (this.activeId === null) this.activeId = id
     page.on('close', () => this.unregister(id))
@@ -84,6 +98,25 @@ export class BrowserSession {
   /** Resolve a Page for action handlers (M4+). */
   page(tabId?: number): Page {
     return this.entry(tabId).page
+  }
+
+  // ---- perception (M3) -----------------------------------------------------
+
+  /** Build the manifest-derived snapshot for a tab (empty snapshot when no manifest). */
+  async snapshot(tabId?: number): Promise<PageSnapshot> {
+    const entry = this.entry(tabId)
+    return refreshSnapshot(entry.page, entry.store)
+  }
+
+  /** a11y escape hatch — pass-through to Playwright's ariaSnapshot. */
+  async ariaSnapshot(
+    tabId: number | undefined,
+    opts: AriaSnapshotOptions,
+  ): Promise<{ text: string; mode: 'ai' | 'default'; target?: string; depth?: number }> {
+    const entry = this.entry(tabId)
+    const resolveTarget = (ref: string): Promise<Locator> =>
+      resolveTargetOrSelectorLocator(entry.page, ref)
+    return ariaSnapshotImpl(entry.page, resolveTarget, opts)
   }
 
   get tabCount(): number {

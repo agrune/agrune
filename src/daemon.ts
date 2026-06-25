@@ -111,6 +111,21 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
     case 'GET /tabs':
       return { ok: true, tabs: await session.listTabs() }
 
+    case 'GET /targets': {
+      // Server builds + filters the snapshot; the CLI formats it (A.2.3).
+      const snapshot = await session.snapshot(optionalNumber(query.get('tabId')))
+      return { ok: true, snapshot }
+    }
+
+    case 'GET /snapshot': {
+      const result = await session.ariaSnapshot(optionalNumber(query.get('tabId')), {
+        target: query.get('target') ?? undefined,
+        mode: parseAriaMode(query.get('mode')),
+        depth: parseDepth(query.get('depth')),
+      })
+      return { ok: true, ...result }
+    }
+
     case 'POST /open':
     case 'POST /tabs/new': {
       const url = requireString(body, 'url')
@@ -159,7 +174,23 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
     default:
       throw new CliError('INVALID_COMMAND', `Unknown endpoint: ${method} ${pathname}`)
   }
-  void query
+}
+
+function parseAriaMode(value: string | null): 'ai' | 'default' | undefined {
+  if (value === null) return undefined
+  if (value !== 'ai' && value !== 'default') {
+    throw new CliError('INVALID_COMMAND', 'snapshot mode must be one of: ai, default')
+  }
+  return value
+}
+
+function parseDepth(value: string | null): number | undefined {
+  if (value === null) return undefined
+  const n = Number(value)
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new CliError('INVALID_COMMAND', 'depth must be a positive integer')
+  }
+  return n
 }
 
 function requireIndex(value: unknown): number {
