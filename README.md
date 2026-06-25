@@ -88,23 +88,16 @@ Endpoint override: `--host`/`--port` (TCP) or `AGRUNE_DAEMON_SOCKET`. Run `agrun
 
 Agents do not need to read manifest files, load manifests manually, use CSS selectors directly, or know about low-level browser-driver details. Run `agrune --help` for the complete, current surface.
 
-## Packages
+## Status & Implementation
 
-| Package | Path | Role | Published |
-| --- | --- | --- | --- |
-| `@agrune/cli` | `packages/cli` | The agrune CLI + per-workspace Playwright daemon. The distribution target (published as the public `agrune` binary). | Target |
-| `@agrune/backend` | `packages/backend` | Shared Playwright backend (session, snapshot, driver, self-heal). | No |
-| `@agrune/manifest` | `packages/manifest` | Manifest schema/validator + Playwright-test codegen. | No |
-| `@agrune/core` | `packages/core` | Shared types and command contracts. | No |
-| `@agrune/runtime` | `packages/runtime` | Visual-effects page bundle (cursor, aurora). | No |
-| `@agrune/e2e` | `packages/e2e` | Browser-flow tests and fixtures. | No |
-| `@agrune/bench` | `packages/bench` | Token/accuracy benchmark (raw a11y vs manifest snapshot). | No |
+This repository is currently **spec-first**. The previous ~10,600-LOC monorepo
+implementation has been removed in favor of a single canonical specification —
+[`SPEC.md`](./SPEC.md) — that defines a lean rebuild: **Playwright public API +
+manifest resolver + thin CLI wrapper + minimal session daemon** (~1,500 LOC,
+single package, public API only — never Playwright internals).
 
-## Build And Verify
-
-```bash
-pnpm install
-pnpm --filter @agrune/cli run build
-node packages/cli/dist/bin/agrune.js --help
-pnpm --filter @agrune/cli run test
-```
+`SPEC.md` is the source of truth. It includes the manifest contract, the
+verbatim snapshot/outline serialization format, the full CLI command surface
+and `@playwright/cli` parity table, the daemon wire protocol, the type/error/exit
+contracts, and a golden conformance vector for the serializer (Appendix A). The
+prior implementation remains recoverable in git history.
