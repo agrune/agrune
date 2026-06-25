@@ -23,6 +23,7 @@
     "test:watch": "vitest",
     "verify:no-internals": "node scripts/verify-no-internals.mjs",
     "bench:token": "tsx bench/token-bench.ts",
+    "bench:grounding": "tsx bench/grounding-eval.ts",
     "verify": "npm run verify:no-internals && npm run typecheck && npm run test"
   },
   "dependencies": {

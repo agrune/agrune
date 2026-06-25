@@ -11,7 +11,7 @@ import type { ProgramIO } from './program.js'
 import { writeResult } from './format.js'
 import { CliError } from './errors.js'
 import { formatSnapshot, type PageSnapshot } from './snapshot.js'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { resolve as resolvePath, dirname } from 'node:path'
 import { CLI_VERSION } from './version.js'
 import {
@@ -88,6 +88,79 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
     case 'snapshot':
     case 'aria-snapshot':
       return runSnapshot(flags, io)
+
+    case 'click':
+    case 'dblclick':
+    case 'double-click':
+    case 'right-click':
+    case 'hover':
+      return runClick(primary, positionals, flags, print)
+
+    case 'fill':
+      return runFill(positionals, flags, print)
+
+    case 'fill-form':
+    case 'fill_form':
+      return runFillForm(flags, print)
+
+    case 'type':
+      return runType(positionals, flags, print)
+
+    case 'press':
+    case 'press-key':
+      return runPress(positionals, flags, print)
+
+    case 'select':
+    case 'select-option':
+      return runSelect(positionals, flags, print)
+
+    case 'upload':
+      return runUpload(positionals, flags, print)
+
+    case 'drop':
+      return runDrop(positionals, flags, print)
+
+    case 'drag':
+      return runDrag(positionals, flags, print)
+
+    case 'wait':
+      return runWait(positionals, flags, print)
+
+    case 'read':
+      return runRead(flags, io)
+
+    case 'screenshot':
+      return runScreenshot(flags, io)
+
+    case 'evaluate':
+    case 'eval':
+      return runEvaluate(positionals, flags, print)
+
+    case 'run-code-unsafe':
+    case 'run-code':
+      return runRunCode(positionals, flags, print)
+
+    case 'console':
+    case 'console-messages':
+      return runConsole(flags, io)
+
+    case 'network':
+    case 'network-requests':
+      return runNetwork(secondary, positionals, flags, io)
+
+    case 'dialogs':
+      return runDialogs(flags, io)
+
+    case 'handle-dialog':
+    case 'dialog':
+      return runHandleDialog(secondary, flags, print)
+
+    case 'file-choosers':
+    case 'filechoosers':
+      return runFileChoosers(flags, io)
+
+    case 'file-upload':
+      return runFileUpload(positionals, flags, print)
 
     case 'tabs':
     case 'tab':
@@ -208,6 +281,380 @@ function toInt(value: string | undefined, label: string): number {
   const n = Number(value)
   if (!Number.isInteger(n) || n <= 0) throw new CliError('INVALID_COMMAND', `${label} must be a positive integer`)
   return n
+}
+
+// ---- actions (M4) ----------------------------------------------------------
+
+function requireRef(positionals: string[], verb: string): string {
+  const ref = positionals[0]
+  if (!ref) throw new CliError('INVALID_COMMAND', `${verb} requires a <target-ref>`)
+  return ref
+}
+
+async function runClick(
+  verb: string,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, verb)
+  const action =
+    verb === 'hover'
+      ? 'hover'
+      : verb === 'right-click'
+        ? 'contextmenu'
+        : verb === 'dblclick' || verb === 'double-click'
+          ? 'dblclick'
+          : 'click'
+  const body: Record<string, unknown> = { target, action, ...tabBody(flags) }
+  const button = getStringFlag(flags, 'button')
+  if (button !== undefined) body.button = button
+  const modifiers = getStringFlag(flags, 'modifiers')
+  if (modifiers !== undefined) body.modifiers = modifiers
+  if (getBooleanFlag(flags, 'double-click', 'doubleClick')) body.doubleClick = true
+  print(await clientFromFlags(flags).request('POST', '/click', body))
+  return 0
+}
+
+async function runFill(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, 'fill')
+  const value = positionals.slice(1).join(' ')
+  const body: Record<string, unknown> = {
+    target,
+    value,
+    clear: !getBooleanFlag(flags, 'append'),
+    ...tabBody(flags),
+  }
+  const strategy = getStringFlag(flags, 'strategy')
+  if (strategy !== undefined) body.strategy = strategy
+  print(await clientFromFlags(flags).request('POST', '/fill', body))
+  return 0
+}
+
+async function runFillForm(
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const raw = getStringFlag(flags, 'fields')
+  const file = getStringFlag(flags, 'file')
+  let fieldsJson: string
+  if (raw !== undefined) fieldsJson = raw
+  else if (file !== undefined) fieldsJson = readFileSync(resolvePath(file), 'utf8')
+  else throw new CliError('INVALID_COMMAND', 'fill-form requires --fields json or --file path')
+  let fields: unknown
+  try {
+    fields = JSON.parse(fieldsJson)
+  } catch (err) {
+    throw new CliError('INVALID_COMMAND', `fill-form --fields is not valid JSON: ${(err as Error).message}`)
+  }
+  print(await clientFromFlags(flags).request('POST', '/fill-form', { fields, ...tabBody(flags) }))
+  return 0
+}
+
+async function runType(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, 'type')
+  const text = positionals.slice(1).join(' ')
+  const body: Record<string, unknown> = { target, text, submit: getBooleanFlag(flags, 'submit'), ...tabBody(flags) }
+  const delay = getPositiveIntFlag(flags, 'delay')
+  if (delay !== undefined) body.delayMs = delay
+  print(await clientFromFlags(flags).request('POST', '/type', body))
+  return 0
+}
+
+async function runPress(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  // `press [target] <key>`: 2 positionals → [target, key]; 1 → [key].
+  let target = getStringFlag(flags, 'target')
+  let key = getStringFlag(flags, 'key')
+  if (positionals.length >= 2) {
+    target = target ?? positionals[0]
+    key = key ?? positionals[1]
+  } else if (positionals.length === 1) {
+    key = key ?? positionals[0]
+  }
+  if (!key) throw new CliError('INVALID_COMMAND', 'press requires a <key>')
+  const body: Record<string, unknown> = { key, ...tabBody(flags) }
+  if (target !== undefined) body.target = target
+  const delay = getPositiveIntFlag(flags, 'delay')
+  if (delay !== undefined) body.delayMs = delay
+  print(await clientFromFlags(flags).request('POST', '/press', body))
+  return 0
+}
+
+async function runSelect(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, 'select')
+  const values = positionals.slice(1)
+  if (values.length === 0) throw new CliError('INVALID_COMMAND', 'select requires at least one value')
+  let mode = getStringFlag(flags, 'mode') ?? 'value'
+  if (getBooleanFlag(flags, 'label')) mode = 'label'
+  if (getBooleanFlag(flags, 'index')) mode = 'index'
+  print(await clientFromFlags(flags).request('POST', '/select', { target, values, mode, ...tabBody(flags) }))
+  return 0
+}
+
+async function runUpload(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, 'upload')
+  const paths = positionals.slice(1)
+  if (paths.length === 0) throw new CliError('INVALID_COMMAND', 'upload requires at least one path')
+  print(await clientFromFlags(flags).request('POST', '/upload', { target, paths, ...tabBody(flags) }))
+  return 0
+}
+
+async function runDrop(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const target = requireRef(positionals, 'drop')
+  const paths = positionals.slice(1)
+  const body: Record<string, unknown> = { target, paths, ...tabBody(flags) }
+  const data = getStringFlag(flags, 'data')
+  if (data !== undefined) {
+    try {
+      body.data = JSON.parse(data)
+    } catch (err) {
+      throw new CliError('INVALID_COMMAND', `drop --data is not valid JSON: ${(err as Error).message}`)
+    }
+  }
+  const text = getStringFlag(flags, 'text')
+  if (text !== undefined) body.text = text
+  const uri = getStringFlag(flags, 'uri')
+  if (uri !== undefined) body.uri = uri
+  print(await clientFromFlags(flags).request('POST', '/drop', body))
+  return 0
+}
+
+async function runDrag(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const startTarget = requireRef(positionals, 'drag')
+  const endTarget = positionals[1] ?? getStringFlag(flags, 'to')
+  if (!endTarget) throw new CliError('INVALID_COMMAND', 'drag requires --to <end-ref> (or a second positional)')
+  print(await clientFromFlags(flags).request('POST', '/drag', { startTarget, endTarget, ...tabBody(flags) }))
+  return 0
+}
+
+async function runWait(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const body: Record<string, unknown> = { ...tabBody(flags) }
+  const text = getStringFlag(flags, 'text')
+  const textGone = getStringFlag(flags, 'text-gone', 'textGone')
+  const timeSec = getStringFlag(flags, 'time')
+  const timeMs = getStringFlag(flags, 'time-ms')
+  if (positionals[0] !== undefined) {
+    body.target = positionals[0]
+    body.state = getStringFlag(flags, 'state') ?? 'visible'
+  } else if (text !== undefined) body.text = text
+  else if (textGone !== undefined) body.textGone = textGone
+  else if (timeSec !== undefined) body.timeMs = Math.round(Number(timeSec) * 1000)
+  else if (timeMs !== undefined) body.timeMs = Number(timeMs)
+  else throw new CliError('INVALID_COMMAND', 'wait requires a <target-ref> or --text/--text-gone/--time')
+  const timeout = getPositiveIntFlag(flags, 'timeout')
+  if (timeout !== undefined) body.timeoutMs = timeout
+  print(await clientFromFlags(flags).request('POST', '/wait', body))
+  return 0
+}
+
+async function runRead(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  const res = await clientFromFlags(flags).request<{ ok: true; text: string }>(
+    'GET',
+    `/read${tabId !== undefined ? `?tabId=${tabId}` : ''}`,
+  )
+  writeResult(io.stdout, res, { json: getBooleanFlag(flags, 'json'), formatter: () => res.text })
+  return 0
+}
+
+async function runScreenshot(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const body: Record<string, unknown> = { ...tabBody(flags) }
+  const output = getStringFlag(flags, 'output', 'filename')
+  body.path = output ?? defaultScreenshotPath(getStringFlag(flags, 'type'))
+  if (getBooleanFlag(flags, 'full-page', 'fullPage')) body.fullPage = true
+  const target = getStringFlag(flags, 'target')
+  if (target !== undefined) body.target = target
+  const type = getStringFlag(flags, 'type')
+  if (type !== undefined) body.type = type
+  const res = await clientFromFlags(flags).request<{ ok: true; path: string }>('POST', '/screenshot', body)
+  writeResult(io.stdout, res, { json: getBooleanFlag(flags, 'json'), formatter: () => res.path })
+  return 0
+}
+
+function defaultScreenshotPath(type?: string): string {
+  const ext = type === 'jpeg' ? 'jpg' : 'png'
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  return resolvePath(`.agrune/runs/${stamp}/screenshot.${ext}`)
+}
+
+async function runEvaluate(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const source =
+    getStringFlag(flags, 'expression', 'function') ?? (positionals.length > 0 ? positionals.join(' ') : undefined)
+  if (!source) throw new CliError('INVALID_COMMAND', 'evaluate requires <js> (or --expression/--function)')
+  const body: Record<string, unknown> = { source, ...tabBody(flags) }
+  const target = getStringFlag(flags, 'target')
+  if (target !== undefined) body.target = target
+  const arg = getStringFlag(flags, 'arg')
+  if (arg !== undefined) {
+    try {
+      body.arg = JSON.parse(arg)
+    } catch {
+      body.arg = arg
+    }
+  }
+  print(await clientFromFlags(flags).request('POST', '/evaluate', body))
+  return 0
+}
+
+async function runRunCode(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const body: Record<string, unknown> = { ...tabBody(flags) }
+  const file = getStringFlag(flags, 'file', 'filename')
+  const code = getStringFlag(flags, 'code') ?? (positionals.length > 0 ? positionals.join(' ') : undefined)
+  if (file !== undefined) body.filename = resolvePath(file)
+  else if (code !== undefined) body.code = code
+  else throw new CliError('INVALID_COMMAND', 'run-code-unsafe requires <js>, --code, or --file')
+  print(await clientFromFlags(flags).request('POST', '/run-code-unsafe', body))
+  return 0
+}
+
+async function runConsole(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const params = new URLSearchParams()
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  if (tabId !== undefined) params.set('tabId', String(tabId))
+  const level = getStringFlag(flags, 'level')
+  if (level !== undefined) params.set('level', level)
+  if (getBooleanFlag(flags, 'all')) params.set('all', '1')
+  const qs = params.toString()
+  const res = await clientFromFlags(flags).request<{ ok: true; messages: Array<{ level: string; type: string; text: string }> }>(
+    'GET',
+    `/console${qs ? `?${qs}` : ''}`,
+  )
+  writeResult(io.stdout, res, {
+    json: getBooleanFlag(flags, 'json'),
+    formatter: () =>
+      res.messages.length === 0
+        ? '(no console messages)'
+        : res.messages.map((m) => `[${m.level}] ${m.text}`).join('\n'),
+  })
+  return 0
+}
+
+async function runNetwork(
+  sub: string | undefined,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  io: ProgramIO,
+): Promise<number> {
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  if (sub === 'request') {
+    const idxRaw = positionals[0] ?? getStringFlag(flags, 'index')
+    if (idxRaw === undefined) throw new CliError('INVALID_COMMAND', 'network request requires an <index>')
+    const params = new URLSearchParams()
+    if (tabId !== undefined) params.set('tabId', String(tabId))
+    params.set('index', idxRaw)
+    const part = getStringFlag(flags, 'part')
+    if (part !== undefined) params.set('part', part)
+    const res = await clientFromFlags(flags).request('GET', `/network/request?${params.toString()}`)
+    writeResult(io.stdout, res, { json: getBooleanFlag(flags, 'json') })
+    return 0
+  }
+  const params = new URLSearchParams()
+  if (tabId !== undefined) params.set('tabId', String(tabId))
+  const filter = getStringFlag(flags, 'filter')
+  if (filter !== undefined) params.set('filter', filter)
+  if (getBooleanFlag(flags, 'static')) params.set('static', '1')
+  if (getBooleanFlag(flags, 'all')) params.set('all', '1')
+  const qs = params.toString()
+  const res = await clientFromFlags(flags).request<{ ok: true; requests: Array<{ method: string; url: string; status?: number }> }>(
+    'GET',
+    `/network${qs ? `?${qs}` : ''}`,
+  )
+  writeResult(io.stdout, res, {
+    json: getBooleanFlag(flags, 'json'),
+    formatter: () =>
+      res.requests.length === 0
+        ? '(no network requests)'
+        : res.requests.map((r) => `${r.status ?? '...'} ${r.method} ${r.url}`).join('\n'),
+  })
+  return 0
+}
+
+async function runDialogs(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  const res = await clientFromFlags(flags).request<{ ok: true; dialogs: Array<{ type: string; message: string; handled: boolean }> }>(
+    'GET',
+    `/dialogs${tabId !== undefined ? `?tabId=${tabId}` : ''}`,
+  )
+  writeResult(io.stdout, res, {
+    json: getBooleanFlag(flags, 'json'),
+    formatter: () =>
+      res.dialogs.length === 0
+        ? '(no dialogs)'
+        : res.dialogs.map((d) => `${d.type}: ${d.message} ${d.handled ? '[handled]' : '[pending]'}`).join('\n'),
+  })
+  return 0
+}
+
+async function runHandleDialog(
+  sub: string | undefined,
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  let accept: boolean
+  if (sub === 'accept' || getBooleanFlag(flags, 'accept')) accept = true
+  else if (sub === 'dismiss' || getBooleanFlag(flags, 'dismiss')) accept = false
+  else throw new CliError('INVALID_COMMAND', 'handle-dialog requires --accept or --dismiss (or "dialog accept|dismiss")')
+  const body: Record<string, unknown> = { accept, ...tabBody(flags) }
+  const promptText = getStringFlag(flags, 'prompt-text', 'promptText')
+  if (promptText !== undefined) body.promptText = promptText
+  print(await clientFromFlags(flags).request('POST', '/dialog/handle', body))
+  return 0
+}
+
+async function runFileChoosers(flags: Record<string, string | boolean>, io: ProgramIO): Promise<number> {
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  const res = await clientFromFlags(flags).request('GET', `/file-choosers${tabId !== undefined ? `?tabId=${tabId}` : ''}`)
+  writeResult(io.stdout, res, { json: getBooleanFlag(flags, 'json') })
+  return 0
+}
+
+async function runFileUpload(
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  print(await clientFromFlags(flags).request('POST', '/file-upload', { paths: positionals, ...tabBody(flags) }))
+  return 0
 }
 
 // ---- tabs / close ----------------------------------------------------------
