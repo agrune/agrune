@@ -68,35 +68,6 @@ describe('formatSnapshot', () => {
     expect(text).not.toContain('- target "Cancel" [ref=cancel_button]')
   })
 
-  it('compact mode omits descriptions but honors the alwaysDesc pin', () => {
-    const snapshot: PageSnapshot = {
-      schemaVersion: 3,
-      version: 1,
-      capturedAt: 1,
-      url: 'http://example.test',
-      title: 'Example',
-      groups: [{ groupId: 'wizard', groupName: 'Wizard', targetIds: ['next_button', 'description_input'] }],
-      targets: [
-        { ...target('next_button', 'wizard', 'Next', 'Next'), description: 'Advance to the next step.' },
-        {
-          ...target('description_input', 'wizard', 'Description', 'Description'),
-          description: 'Required field — the wizard will not advance until this has text.',
-          alwaysDesc: true,
-        },
-      ],
-    }
-
-    // Default render: both descriptions present.
-    const full = formatSnapshot(snapshot, { full: true })
-    expect(full).toContain('Advance to the next step.')
-    expect(full).toContain('Required field')
-
-    // Compact render: unpinned description dropped, pinned one survives.
-    const compact = formatSnapshot(snapshot, { full: true, compact: true })
-    expect(compact).not.toContain('Advance to the next step.')
-    expect(compact).toContain('Required field')
-  })
-
   it('filters raw snapshots for daemon targets responses', () => {
     const snapshot = buildSnapshot()
 

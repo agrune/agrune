@@ -35,7 +35,6 @@ export const SCENARIOS = [
     id: 'S1-create-for-dev',
     difficulty: 'easy',
     maxSteps: 12,
-    catalogGroups: ['navigation', 'board', 'task_wizard', 'select_options'],
     instruction:
       'Create a brand-new task titled "Investigate API latency" (give it a short description like "Latency is high"), assign it to a teammate, then finish creating the task.',
     predicate: ({ tasks }) => {
@@ -47,7 +46,6 @@ export const SCENARIOS = [
     id: 'S2-comment',
     difficulty: 'easy',
     maxSteps: 9,
-    catalogGroups: ['navigation', 'board', 'task_detail', 'select_options'],
     instruction:
       'Open the existing task about the authentication flow and post a comment on it asking a teammate for a review.',
     predicate: ({ tasks }) => {
@@ -59,11 +57,13 @@ export const SCENARIOS = [
     id: 'S3-reassign-move',
     difficulty: 'medium',
     maxSteps: 12,
-    catalogGroups: ['navigation', 'board', 'task_detail', 'select_options'],
     instruction:
       'Open the existing task about writing API documentation, reassign it to an active developer, and move its status to In Review. Save the changes.',
     predicate: ({ tasks }) => {
-      const t = tasks.find((x) => x.id === 'task-4' || /api documentation/i.test(x.title))
+      // Pin to the existing task-4 (always present post-reseed). A title fallback would
+      // let a delete-then-recreate pass; isDev() already forces reassigning off the
+      // seed assignee 'Diana Lee' (inactive), so genuine reassignment is required.
+      const t = tasks.find((x) => x.id === 'task-4')
       return {
         pass: !!t && t.status === 'in-review' && isDev(t.assignee),
         detail: t ? `status=${t.status} assignee=${t.assignee}` : 'not found',
@@ -74,19 +74,19 @@ export const SCENARIOS = [
     id: 'S4-create-then-comment',
     difficulty: 'medium',
     maxSteps: 16,
-    catalogGroups: ['navigation', 'board', 'task_wizard', 'task_detail', 'select_options'],
     instruction:
       'Create a new task titled "Fix flaky CI tests" with description "CI is flaky" assigned to a teammate and finish creating it. Then open that newly-created task and add a comment "Please review".',
     predicate: ({ tasks }) => {
-      const t = tasks.find((x) => /flaky/i.test(x.title) && hasAssignee(x.assignee))
-      return { pass: !!t && hasComment(t), detail: t ? `${t.title} comments=${(t.comments || []).length}` : 'not found' }
+      // length>=9 + !/^task-[1-8]$/ require a genuinely CREATED task (task-${Date.now()}),
+      // closing the rename-a-seed-task false-pass (renaming keeps length at 8).
+      const t = tasks.find((x) => /flaky/i.test(x.title) && hasAssignee(x.assignee) && !/^task-[1-8]$/.test(x.id))
+      return { pass: tasks.length >= 9 && !!t && hasComment(t), detail: t ? `${t.title} comments=${(t.comments || []).length}` : 'not found' }
     },
   },
   {
     id: 'S5-followup-link',
     difficulty: 'hard',
     maxSteps: 16,
-    catalogGroups: ['navigation', 'board', 'task_wizard', 'task_detail', 'select_options'],
     instruction:
       'Create a follow-up task titled "CI/CD monitoring" assigned to a teammate and finish creating it. Then open it and link it to the existing "Set up CI/CD pipeline" task as a related ticket.',
     predicate: ({ tasks }) => {
@@ -102,14 +102,17 @@ export const SCENARIOS = [
     id: 'S6-find-dev-then-dm',
     difficulty: 'hard',
     maxSteps: 12,
-    catalogGroups: ['navigation', 'members', 'messenger'],
     instruction:
       'Go to the Members tab and find an active developer. Then open the team messenger, open the conversation with that developer, and send them a direct message asking for their opinion on the authentication work.',
     predicate: ({ messages }) => {
+      // Topic guard: the DM must be about the authentication work, not a bare "hi" —
+      // without it any non-seed message to any active dev passed.
       const hit = ACTIVE_DEV_IDS.find((id) =>
-        (messages[id] || []).some((m) => m.from === 'me' && !String(m.id).startsWith('msg-seed')),
+        (messages[id] || []).some((m) =>
+          m.from === 'me' && !String(m.id).startsWith('msg-seed') &&
+          /auth|authenticat|login|로그인|인증/i.test(m.body || '')),
       )
-      return { pass: !!hit, detail: hit ? `dm→${hit}` : 'no new dm to an active developer' }
+      return { pass: !!hit, detail: hit ? `dm→${hit}` : 'no on-topic dm to an active developer' }
     },
   },
   {
@@ -119,15 +122,23 @@ export const SCENARIOS = [
     id: 'S7-chat-find-create',
     difficulty: 'hard',
     maxSteps: 20,
-    catalogGroups: ['navigation', 'board', 'task_wizard', 'messenger', 'select_options'],
     instruction:
       'Open the team messenger and ask Eve Wang what new task you should register today. Read her reply, then go to the board, create that task as a new ticket (use her wording for the title), assign it to an active developer, and finish creating it.',
     predicate: ({ tasks, messages }) => {
-      const t = tasks.find((x) => (TODAY_RE.test(x.title) || TODAY_RE.test(x.description || '')) && isDev(x.assignee))
-      const askedEve = (messages['member-5'] || []).some((m) => m.from === 'me' && !String(m.id).startsWith('msg-seed'))
+      const thread = messages['member-5'] || []
+      const askedEve = thread.some((m) => m.from === 'me' && !String(m.id).startsWith('msg-seed'))
+      const reply = thread.find((m) => m.from === 'them' && String(m.id).endsWith('-npc'))
+      // The created task must echo Eve's ACTUAL reply (tokens ≥3 chars) so a blind
+      // keyword guess can't pass and a faithful paraphrase isn't rejected. TODAY_RE
+      // (verbatim Korean / authored keywords) is retained as a transcription fallback.
+      const replyToks = reply ? (reply.body.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || []) : []
+      const echoes = (s) => { const x = (s || '').toLowerCase(); return replyToks.some((tok) => x.includes(tok)) }
+      const t = tasks.find((x) =>
+        ((TODAY_RE.test(x.title) || TODAY_RE.test(x.description || '')) || echoes(x.title) || echoes(x.description)) &&
+        isDev(x.assignee))
       return {
-        pass: tasks.length >= 9 && !!t && askedEve,
-        detail: t ? `${t.title} → ${t.assignee} (askedEve=${askedEve})` : `len=${tasks.length} askedEve=${askedEve}`,
+        pass: tasks.length >= 9 && !!t && askedEve && !!reply,
+        detail: t ? `${t.title} → ${t.assignee} (askedEve=${askedEve} reply=${!!reply})` : `len=${tasks.length} askedEve=${askedEve} reply=${!!reply}`,
       }
     },
   },

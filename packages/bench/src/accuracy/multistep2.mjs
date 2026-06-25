@@ -3,11 +3,12 @@
 // snapshot ROUNDS, REASONING tokens, total tokens, and wandering.
 //
 // Conditions (representation the model drives through):
-//   agrune_desc    — real @agrune formatSnapshot(full): names + DESCRIPTIONS,
-//                    stable short refs; non-default verbs only ({click} omitted)
-//   agrune_nodesc  — identical, descriptions stripped (isolates the desc effect)
-//   pwcli          — the genuine @playwright/cli binary: ariaSnapshot eN refs,
-//                    no descriptions, refs regenerate per snapshot (go stale)
+//   agrune  — real @agrune formatSnapshot(full): names + per-target DESCRIPTIONS
+//             (rendered only where the manifest author added a desc — it's a
+//             per-target field, not a global mode), stable short refs; non-default
+//             verbs only ({click} omitted)
+//   pwcli   — the genuine @playwright/cli binary: ariaSnapshot eN refs,
+//             no descriptions, refs regenerate per snapshot (go stale)
 //
 // Models: gpt-oss:20b (ollama) / claude-haiku-4-5 / gpt-5.3-codex-spark
 //         (the latter two as BARE models via claude-code-proxy — see drivers.mjs)
@@ -30,7 +31,7 @@ import { toAgentTargetRef, normalizeAgentTargetId, REPEATED_TARGET_KEY_DELIMITER
 import { SCENARIOS } from './scenarios.mjs'
 import { makeDriver } from './drivers.mjs'
 import { PwCli } from './pwcli.mjs'
-import { AGRUNE_SKILL, PWCLI_SKILL, CATALOG_SKILL, SMART_SKILL } from './skills.mjs'
+import { AGRUNE_SKILL, PWCLI_SKILL } from './skills.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(__dirname, '../../../..')
@@ -111,20 +112,7 @@ async function animateTo(page, loc) {
 }
 
 const CONDITIONS = [
-  { key: 'agrune_desc', kind: 'agrune', desc: true },
-  { key: 'agrune_nodesc', kind: 'agrune', desc: false },
-  // Smart-return: same live snapshot as nodesc, but REUSED — a fresh snapshot is
-  // re-sent only when the page actually changes (signature differs), unchanged
-  // turns are acks, and only the latest snapshot is kept in context. Stable refs
-  // make this safe; isolates the (A)+(B) token win from catalog's staleness.
-  { key: 'agrune_smart', kind: 'smart', desc: process.env.SMART_DESC === '1' },
-  // Catalog mode: authored namespace sent ONCE, then a thin per-turn live-state
-  // delta — exploits stable refs to skip the full re-render. {look} on demand.
-  { key: 'agrune_catalog', kind: 'catalog', desc: true },
-  // Task-scoped catalog: only the groups this scenario needs (scenario.catalogGroups),
-  // mirroring the user's "manifest as a task-scoped skill in CLAUDE.md" idea — the
-  // token fix for the full catalog being re-sent every turn in a no-cache session.
-  { key: 'agrune_catalog_scoped', kind: 'catalog', desc: true, scoped: true },
+  { key: 'agrune', kind: 'agrune' },
   { key: 'pwcli', kind: 'pwcli' },
 ]
 // Drift: load a deliberately-stale manifest whose chosen singleton selectors no
@@ -268,7 +256,7 @@ function shortRefFor(reg, fullRef) {
   if (!s) { s = 't' + (++reg.seq); reg.full2short.set(fullRef, s); reg.short2full.set(s, fullRef) }
   return s
 }
-function formatAgruneSnapshot(snapshot, withDesc, refOf = toAgentTargetRef) {
+function formatAgruneSnapshot(snapshot, refOf = toAgentTargetRef) {
   const lines = ['### Targets']
   const order = []
   const buckets = new Map()
@@ -283,11 +271,9 @@ function formatAgruneSnapshot(snapshot, withDesc, refOf = toAgentTargetRef) {
       // Drop the default `click`; surface only verbs the model couldn't infer.
       const kinds = (t.actionKinds || []).filter(k => k !== 'click')
       let line = `- [ref=${refOf(t)}] ${kinds.length ? `{${kinds.join(',')}} ` : ''}${t.name}`
-      // Render desc when globally on (desc mode) OR when this target opted in via
-      // manifest alwaysDesc — the "pin a hint only where the agent struggled" lever.
-      // NO_PINS=1 disables the alwaysDesc pins (to ablate them in isolation tests).
-      const pinned = t.alwaysDesc && process.env.NO_PINS !== '1'
-      if ((withDesc || pinned) && t.description) line += ` — ${t.description}`
+      // The per-target desc field IS the control: render it whenever the manifest
+      // author put a desc on this target (no global on/off — it's just the field).
+      if (t.description) line += ` — ${t.description}`
       if (t.valuePreview) line += ` = ${JSON.stringify(t.valuePreview)}`
       lines.push(line)
       any = true
@@ -297,11 +283,11 @@ function formatAgruneSnapshot(snapshot, withDesc, refOf = toAgentTargetRef) {
   if (!any) lines.push('(no actionable targets)')
   return lines.join('\n')
 }
-async function agruneRepresentation(page, manifest, store, withDesc, reg) {
+async function agruneRepresentation(page, manifest, store, reg) {
   const snapshot = await buildSnapshotFromManifest(page, manifest, store)
   const visible = filterVisible(snapshot)
   const refOf = reg ? (t) => shortRefFor(reg, toAgentTargetRef(t)) : (t) => toAgentTargetRef(t)
-  return { text: formatAgruneSnapshot(visible, withDesc, refOf), knownRefs: visible.targets.map(refOf) }
+  return { text: formatAgruneSnapshot(visible, refOf), knownRefs: visible.targets.map(refOf) }
 }
 function findTargetById(manifest, id) {
   for (const g of manifest.groups) for (const t of g.targets) if (t.targetId === id) return t
@@ -479,100 +465,6 @@ async function detectUnmapped(page, manifest) {
   return { lines, map, refs }
 }
 
-// ---------- catalog mode (snapshot-skipping) ----------
-// The whole authored namespace, formatted ONCE. Singletons by targetId; repeats
-// as a `repeatId[key=*].baseId` template the model fills from live keys. desc is
-// included (it is amortized over the session — sent a single time).
-function kindsOf(t) { return (t.actionKinds || []).filter(k => k !== 'click') }
-// withDesc: include the `— desc` blurb. groupAllow: optional Set of groupIds to
-// emit (task-scoped catalog — the user's "manifest as a task-scoped skill" idea);
-// null/undefined = the full authored namespace.
-export function buildCatalog(manifest, withDesc, groupAllow) {
-  const scoped = groupAllow ? `${groupAllow.size} of ${manifest.groups.length} groups, task-scoped` : 'every ref this app exposes'
-  const lines = ['### Target catalog', `(${scoped}; refs are STABLE — they never change between turns)`]
-  for (const g of manifest.groups) {
-    if (groupAllow && !groupAllow.has(g.groupId)) continue
-    lines.push(`## ${g.groupId}${g.name ? ` — ${g.name}` : ''}`)
-    for (const t of g.targets || []) {
-      const k = kindsOf(t)
-      let line = `- [ref=${t.targetId}]${k.length ? ` {${k.join(',')}}` : ''} ${t.name}`
-      if (withDesc && t.desc) line += ` — ${t.desc}`
-      lines.push(line)
-    }
-    for (const r of g.repeats || []) {
-      for (const t of r.targets || []) {
-        const k = kindsOf(t)
-        let line = `- [ref=${r.repeatId}[key=*].${t.targetId}]${k.length ? ` {${k.join(',')}}` : ''} ${t.name}`
-        if (withDesc && t.desc) line += ` — ${t.desc} (one per row; replace * with a live key)`
-        lines.push(line)
-      }
-    }
-    lines.push('')
-  }
-  return lines.join('\n')
-}
-// All concrete refs that are valid to ACT on right now: every singleton targetId,
-// plus — for each repeat that has visible rows — that row's key × every base
-// target in the repeat. Used to validate the model's chosen ref.
-function buildKnownRefs(manifest, visibleRepeatKeys) {
-  const refs = []
-  for (const g of manifest.groups) {
-    for (const t of g.targets || []) refs.push(t.targetId)
-    for (const r of g.repeats || []) {
-      const keys = visibleRepeatKeys.get(r.repeatId)
-      if (!keys) continue
-      for (const key of keys) for (const t of r.targets || []) refs.push(`${r.repeatId}[key=${key}].${t.targetId}`)
-    }
-  }
-  return refs
-}
-// Thin per-turn delta: which surfaces are live, the dynamic row keys present now
-// (one line per key, not per base-target), and any field values. NOT a re-render
-// of the static singleton catalog — that is the whole point.
-async function liveState(page, manifest, store) {
-  const snapshot = await buildSnapshotFromManifest(page, manifest, store)
-  const visible = filterVisible(snapshot)
-  // map repeatId -> baseTargetIds (with kinds) for compact action hints
-  const repeatBases = new Map()
-  for (const g of manifest.groups) for (const r of g.repeats || []) repeatBases.set(r.repeatId, r.targets || [])
-  const activeGroups = []
-  const seenG = new Set()
-  const keysByRepeat = new Map()          // repeatId -> Map(key -> name)
-  const visibleRepeatKeys = new Map()     // repeatId -> Set(key)
-  const valueLines = []
-  for (const t of visible.targets) {
-    if (!seenG.has(t.groupId)) { seenG.add(t.groupId); activeGroups.push(t.groupId) }
-    const ref = toAgentTargetRef(t)
-    const m = /^(.+?)\[key=(.+)\]\.(.+)$/.exec(ref)
-    if (m) {
-      const [, repeatId, key] = m
-      if (!keysByRepeat.has(repeatId)) { keysByRepeat.set(repeatId, new Map()); visibleRepeatKeys.set(repeatId, new Set()) }
-      if (!keysByRepeat.get(repeatId).has(key)) keysByRepeat.get(repeatId).set(key, t.name || '')
-      visibleRepeatKeys.get(repeatId).add(key)
-    }
-    if (t.valuePreview) valueLines.push(`- [ref=${ref}] = ${JSON.stringify(t.valuePreview)}`)
-  }
-  const lines = ['### Live state', `active surfaces: ${activeGroups.join(', ') || '(none)'}`]
-  if (keysByRepeat.size) {
-    lines.push('current list items:')
-    for (const [repeatId, keymap] of keysByRepeat) {
-      const bases = (repeatBases.get(repeatId) || []).map(b => { const k = kindsOf(b); return `${b.targetId}${k.length ? `{${k.join(',')}}` : ''}` }).join(', ')
-      for (const [key, name] of keymap) lines.push(`- ${repeatId} key=${key} ${JSON.stringify(name)} — actions: ${bases}`)
-    }
-  }
-  if (valueLines.length) { lines.push('current field values:'); lines.push(...valueLines) }
-  return { text: lines.join('\n'), knownRefs: buildKnownRefs(manifest, visibleRepeatKeys) }
-}
-
-// Simulate site drift: replace chosen singleton targets' selector ladders with a
-// guaranteed-nonmatching css, so resolveLocator fails exactly as it would when the
-// DOM moved out from under a stale manifest. name/desc/targetId are LEFT INTACT —
-// that authored intent is what self-heal re-grounds from. (Repeats are left alone:
-// re-keying a drifted row base is out of scope for this first cut.)
-// Default to targets whose AUTHORED name exactly matches the live element's
-// accessible name, so self-heal re-grounds with high confidence (verified score=1
-// via _healprobe). board_new_task_button drives S1/S4/S5/S7; messenger_send_button
-// drives S6/S7. Override with DRIFT_TARGETS to stress other (weaker-intent) cases.
 const DRIFT_TARGETS = (process.env.DRIFT_TARGETS ||
   'board_new_task_button,messenger_send_button'
 ).split(',').map(s => s.trim()).filter(Boolean)
@@ -664,7 +556,7 @@ async function runOne({ page, pw, base, manifest }, scenario, cond, decide) {
     // observe
     let snap
     try {
-      snap = isAgrune ? await agruneRepresentation(page, manifest, store, cond.desc, refReg) : (() => { const t = pw.snapshot(); return { text: t, knownRefs: pwcliRefs(t) } })()
+      snap = isAgrune ? await agruneRepresentation(page, manifest, store, refReg) : (() => { const t = pw.snapshot(); return { text: t, knownRefs: pwcliRefs(t) } })()
     } catch (e) { transcript.push({ round: rounds, error: 'observe:' + String(e.message || e).slice(0, 80) }); outcome = 'observe_error'; break }
     const sig = djb2(snap.text)
     seenSig.set(sig, (seenSig.get(sig) || 0) + 1)
@@ -748,269 +640,6 @@ async function runOne({ page, pw, base, manifest }, scenario, cond, decide) {
   return { outcome, rounds, steps, wander, looks: rounds, heals: heals.filter(h => !h.failed).length, healAttempts: heals.length, healLog: heals, tokens: { input: inTok, output: outTok, reasoning: reasonTok, total: inTok + outTok }, score, transcript }
 }
 
-// ---------- one run, SMART-RETURN mode ----------
-// Same live agrune snapshot as nodesc, but REUSED. A fresh snapshot is re-sent only
-// when the page signature changes (a real screen change); unchanged turns carry just
-// the action results (an "ack"); and only the single latest snapshot is kept in
-// context — older ones are stripped before each send. Stable refs make this safe:
-// the model keeps acting on refs it already holds. Isolates the (A) ack-on-unchanged
-// + (B) single-snapshot-context token win from catalog's "advertise absent refs" bug.
-const SNAP_OPEN = '⟦SNAPSHOT⟧'
-const SNAP_CLOSE = '⟦/SNAPSHOT⟧'
-const SNAP_RE = /⟦SNAPSHOT⟧[\s\S]*?⟦\/SNAPSHOT⟧/
-// Keep only the LAST user message's snapshot; replace every earlier one with a marker
-// so exactly one (the current) snapshot is ever in the resent context.
-function pruneSnapshots(messages) {
-  let lastIdx = -1
-  for (let i = 0; i < messages.length; i++) if (messages[i].role === 'user' && SNAP_RE.test(messages[i].content)) lastIdx = i
-  return messages.map((m, i) => (m.role === 'user' && i !== lastIdx && SNAP_RE.test(m.content))
-    ? { ...m, content: m.content.replace(SNAP_RE, '(snapshot hidden — superseded by the latest snapshot below)') }
-    : m)
-}
-
-async function runOneSmart({ page, base, manifest }, scenario, cond, decide) {
-  // reset (agrune surface)
-  await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => localStorage.clear())
-  await page.goto(base, { waitUntil: 'networkidle' })
-  await page.waitForSelector('[data-testid="nav-board-tab"]', { timeout: 10000 })
-  await page.waitForSelector('[data-agrune-demo="task-card"]', { timeout: 10000 })
-  await page.waitForTimeout(300)
-  await ensureVisual(page)
-
-  const store = createSnapshotStore()
-  const refReg = SHORT_REFS ? { full2short: new Map(), short2full: new Map(), seq: 0 } : null
-  const cap = STEP_CAP ?? scenario.maxSteps
-  const convo = []
-  let lastResults = ''
-  let lastSentSig = null     // signature of the snapshot most recently SENT
-  const transcript = []
-  const seenSig = new Map()
-  const actCount = new Map()
-  const heals = []
-  let pendingFb = []         // manifest onSuccess/onNoEffect candidates from last round's ok actions
-  let sigBeforeAction = null // page signature when those actions were issued (change-gate baseline)
-  let prevAxLines = null     // previous round's a11y capture (for the frame-to-frame delta)
-  let rounds = 0, steps = 0, wander = 0, noJson = 0
-  let freshSnaps = 0, acks = 0, axHits = 0, umHits = 0
-  let inTok = 0, outTok = 0, reasonTok = 0
-  let outcome = null
-
-  while (rounds < cap && steps < cap) {
-    rounds++
-    await page.waitForTimeout(SETTLE_MS)
-    let snap
-    try { snap = await agruneRepresentation(page, manifest, store, cond.desc, refReg) }
-    catch (e) { transcript.push({ round: rounds, error: 'observe:' + String(e.message || e).slice(0, 80) }); outcome = 'observe_error'; break }
-    // Hybrid: append unmapped interactive elements (raw refs) so stale/incomplete
-    // manifest coverage doesn't blind the agent. Detection is deterministic.
-    let unmappedMap = new Map()
-    if (HYBRID) {
-      try {
-        const um = await detectUnmapped(page, manifest)
-        if (um.lines.length) {
-          snap.text += `\n## unmapped — on screen but NOT in the manifest (raw refs, usable but unstable; prefer mapped targets above)\n` + um.lines.join('\n')
-          snap.knownRefs = snap.knownRefs.concat(um.refs)
-          unmappedMap = um.map
-          umHits++
-        }
-      } catch {}
-    }
-    const sig = djb2(snap.text)
-    seenSig.set(sig, (seenSig.get(sig) || 0) + 1)
-    const changed = sig !== lastSentSig
-    const snapBlock = `### Current page snapshot\n${SNAP_OPEN}\n${snap.text}\n${SNAP_CLOSE}`
-
-    // a11y delta: capture the full aria tree (internal) and diff vs the previous
-    // round. Surfaced only on the ack path below — when the mapped controls did
-    // NOT change but the page did (e.g. a validation error the manifest can't see).
-    let axMsgs = []
-    if (AXDELTA) {
-      const axLines = await captureAx(page)
-      if (prevAxLines) axMsgs = axMessageDelta(prevAxLines, axLines)
-      prevAxLines = axLines
-    }
-
-    // manifest-authored feedback for the prior action(s), gated on a real screen
-    // change. In smart mode this is exactly what makes an "ack" turn diagnostic:
-    // a blocked Next yields no fresh snapshot, so onNoEffect ("required field is
-    // empty") is the ONLY new signal the model gets — closing the step-2 stuck.
-    let feedback = ''
-    if (pendingFb.length) {
-      const moved = sig !== sigBeforeAction
-      for (const fb of pendingFb) { const msg = moved ? fb.onSuccess : fb.onNoEffect; if (msg) feedback += (feedback ? '\n' : '') + msg }
-      pendingFb = []
-    }
-    const fbLine = feedback ? `\n${feedback}` : ''
-
-    let userContent
-    if (convo.length === 0) {
-      userContent = `### Goal\n${scenario.instruction}\n\n${snapBlock}\n\n### Next action(s)\nReply with ONE JSON object: {"actions":[{"verb":...,"ref":...,"value":...}]} or {"done":true}. JSON only.`
-      lastSentSig = sig; freshSnaps++
-    } else if (changed) {
-      userContent = `### Results of your last action(s)\n${lastResults || '(none)'}${fbLine}\n\n${snapBlock}\n\n### Next action(s)\nReply with ONE JSON object only.`
-      lastSentSig = sig; freshSnaps++
-    } else {
-      // Mapped controls unchanged. If the a11y delta caught a new message the
-      // manifest can't see (validation error/toast), surface just that delta —
-      // turning a silent no-op into an actionable signal.
-      const tail = axMsgs.length
-        ? `\n\nThe mapped controls did not change, BUT a new on-screen message appeared: ${axMsgs.map(m => JSON.stringify(m)).join('; ')}\nTake it into account and act from the latest snapshot above.`
-        : `\n\n(Page unchanged — act from the latest snapshot already shown above.)`
-      if (axMsgs.length) axHits++
-      userContent = `### Results of your last action(s)\n${lastResults || '(none)'}${fbLine}${tail}\n\n### Next action(s)\nReply with ONE JSON object only.`
-      acks++
-    }
-    convo.push({ role: 'user', content: userContent })
-    const d = await decide(SMART_SKILL, pruneSnapshots(convo))
-    if (d.error) { outcome = 'model_error'; transcript.push({ round: rounds, modelError: d.error }); break }
-    inTok += d.usage.input || 0; outTok += d.usage.output || 0; reasonTok += d.usage.reasoning || 0
-    convo.push({ role: 'assistant', content: d.text || '(no output)' })
-
-    const parsed = parseDecision(d.text, d.thinking, snap.knownRefs, 'agrune')
-    if (parsed.done) { outcome = 'model_done'; transcript.push({ round: rounds, done: true }); break }
-    if (parsed.error) {
-      noJson++; wander++
-      lastResults = `<${parsed.error}> — reply with exactly one JSON object.`
-      transcript.push({ round: rounds, parseError: parsed.error, raw: parsed.raw })
-      if (noJson >= 3) { outcome = 'stuck'; break }
-      continue
-    }
-    noJson = 0
-
-    let progressed = false
-    const resultLines = []
-    const roundFb = []        // onSuccess/onNoEffect of this round's ok actions (gated next round)
-    for (const a of parsed.actions) {
-      if (steps >= cap) break
-      steps++
-      const asig = `${a.verb}|${a.ref}|${a.value ?? ''}`
-      const akey = `${asig}@${sig}`
-      actCount.set(akey, (actCount.get(akey) || 0) + 1)
-      if (actCount.get(akey) >= 3) { resultLines.push(`${asig} -> repeated×3 (no page change)`); transcript.push({ round: rounds, asig, result: 'repeated' }); wander++; outcome = 'stuck'; break }
-      const fullRef = refReg ? (refReg.short2full.get(a.ref) || a.ref) : a.ref
-      const um = unmappedMap.get(a.ref)   // raw ref for an unmapped element (hybrid)
-      let result = 'ok'
-      try {
-        if (um) await execBySelector(page, um.selector, a.verb, a.value)
-        else await execAgrune(page, manifest, a.verb, fullRef, a.value, heals)
-        progressed = true
-        if (FEEDBACK && !um) { const fb = feedbackFor(manifest, fullRef); if (fb) roundFb.push(fb) }
-      } catch (e) { result = 'err:' + String(e.message || e).slice(0, 50); wander++ }
-      resultLines.push(`${asig} -> ${result}`)
-      transcript.push({ round: rounds, asig, result })
-      console.error(`  · ${scenario.id}/${cond.key}/${decide.modelKey} r${rounds}: ${asig} -> ${result}`)
-      if (result !== 'ok') break // re-observe after a failure
-    }
-    lastResults = resultLines.join('\n')
-    pendingFb = roundFb; sigBeforeAction = sig  // gate these against next round's snapshot
-    if (outcome === 'stuck') break
-    if (!progressed && seenSig.get(sig) >= 3) { outcome = 'stuck'; break }
-  }
-  outcome = outcome ?? 'max_steps'
-
-  let state
-  try { state = await page.evaluate(() => ({ tasks: JSON.parse(localStorage.getItem('pm-tasks') || '[]'), members: JSON.parse(localStorage.getItem('pm-members') || '[]'), messages: JSON.parse(localStorage.getItem('pm-messages') || '{}') })) }
-  catch (e) { state = { tasks: [], members: [], messages: {} } }
-  let score
-  try { score = scenario.predicate(state) } catch (e) { score = { pass: false, detail: 'predicate_error:' + String(e).slice(0, 80) } }
-
-  return { outcome, rounds, steps, wander, looks: freshSnaps, acks, axHits, umHits, heals: heals.filter(h => !h.failed).length, healAttempts: heals.length, healLog: heals, tokens: { input: inTok, output: outTok, reasoning: reasonTok, total: inTok + outTok }, score, transcript }
-}
-
-// ---------- one run, CATALOG mode ----------
-// The authored namespace is stated ONCE (turn 1). Thereafter every turn carries
-// only a thin live-state delta — no full re-render — and the model acts on stable
-// refs it already holds. A full `### Targets` snapshot is produced only when the
-// model asks via {look:true} (counted), or after a failed action (so it can see
-// what went wrong). This is the snapshot-skipping path stable refs make possible.
-async function runOneCatalog({ page, base, manifest }, scenario, decide, cond) {
-  await page.goto(base, { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => localStorage.clear())
-  await page.goto(base, { waitUntil: 'networkidle' })
-  await page.waitForSelector('[data-testid="nav-board-tab"]', { timeout: 10000 })
-  await page.waitForSelector('[data-agrune-demo="task-card"]', { timeout: 10000 })
-  await page.waitForTimeout(300)
-  await ensureVisual(page)
-
-  const store = createSnapshotStore()
-  // Scoped condition restricts the authored catalog to the groups this task needs.
-  const groupAllow = cond?.scoped && scenario.catalogGroups ? new Set(scenario.catalogGroups) : null
-  const catalog = buildCatalog(manifest, true, groupAllow)
-  const condKey = cond?.key || 'agrune_catalog'
-  const cap = STEP_CAP ?? scenario.maxSteps
-  const convo = []
-  const heals = []
-  const transcript = []
-  const actCount = new Map()
-  let rounds = 0, steps = 0, wander = 0, noJson = 0, looks = 0
-  let inTok = 0, outTok = 0, reasonTok = 0
-  let outcome = null
-  let lastResults = ''
-  let wantFull = false      // model asked to {look}, or a failure forces a full snapshot next turn
-
-  while (rounds < cap && steps < cap) {
-    rounds++
-    await page.waitForTimeout(SETTLE_MS)
-    // observe: always the cheap live-state delta; the full snapshot only on demand
-    let live, fullText = ''
-    try {
-      live = await liveState(page, manifest, store)
-      if (wantFull) { fullText = (await agruneRepresentation(page, manifest, store, true, null)).text; wantFull = false }
-    } catch (e) { transcript.push({ round: rounds, error: 'observe:' + String(e.message || e).slice(0, 80) }); outcome = 'observe_error'; break }
-
-    const userContent = convo.length === 0
-      ? `### Goal\n${scenario.instruction}\n\n${catalog}\n\n${live.text}\n\n### Next action(s)\nReply with ONE JSON object: {"actions":[...]}, or {"look":true} for a full snapshot, or {"done":true}. JSON only.`
-      : `### Results of your last action(s)\n${lastResults || '(none)'}\n\n${live.text}${fullText ? `\n\n${fullText}` : ''}\n\n### Next action(s)\nReply with ONE JSON object only.`
-    convo.push({ role: 'user', content: userContent })
-    const d = await decide(CATALOG_SKILL, convo)
-    if (d.error) { outcome = 'model_error'; transcript.push({ round: rounds, modelError: d.error }); break }
-    inTok += d.usage.input || 0; outTok += d.usage.output || 0; reasonTok += d.usage.reasoning || 0
-    convo.push({ role: 'assistant', content: d.text || '(no output)' })
-
-    const parsed = parseDecision(d.text, d.thinking, live.knownRefs, 'agrune')
-    if (parsed.done) { outcome = 'model_done'; transcript.push({ round: rounds, done: true }); break }
-    if (parsed.look) { looks++; wantFull = true; lastResults = '(full snapshot below)'; transcript.push({ round: rounds, look: true }); continue }
-    if (parsed.error) {
-      noJson++; wander++
-      lastResults = `<${parsed.error}> — reply with exactly one JSON object.`
-      transcript.push({ round: rounds, parseError: parsed.error, raw: parsed.raw })
-      if (noJson >= 3) { outcome = 'stuck'; break }
-      continue
-    }
-    noJson = 0
-
-    const resultLines = []
-    let progressed = false
-    for (const a of parsed.actions) {
-      if (steps >= cap) break
-      steps++
-      const asig = `${a.verb}|${a.ref}|${a.value ?? ''}`
-      actCount.set(asig, (actCount.get(asig) || 0) + 1)
-      if (actCount.get(asig) >= 4) { resultLines.push(`${asig} -> repeated×4`); transcript.push({ round: rounds, asig, result: 'repeated' }); wander++; outcome = 'stuck'; break }
-      let result = 'ok'
-      try { await execAgrune(page, manifest, a.verb, a.ref, a.value, heals); progressed = true }
-      catch (e) { result = 'err:' + String(e.message || e).slice(0, 50); wander++; wantFull = true }  // failure → show full screen next turn
-      resultLines.push(`${asig} -> ${result}`)
-      transcript.push({ round: rounds, asig, result })
-      console.error(`  · ${scenario.id}/${condKey}/${decide.modelKey} r${rounds}: ${asig} -> ${result}`)
-      if (result !== 'ok') break
-    }
-    lastResults = resultLines.join('\n')
-    if (outcome === 'stuck') break
-  }
-  outcome = outcome ?? 'max_steps'
-
-  let state
-  try { state = await page.evaluate(() => ({ tasks: JSON.parse(localStorage.getItem('pm-tasks') || '[]'), members: JSON.parse(localStorage.getItem('pm-members') || '[]'), messages: JSON.parse(localStorage.getItem('pm-messages') || '{}') })) }
-  catch { state = { tasks: [], members: [], messages: {} } }
-  let score
-  try { score = scenario.predicate(state) } catch (e) { score = { pass: false, detail: 'predicate_error:' + String(e).slice(0, 80) } }
-
-  return { outcome, rounds, steps, wander, looks, heals: heals.filter(h => !h.failed).length, healAttempts: heals.length, healLog: heals, tokens: { input: inTok, output: outTok, reasoning: reasonTok, total: inTok + outTok }, score, transcript }
-}
-
-// aggregate per (model, cond) — averaged over ALL runs (every scenario × trial)
 function buildOut(results, models, conditions, scenarios) {
   const agg = {}
   for (const modelKey of models) {
@@ -1091,7 +720,7 @@ async function main() {
         let pass = 0
         for (let t = 0; t < nTrials; t++) {
           let r
-          try { r = cond.kind === 'catalog' ? await runOneCatalog({ page, base, manifest }, scenario, decide, cond) : cond.kind === 'smart' ? await runOneSmart({ page, base, manifest }, scenario, cond, decide) : await runOne({ page, pw, base, manifest }, scenario, cond, decide) }
+          try { r = await runOne({ page, pw, base, manifest }, scenario, cond, decide) }
           catch (e) { r = { outcome: 'crash', rounds: 0, steps: 0, wander: 0, looks: 0, heals: 0, tokens: { input: 0, output: 0, reasoning: 0, total: 0 }, score: { pass: false, detail: 'crash:' + String(e.message || e).slice(0, 80) }, transcript: [] } }
           if (r.score.pass) pass++
           runs.push(r)
@@ -1121,7 +750,7 @@ async function main() {
   server.close()
 }
 
-// Run main() only when this file is the entrypoint, so helpers (buildCatalog)
-// can be imported for measurement without launching a full bench run.
+// Run main() only when this file is the entrypoint, so this module can be
+// imported without launching a full bench run.
 const __isMain = (() => { try { return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url) } catch { return false } })()
 if (__isMain) main().catch(err => { console.error('multistep2 failed:', err); process.exitCode = 1 })

@@ -1,18 +1,15 @@
 /**
  * Shared harness for real user-flow E2E specs.
  *
- * These specs route through the real MCP tool layer + PlaywrightDriver +
- * a real chromium instance. The point is to exercise the exact stack that
- * Claude Code / Codex hit when they call agrune tools.
- *
- * We construct the MCP server in-process via createMcpServer() and invoke
- * handleToolCall() directly with the same arg shape the stdio transport
- * would deliver — this is effectively identical to what @modelcontextprotocol/sdk
- * routes to the registered tool handlers, minus the JSON-RPC envelope.
+ * These specs route through an in-process tool bridge + PlaywrightDriver +
+ * a real chromium instance. The bridge (`tests/_bridge/tool-bridge.ts`) maps
+ * `browser_*` tool names to driver calls — the same dispatch the (removed) MCP
+ * server used — so the specs keep exercising the exact driver + snapshot-format
+ * code path. The shipped product is the agrune CLI; this bridge is test-only.
  */
 
 import { PlaywrightDriver } from '@agrune/backend'
-import { createMcpServer } from '@agrune/mcp'
+import { createToolBridge } from '../_bridge/tool-bridge.js'
 
 export interface McpToolResponse {
   text: string
@@ -52,7 +49,7 @@ export async function createRealHarness(options: HarnessOptions = {}): Promise<R
     connection: { mode: 'launch', headless: options.headless ?? true },
   })
 
-  const { handleToolCall } = createMcpServer(driver)
+  const { handleToolCall } = createToolBridge(driver)
 
   const call = async (
     name: string,

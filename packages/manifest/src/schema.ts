@@ -57,13 +57,6 @@ export interface ManifestTarget {
   onSuccess?: string
   onNoEffect?: string
   /**
-   * Render this target's `desc` even when descriptions are otherwise suppressed
-   * (compact/no-desc rendering modes). Use it to pin an explanation onto the few
-   * targets that actually need it — a required-field gotcha, a non-obvious
-   * control — instead of paying the desc token cost on every target every turn.
-   */
-  alwaysDesc?: boolean
-  /**
    * Exclude this target's text/value from the snapshot signature, so its own
    * churn (a clock, a "x seconds ago" stamp, a live counter, an animation label)
    * does NOT bump the snapshot version. Without this, a self-updating target makes
@@ -184,7 +177,6 @@ export const TargetSchema = z.object({
   // target with neither field simply produces no feedback line.
   onSuccess: z.string().optional(),
   onNoEffect: z.string().optional(),
-  alwaysDesc: z.boolean().optional(),
   // Exclude this target's text/value from the snapshot signature (self-updating
   // controls like clocks/counters must not register as screen changes).
   volatile: z.boolean().optional(),

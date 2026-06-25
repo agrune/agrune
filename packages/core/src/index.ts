@@ -285,8 +285,6 @@ export interface PageTarget {
    */
   onSuccess?: string
   onNoEffect?: string
-  /** Pin this target's description to render even in compact/no-desc modes. */
-  alwaysDesc?: boolean
   /**
    * Exclude this target's text/value from the snapshot signature so its own churn
    * (clock, live counter, relative timestamp) does not bump the snapshot version.

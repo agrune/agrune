@@ -1,6 +1,8 @@
 # agrune
 
-Agrune is a **semantic browser-control layer for AI agents, built on the Playwright core**. Instead of handing the model a raw DOM / accessibility dump, an app-scoped **manifest** (groups → targets, each with a `role → text → testId → attr → css` selector ladder) lets the agent see a compact, stable set of *actionable* affordances and drive the page by target id. The agent talks only to MCP tools such as `browser_open_tab`, `browser_get_targets`, `browser_click`, and `browser_fill`; the page supplies the manifest through `window.__agrune_manifest__`.
+Agrune is a **semantic browser-control CLI for AI agents, built on the Playwright core**. A coding agent drives a real browser from the terminal — `agrune open`, `agrune snapshot`, `agrune click`, `agrune fill` — exactly like the official [`@playwright/cli`](https://playwright.dev/agent-cli/introduction). The one difference is **how the page is perceived**: instead of a raw accessibility tree with ephemeral `eN` refs, an app-scoped **manifest** (groups → targets, each with a `role → text → testId → attr → css` selector ladder) gives the agent a compact, stable set of *actionable* affordances addressed by stable target ids. The page supplies the manifest through `window.__agrune_manifest__`.
+
+> **Positioning:** agrune : `@playwright/cli` :: manifest-driven : a11y-driven. Same Playwright engine, same terminal command surface; agrune adds a curated, stable, security-scoped target model (and may add extra commands on top).
 
 ## Why agrune — "small model + accurate navigation"
 
@@ -19,136 +21,90 @@ The token win comes from **scoped, progressive disclosure** (read the outline fi
 
 Adjacent benefits: a tighter security surface (the agent can only act on declared targets; `sensitive` targets are masked), QA reuse (one manifest → agent control *and* stable Playwright tests), and a self-healing harness that re-grounds drifted targets automatically (MVP: see `@agrune/backend` self-heal).
 
-## Current Scope
+## How It Works
 
-The local-agent path:
+agrune is **CLI-first**. A one-shot `agrune <command>` invocation talks to a **per-workspace daemon** that owns the browser:
 
-1. An MCP host starts Agrune before the agent session.
-2. Agrune launches or attaches to a Chromium browser via Playwright.
-3. The agent opens a URL with `browser_open_tab`.
-4. The page-owned manifest produces a compact actionable snapshot.
-5. The agent controls the page by target IDs from that snapshot.
+1. The first browser command auto-spawns a detached daemon for the current workspace (unix socket at `~/.agrune/run/<workspace-hash>/daemon.sock`). The browser opens once and persists.
+2. Each subsequent `agrune <command>` is a short-lived client that reconnects to that daemon — so the browser stays alive across commands.
+3. `agrune open <url>` launches/navigates; `agrune targets` / `agrune snapshot` returns the actionable target model; the agent acts by target id (`agrune click <ref>`, `agrune fill <ref> <value>`); re-snapshot after navigation.
+4. When the page exposes `window.__agrune_manifest__`, the snapshot is the compact manifest outline. With no manifest, agrune degrades to a full accessibility view (a11y-driven, like `@playwright/cli`).
 
-The published `agrune` package runs the MCP server today; `@agrune/cli` is the per-workspace Playwright daemon (unix socket, auto-spawn) for the CLI surface. The legacy Chrome DevTools Protocol stack has been removed — Playwright is the sole browser driver (`attach` still connects to an existing Chrome over CDP via Playwright's `connectOverCDP`).
+The legacy Chrome DevTools Protocol stack has been removed — Playwright is the sole browser driver (`--attach` still connects to an existing Chrome over CDP via Playwright's `connectOverCDP`).
 
-## MCP Config
-
-Published package:
-
-```json
-{
-  "mcpServers": {
-    "agrune": {
-      "command": "npx",
-      "args": ["-y", "agrune@latest"]
-    }
-  }
-}
-```
-
-Local development package:
-
-```json
-{
-  "mcpServers": {
-    "agrune": {
-      "command": "npx",
-      "args": ["-y", "/Users/chenjing/dev/agrune/agrune/packages/agrune"]
-    }
-  }
-}
-```
-
-The server connects stdio first and launches Chrome lazily on the first browser-control tool call. This avoids MCP health checks opening extra browser windows.
-
-## Runtime Options
+## Usage
 
 ```bash
-npx agrune@latest
-npx agrune@latest --headless
-npx agrune@latest --isolated
-npx agrune@latest --attach http://127.0.0.1:9222
-npx agrune@latest --attach ws://127.0.0.1:9222/devtools/browser/<id>
-npx agrune@latest --user-data-dir ~/.agrune/browser-profile
+# minimal agent loop
+agrune open https://example.com
+agrune targets               # compact manifest outline (or a11y view if no manifest)
+agrune snapshot              # full target-ref snapshot
+agrune click <target-ref>
+agrune fill <target-ref> "value"
+agrune snapshot              # re-snapshot after the UI changes
+agrune screenshot --output shot.png
 ```
 
-| Option | Meaning |
+Daemon lifecycle (optional — browser commands auto-spawn it):
+
+```bash
+agrune daemon start [--headless] [--port 47654]   # foreground; binds the workspace socket
+agrune daemon status
+agrune daemon stop
+```
+
+Endpoint override: `--host`/`--port` (TCP) or `AGRUNE_DAEMON_SOCKET`. Run `agrune --help` for the full command list.
+
+## CLI Commands
+
+| Command | Purpose |
 | --- | --- |
-| `--headless` | Launch Chrome without UI. |
-| `--attach <endpoint>` | Attach to an existing Chrome CDP HTTP endpoint or browser WebSocket endpoint. |
-| `--url <url>` | Initial URL when launching Chrome. Default is `about:blank`; agents should normally use `browser_open_tab`. |
-| `--user-data-dir <path>` | Persistent Chrome profile. Default is `~/.agrune/browser-profile`. |
-| `--isolated` | Use a temporary Chrome profile for a clean test run. |
-| `--help`, `--version` | Print server help/version and exit. |
+| `open <url>` | Open a URL in the managed browser and make it active. |
+| `navigate` / `goto <url>` | Navigate the active page. |
+| `back` / `forward` / `reload` | History navigation. |
+| `resize <w> <h>` | Resize the active page viewport. |
+| `targets [--mode outline\|full] [--group <id>]` | Compact manifest groups, or expanded manifest-defined targets. |
+| `snapshot [--target <ref>] [--depth n]` | Full target-ref snapshot of the active page. |
+| `read` | Extract visible page content as markdown. |
+| `click` / `dblclick` / `right-click` / `hover` `<target-ref>` | Pointer actions on a target. |
+| `fill <target-ref> <value>` | Fill an input target. |
+| `type <target-ref> <text> [--submit]` | Type into an editable target. |
+| `press [target-ref] <key>` | Press a keyboard key. |
+| `select <target-ref> <value...>` | Select dropdown values. |
+| `fill-form --fields <json>` | Fill multiple form fields. |
+| `drag <start-ref> --to <end-ref>` | Drag a target to another target or coordinates. |
+| `drop <target-ref> [path...]` | Drop files or MIME data onto a target. |
+| `upload <target-ref> <path...>` | Upload files. |
+| `wait <target-ref> [--state ...]` / `wait --text <t>` | Wait for target state, text, or time. |
+| `screenshot [--output path] [--full-page] [--target <ref>]` | Save a page or target screenshot. |
+| `evaluate` / `eval <js>` | Evaluate JavaScript on the page or a target. |
+| `run-code-unsafe <js>` | Run arbitrary Playwright code against the active page. |
+| `console [--level ...]` | Read console and page error messages. |
+| `network [--filter <re>]` / `network request <i>` | Inspect captured network requests. |
+| `dialogs` / `handle-dialog --accept\|--dismiss` | Inspect / handle JavaScript dialogs. |
+| `file-choosers` / `file-upload [path...]` | Inspect / satisfy a pending file chooser. |
+| `tabs [list\|new\|focus\|select\|close]` / `close` | Tab management. |
+| `daemon start\|stop\|status\|events` | Per-workspace daemon lifecycle. |
 
-## Public MCP Tools
-
-| Tool | Purpose |
-| --- | --- |
-| `browser_list_tabs` | List attached browser tabs. |
-| `browser_open_tab` | Open a URL in the managed browser and make it active. |
-| `browser_tabs` | Playwright-style tab list/new/select/close actions. |
-| `browser_close` | Close the active browser page. |
-| `browser_focus_tab` | Switch the active tab. |
-| `browser_navigate` | Navigate the active page to a URL. |
-| `browser_navigate_back` | Go back in the active page history. |
-| `browser_resize` | Resize the active page viewport. |
-| `browser_take_screenshot` | Save a page or target screenshot. |
-| `browser_evaluate` | Evaluate JavaScript on the page or a target. |
-| `browser_run_code_unsafe` | Run arbitrary Playwright code against the active page. |
-| `browser_console_messages` | Read console and page error messages. |
-| `browser_network_requests` | List captured network requests. |
-| `browser_network_request` | Read full details or one part of a network request. |
-| `browser_press_key` | Press a keyboard key in the active page. |
-| `browser_type` | Type text into an editable target. |
-| `browser_select_option` | Select one or more dropdown values. |
-| `browser_fill_form` | Fill multiple form fields. |
-| `browser_file_upload` | Upload files to a pending file chooser. |
-| `browser_drop` | Drop files or MIME data onto a target. |
-| `browser_handle_dialog` | Accept or dismiss a pending JavaScript dialog. |
-| `browser_snapshot` | Capture a full target-ref snapshot of the active page. |
-| `browser_get_targets` | Return compact groups or expanded manifest-defined targets. |
-| `browser_click` | Click a target ref. |
-| `browser_double_click` | Double-click a target ref. |
-| `browser_right_click` | Right-click a target ref. |
-| `browser_hover` | Hover a target ref. |
-| `browser_long_press` | Long-press a target ref. |
-| `browser_fill` | Fill an input target ref. |
-| `browser_drag` | Drag a target to another target or coordinates. |
-| `browser_pointer` | Low-level pointer/wheel events for canvas/freeform work. |
-| `browser_wait_for` | Wait for target state, text, text disappearance, or time. |
-| `browser_read` | Extract visible page content as markdown. |
-| `browser_update_config` | Update visual/runtime options when explicitly requested. |
-
-Agents should not need to read manifest files, load manifests manually, use CSS selectors directly, or know about low-level browser-driver details.
+Agents do not need to read manifest files, load manifests manually, use CSS selectors directly, or know about low-level browser-driver details. Run `agrune --help` for the complete, current surface.
 
 ## Packages
 
 | Package | Path | Role | Published |
 | --- | --- | --- | --- |
-| `agrune` | `packages/agrune` | Public npm package whose default bin runs the MCP server. | Yes |
-| `@agrune/cli` | `packages/cli` | Internal CLI with a per-workspace Playwright daemon (unix socket, auto-spawn). | No |
-| `@agrune/mcp` | `packages/mcp` | Internal MCP server source bundled into `agrune`. | No |
-| `@agrune/backend` | `packages/backend` | Internal shared Playwright backend (session, snapshot, BrowserDriver adapter). | No |
-| `@agrune/runtime` | `packages/runtime` | Internal visual-effects page bundle (cursor, aurora). | No |
-| `@agrune/core` | `packages/core` | Internal shared types and contracts. | No |
-| `@agrune/manifest` | `packages/manifest` | Internal manifest schema/validator used by demos and future tooling. | No |
-| `@agrune/e2e` | `packages/e2e` | Internal browser-flow tests and fixtures. | No |
-| `@agrune/bench` | `packages/bench` | Internal token/accuracy benchmark (raw a11y vs manifest snapshot). | No |
+| `@agrune/cli` | `packages/cli` | The agrune CLI + per-workspace Playwright daemon. The distribution target (published as the public `agrune` binary). | Target |
+| `@agrune/backend` | `packages/backend` | Shared Playwright backend (session, snapshot, driver, self-heal). | No |
+| `@agrune/manifest` | `packages/manifest` | Manifest schema/validator + Playwright-test codegen. | No |
+| `@agrune/core` | `packages/core` | Shared types and command contracts. | No |
+| `@agrune/runtime` | `packages/runtime` | Visual-effects page bundle (cursor, aurora). | No |
+| `@agrune/e2e` | `packages/e2e` | Browser-flow tests and fixtures. | No |
+| `@agrune/bench` | `packages/bench` | Token/accuracy benchmark (raw a11y vs manifest snapshot). | No |
 
 ## Build And Verify
 
 ```bash
 pnpm install
-pnpm --filter @agrune/core run build
-pnpm --filter @agrune/backend run build
-pnpm --filter agrune run build
-pnpm --filter @agrune/mcp run test
-pnpm --filter agrune run test
-```
-
-After `pnpm --filter agrune run build`, the local public package entry is:
-
-```bash
-npx -y /Users/chenjing/dev/agrune/agrune/packages/agrune --help
+pnpm --filter @agrune/cli run build
+node packages/cli/dist/bin/agrune.js --help
+pnpm --filter @agrune/cli run test
 ```

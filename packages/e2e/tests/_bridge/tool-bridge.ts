@@ -1,6 +1,15 @@
+/**
+ * In-process tool bridge for the real-browser E2E specs.
+ *
+ * This is the `browser_*` tool-name -> PlaywrightDriver dispatch that the MCP
+ * server used to expose, ported verbatim into the test harness when the MCP
+ * package was removed. The shipped product (the agrune CLI) does NOT use this;
+ * it exists only so the user-flow specs keep exercising the exact driver +
+ * snapshot-format code path they assert against. Broker/HITL/stdio wiring were
+ * dropped — only the pure dispatch remains.
+ */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type {
   AgruneRuntimeConfig,
   BrowserDriver,
@@ -15,8 +24,6 @@ import type {
   ScreenshotImageType,
   Session,
 } from '@agrune/core'
-import { registerAgruneTools } from './mcp-tools.js'
-import type { ToolHandlerResult } from './mcp-tools.js'
 import { AgentTargetIdParseError, normalizeAgentTargetId } from './target-id-normalizer.js'
 import {
   formatPublicSnapshot,
@@ -26,49 +33,19 @@ import {
   toPublicSnapshot,
 } from './public-shapes.js'
 import type { PublicSessionMeta, PublicSnapshotOptions } from './public-shapes.js'
-import { CommandBroker, type CommandEvent } from './command-broker.js'
-import { HitlController, HitlSkipError } from './hitl-controller.js'
 
-declare const __MCP_SERVER_VERSION__: string
-
-export { registerAgruneTools } from './mcp-tools.js'
-export { getToolDefinitions } from './tools.js'
-export type { CommandEvent, CommandEventPhase, CommandEventListener } from './command-broker.js'
-export type { HitlState, HitlStateListener } from './hitl-controller.js'
-export { CommandBroker } from './command-broker.js'
-export { HitlController, HitlSkipError } from './hitl-controller.js'
-// Public snapshot projection helpers — exposed so token/accuracy benchmarks and
-// external tooling can serialize a PageSnapshot exactly as the agent receives it.
-export {
-  formatPublicSnapshot,
-  toPublicSnapshot,
-  toPublicSession,
-  toPublicSessionMeta,
-  toPublicCommandResult,
-} from './public-shapes.js'
-export type {
-  PublicSnapshot,
-  PublicSnapshotDocument,
-  PublicSnapshotOptions,
-  PublicSnapshotGroup,
-  PublicSnapshotTarget,
-} from './public-shapes.js'
+export interface ToolHandlerResult {
+  text: string
+  isError?: boolean
+}
 
 type ActivityAwareDriver = BrowserDriver & {
   onActivity?: (() => void) | null
 }
 
-export function createMcpServer<TDriver extends ActivityAwareDriver>(
+export function createToolBridge<TDriver extends ActivityAwareDriver>(
   driver: TDriver,
 ) {
-  const commandBroker = new CommandBroker()
-  const hitl = new HitlController()
-
-  const mcp = new McpServer(
-    { name: 'agrune', version: typeof __MCP_SERVER_VERSION__ !== 'undefined' ? __MCP_SERVER_VERSION__ : '0.0.0' },
-    { capabilities: { tools: {} } },
-  )
-
   const innerHandleToolCall = async (
     name: string,
     args: Record<string, unknown>,
@@ -268,76 +245,7 @@ export function createMcpServer<TDriver extends ActivityAwareDriver>(
     }
   }
 
-  const handleToolCall = async (
-    name: string,
-    args: Record<string, unknown>,
-  ): Promise<ToolHandlerResult> => {
-    const tool = name
-    const id = commandBroker.nextId()
-    const start = Date.now()
-    const sessionId = typeof args.tabId === 'number' ? (args.tabId as number) : null
-
-    try {
-      await hitl.awaitGate(tool)
-    } catch (err) {
-      if (err instanceof HitlSkipError) {
-        const event: CommandEvent = {
-          id,
-          ts: start,
-          sessionId,
-          tool,
-          phase: 'error',
-          durationMs: 0,
-          error: { code: err.code, message: err.message },
-        }
-        commandBroker.emit(event)
-        return {
-          text: JSON.stringify({ ok: false, error: { code: err.code, message: err.message } }, null, 2),
-          isError: true,
-        }
-      }
-      throw err
-    }
-
-    commandBroker.emit({ id, ts: start, sessionId, tool, phase: 'start' })
-
-    try {
-      const result = await innerHandleToolCall(name, args)
-      const durationMs = Date.now() - start
-      if (result.isError) {
-        const parsed = safeParseJson(result.text)
-        const err = extractError(parsed)
-        commandBroker.emit({
-          id,
-          ts: Date.now(),
-          sessionId,
-          tool,
-          phase: 'error',
-          durationMs,
-          error: err,
-        })
-      } else {
-        commandBroker.emit({ id, ts: Date.now(), sessionId, tool, phase: 'end', durationMs })
-      }
-      return result
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      commandBroker.emit({
-        id,
-        ts: Date.now(),
-        sessionId,
-        tool,
-        phase: 'error',
-        durationMs: Date.now() - start,
-        error: { code: 'INTERNAL_ERROR', message },
-      })
-      throw error
-    }
-  }
-
-  registerAgruneTools(mcp, handleToolCall)
-
-  return { server: mcp, driver, handleToolCall, commandBroker, hitl }
+  return { driver, handleToolCall: innerHandleToolCall }
 }
 
 function resolveRuntimeCommandKind(toolName: string): string {
@@ -1423,20 +1331,4 @@ function errorText(
     ),
     isError: true,
   }
-}
-
-function safeParseJson(text: string): unknown {
-  try { return JSON.parse(text) } catch { return null }
-}
-
-function extractError(parsed: unknown): { code: string; message: string } {
-  if (parsed && typeof parsed === 'object' && 'error' in parsed) {
-    const err = (parsed as { error?: unknown }).error
-    if (err && typeof err === 'object') {
-      const code = typeof (err as { code?: unknown }).code === 'string' ? (err as { code: string }).code : 'UNKNOWN_ERROR'
-      const message = typeof (err as { message?: unknown }).message === 'string' ? (err as { message: string }).message : 'Unknown error'
-      return { code, message }
-    }
-  }
-  return { code: 'UNKNOWN_ERROR', message: 'Unknown error' }
 }

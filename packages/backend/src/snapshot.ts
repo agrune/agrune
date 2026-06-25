@@ -293,7 +293,6 @@ async function inspectLocator(
     repeatInstance: opts.repeatInstance,
     ...(target.onSuccess ? { onSuccess: target.onSuccess } : {}),
     ...(target.onNoEffect ? { onNoEffect: target.onNoEffect } : {}),
-    ...(target.alwaysDesc ? { alwaysDesc: true } : {}),
     ...(target.volatile ? { volatile: true } : {}),
     ...(target.required || state.required ? { required: true } : {}),
   }
@@ -334,7 +333,6 @@ function missingTarget(
     repeatInstance: opts.repeatInstance,
     ...(target.onSuccess ? { onSuccess: target.onSuccess } : {}),
     ...(target.onNoEffect ? { onNoEffect: target.onNoEffect } : {}),
-    ...(target.alwaysDesc ? { alwaysDesc: true } : {}),
     ...(target.volatile ? { volatile: true } : {}),
     ...(target.required ? { required: true } : {}),
   }
@@ -363,13 +361,6 @@ export function filterSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFi
 export function formatSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFilterOptions & {
   full?: boolean
   includeTextContent?: boolean
-  /**
-   * Token-saving render: omit per-target `description` lines. A target may still
-   * force its description through by setting `alwaysDesc` in the manifest (the
-   * "pin a hint only where the agent struggled" lever). Default (false) keeps the
-   * legacy behavior of always rendering descriptions.
-   */
-  compact?: boolean
 } = {}): string {
   const lines = [
     '### Page',
@@ -385,8 +376,7 @@ export function formatSnapshot(snapshot: PageSnapshot, options: SnapshotTargetFi
   if (options.full || filter.requestedGroupIds.size > 0 || filter.requestedTargetId) {
     for (const target of filteredSnapshot.targets) {
       lines.push(`- target ${quote(target.name)} [ref=${toAgentTargetRef(target)}]:`)
-      const showDesc = !options.compact || target.alwaysDesc === true
-      if (target.description && showDesc) lines.push(`  - description: ${quote(target.description)}`)
+      if (target.description) lines.push(`  - description: ${quote(target.description)}`)
       lines.push(`  - group: ${quote(target.groupId)}`)
       if (target.reason !== 'ready') lines.push(`  - reason: ${target.reason}`)
       if (target.textContent && options.includeTextContent) lines.push(`  - text: ${quote(target.textContent)}`)

@@ -23,7 +23,7 @@ jobs:
       - name: Validate versions
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          for pkg in packages/agrune; do
+          for pkg in packages/cli; do
             PKG_VERSION=$(node -p "require('./$pkg/package.json').version")
             if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
               echo "::error::$pkg version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
@@ -38,5 +38,11 @@ jobs:
       - name: Setup npm auth
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
+      # TODO(promote): npm publish is disabled until @agrune/cli is promoted to
+      # the public `agrune` package — it must be flipped to private:false and its
+      # workspace:* deps bundled (tsup already noExternals them) before publish
+      # will succeed. Re-enable the line below once that lands.
       - name: Publish agrune
-        run: pnpm --filter agrune publish --access public --no-git-checks
+        run: |
+          echo "::warning::publish skipped — promote @agrune/cli to the public 'agrune' package first"
+          # pnpm --filter @agrune/cli publish --access public --no-git-checks

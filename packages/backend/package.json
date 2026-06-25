@@ -1,7 +1,7 @@
 {
   "name": "@agrune/backend",
   "version": "0.4.1",
-  "description": "Shared Playwright-based browser backend for the agrune MCP server and CLI daemon.",
+  "description": "Shared Playwright-based browser backend for the agrune CLI daemon.",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",

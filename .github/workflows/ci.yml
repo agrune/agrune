@@ -36,15 +36,13 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
-      - name: Pack smoke test
+      # The full pack/install smoke of the published `agrune` binary returns once
+      # @agrune/cli is promoted to the public `agrune` package (private:false +
+      # bundled workspace deps). For now, smoke the built CLI binary directly.
+      - name: CLI binary smoke
         run: |
-          rm -rf /tmp/agrune-pack-smoke
-          mkdir -p /tmp/agrune-pack-smoke/install
-          pnpm --filter agrune pack --pack-destination /tmp/agrune-pack-smoke
-          TARBALL=$(ls /tmp/agrune-pack-smoke/agrune-*.tgz | head -1)
-          npm install --prefix /tmp/agrune-pack-smoke/install --omit=dev "$TARBALL"
-          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --help
-          /tmp/agrune-pack-smoke/install/node_modules/.bin/agrune --version
+          node packages/cli/dist/bin/agrune.js --help
+          node packages/cli/dist/bin/agrune.js --version
 
   e2e:
     name: playwright e2e

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "pretest:e2e": "pnpm --filter @agrune/backend run build && pnpm --filter agrune run build",
+    "pretest:e2e": "pnpm --filter @agrune/backend run build",
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install --with-deps chromium",
     "typecheck": "tsc --noEmit -p tsconfig.json"
@@ -13,7 +13,6 @@
     "@agrune/backend": "workspace:*",
     "@agrune/core": "workspace:*",
     "@agrune/manifest": "workspace:*",
-    "@agrune/mcp": "workspace:*",
     "@playwright/test": "^1.48.0",
     "@types/node": "^22.0.0",
     "typescript": "^5.7.0"
