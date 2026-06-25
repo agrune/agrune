@@ -5,8 +5,7 @@ dist/
 .vite/
 coverage/
 testbeds/
-.codemap/
-packages/e2e/test-results/
-packages/e2e/playwright-report/
+.agrune/
+bench/results/
 .playwright-cli/
-packages/bench/_*.mjs
+*.local

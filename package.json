@@ -1,0 +1,47 @@
+{
+  "name": "agrune",
+  "version": "0.1.0",
+  "description": "Manifest-driven browser-control CLI for AI agents — the peer of @playwright/cli, built on the Playwright public API.",
+  "type": "module",
+  "bin": {
+    "agrune": "dist/bin/agrune.js"
+  },
+  "files": [
+    "dist",
+    "src/skill/SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify:no-internals": "node scripts/verify-no-internals.mjs",
+    "verify": "npm run verify:no-internals && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "playwright": "^1.59",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "playwright",
+    "cli",
+    "browser",
+    "automation",
+    "ai-agent",
+    "manifest"
+  ]
+}
