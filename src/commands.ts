@@ -75,6 +75,16 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
       return 0
     }
 
+    // playwright-cli rename aliases (A.6).
+    case 'go-back': {
+      print(await clientFromFlags(flags).request('POST', '/back', tabBody(flags)))
+      return 0
+    }
+    case 'go-forward': {
+      print(await clientFromFlags(flags).request('POST', '/forward', tabBody(flags)))
+      return 0
+    }
+
     case 'resize': {
       const width = getPositiveIntFlag(flags, 'width') ?? toInt(positionals[0], 'width')
       const height = getPositiveIntFlag(flags, 'height') ?? toInt(positionals[1], 'height')
@@ -175,10 +185,243 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
       return 0
     }
 
+    case 'dialog-accept':
+      return runHandleDialog('accept', flags, print)
+    case 'dialog-dismiss':
+      return runHandleDialog('dismiss', flags, print)
+
+    // ---- M5 parity MISSING set --------------------------------------------
+
+    case 'check':
+    case 'uncheck': {
+      const target = requireRef(positionals, primary)
+      print(await clientFromFlags(flags).request('POST', `/${primary}`, { target, ...tabBody(flags) }))
+      return 0
+    }
+    case 'keydown':
+    case 'keyup': {
+      const key = positionals[0] ?? getStringFlag(flags, 'key')
+      if (!key) throw new CliError('INVALID_COMMAND', `${primary} requires a <key>`)
+      print(await clientFromFlags(flags).request('POST', `/${primary}`, { key, ...tabBody(flags) }))
+      return 0
+    }
+    case 'mousemove': {
+      const x = toInt(positionals[0], 'x')
+      const y = toInt(positionals[1], 'y')
+      print(await clientFromFlags(flags).request('POST', '/mousemove', { x, y, ...tabBody(flags) }))
+      return 0
+    }
+    case 'mousedown':
+    case 'mouseup': {
+      const body: Record<string, unknown> = { ...tabBody(flags) }
+      const button = positionals[0] ?? getStringFlag(flags, 'button')
+      if (button !== undefined) body.button = button
+      print(await clientFromFlags(flags).request('POST', `/${primary}`, body))
+      return 0
+    }
+    case 'mousewheel': {
+      const deltaX = Number(positionals[0] ?? 0)
+      const deltaY = Number(positionals[1] ?? 0)
+      print(await clientFromFlags(flags).request('POST', '/mousewheel', { deltaX, deltaY, ...tabBody(flags) }))
+      return 0
+    }
+    case 'pdf': {
+      const path = positionals[0] ?? getStringFlag(flags, 'output', 'filename') ?? defaultRunPath('pdf')
+      const res = await clientFromFlags(flags).request<{ ok: true; path: string }>('POST', '/pdf', {
+        path,
+        ...tabBody(flags),
+      })
+      writeResult(io.stdout, res, { json, formatter: () => res.path })
+      return 0
+    }
+    case 'highlight': {
+      const target = requireRef(positionals, 'highlight')
+      print(await clientFromFlags(flags).request('POST', '/highlight', { target, ...tabBody(flags) }))
+      return 0
+    }
+    case 'generate-locator': {
+      const target = positionals[0] ?? getStringFlag(flags, 'target')
+      if (!target) throw new CliError('INVALID_COMMAND', 'generate-locator requires a <target-ref>')
+      const tabId = getPositiveIntFlag(flags, 'tab')
+      const qp = new URLSearchParams({ target })
+      if (tabId !== undefined) qp.set('tabId', String(tabId))
+      print(await clientFromFlags(flags).request('GET', `/generate-locator?${qp.toString()}`))
+      return 0
+    }
+    case 'cookie-list':
+      print(await daemonClientGet(flags, '/cookies'))
+      return 0
+    case 'cookie-get': {
+      const name = positionals[0] ?? getStringFlag(flags, 'name')
+      if (!name) throw new CliError('INVALID_COMMAND', 'cookie-get requires a <name>')
+      print(await clientFromFlags(flags).request('GET', `/cookies/get?name=${encodeURIComponent(name)}`))
+      return 0
+    }
+    case 'cookie-set': {
+      const cookieJson = getStringFlag(flags, 'cookie', 'json')
+      if (!cookieJson) throw new CliError('INVALID_COMMAND', 'cookie-set requires --cookie <json>')
+      print(await clientFromFlags(flags).request('POST', '/cookies/set', { cookie: JSON.parse(cookieJson) }))
+      return 0
+    }
+    case 'cookie-delete': {
+      const name = positionals[0] ?? getStringFlag(flags, 'name')
+      if (!name) throw new CliError('INVALID_COMMAND', 'cookie-delete requires a <name>')
+      print(await clientFromFlags(flags).request('POST', '/cookies/delete', { name }))
+      return 0
+    }
+    case 'cookie-clear':
+      print(await clientFromFlags(flags).request('POST', '/cookies/clear', {}))
+      return 0
+
+    case 'localstorage-get':
+    case 'localstorage-set':
+    case 'localstorage-remove':
+    case 'localstorage-list':
+    case 'localstorage-clear':
+    case 'sessionstorage-get':
+    case 'sessionstorage-set':
+    case 'sessionstorage-remove':
+    case 'sessionstorage-list':
+    case 'sessionstorage-clear':
+      return runStorage(primary, positionals, flags, print)
+
+    case 'network-state-set': {
+      const offline = getBooleanFlag(flags, 'offline') || positionals[0] === 'offline'
+      print(await clientFromFlags(flags).request('POST', '/network-state', { offline, ...tabBody(flags) }))
+      return 0
+    }
+    case 'state-save': {
+      const path = positionals[0] ?? getStringFlag(flags, 'output', 'filename') ?? defaultRunPath('state', 'json')
+      const res = await clientFromFlags(flags).request<{ ok: true; path: string }>('POST', '/state-save', { path })
+      writeResult(io.stdout, res, { json, formatter: () => res.path })
+      return 0
+    }
+    case 'state-load': {
+      const file = positionals[0] ?? getStringFlag(flags, 'file', 'input')
+      if (!file) throw new CliError('INVALID_COMMAND', 'state-load requires a <file>')
+      const state = JSON.parse(readFileSync(resolvePath(file), 'utf8'))
+      print(await clientFromFlags(flags).request('POST', '/state-load', { state, ...tabBody(flags) }))
+      return 0
+    }
+    case 'delete-data':
+      print(await clientFromFlags(flags).request('POST', '/delete-data', tabBody(flags)))
+      return 0
+    case 'route': {
+      const glob = positionals[0] ?? getStringFlag(flags, 'glob')
+      if (!glob) throw new CliError('INVALID_COMMAND', 'route requires a <glob>')
+      const action = getBooleanFlag(flags, 'allow') ? 'allow' : 'block'
+      print(await clientFromFlags(flags).request('POST', '/route', { glob, action, ...tabBody(flags) }))
+      return 0
+    }
+    case 'route-list':
+      print(await daemonClientGet(flags, '/route-list'))
+      return 0
+    case 'unroute': {
+      const glob = positionals[0] ?? getStringFlag(flags, 'glob')
+      if (!glob) throw new CliError('INVALID_COMMAND', 'unroute requires a <glob>')
+      print(await clientFromFlags(flags).request('POST', '/unroute', { glob, ...tabBody(flags) }))
+      return 0
+    }
+    case 'tracing-start':
+      print(await clientFromFlags(flags).request('POST', '/tracing/start', {}))
+      return 0
+    case 'tracing-stop': {
+      const path = positionals[0] ?? getStringFlag(flags, 'output', 'filename') ?? defaultRunPath('trace', 'zip')
+      const res = await clientFromFlags(flags).request<{ ok: true; path: string }>('POST', '/tracing/stop', { path })
+      writeResult(io.stdout, res, { json, formatter: () => res.path })
+      return 0
+    }
+    case 'video':
+    case 'video-chapter':
+      print(await daemonClientGet(flags, '/video'))
+      return 0
+    case 'show':
+      io.stdout.write('show is a no-op in the headless daemon (use "npx playwright show-trace <trace.zip>").\n')
+      return 0
+    case 'pause-at':
+    case 'resume':
+    case 'step-over':
+      print(await clientFromFlags(flags).request('POST', '/pause', tabBody(flags)))
+      return 0
+
+    case 'list':
+      print(await daemonClientGet(flags, '/list'))
+      return 0
+    case 'close-all':
+      print(await clientFromFlags(flags).request('POST', '/close-all', {}))
+      return 0
+    case 'kill-all': {
+      const result = await stopDaemon()
+      io.stdout.write(result.stopped ? `Stopped Agrune daemon (pid ${result.pid}).\n` : 'No Agrune daemon running.\n')
+      return 0
+    }
+    case 'install':
+    case 'install-browser':
+      return runInstall(primary, positionals, io)
+
+    case 'attach': {
+      // Off-default (DECISIONS #26): run a FOREGROUND daemon connected to the user's Chrome over
+      // CDP. The manifest security posture does not constrain an attached browser.
+      const cdp = positionals[0] ?? getStringFlag(flags, 'endpoint')
+      if (!cdp) throw new CliError('INVALID_COMMAND', 'attach requires a <cdp-endpoint> (e.g. http://localhost:9222)')
+      const attachFlags = { ...flags, attach: cdp }
+      return runDaemon('run', attachFlags, io)
+    }
+    case 'detach': {
+      const result = await stopDaemon()
+      io.stdout.write(
+        result.stopped
+          ? `Detached Agrune daemon (pid ${result.pid}); the attached browser was left running.\n`
+          : 'No Agrune daemon to detach.\n',
+      )
+      return 0
+    }
+
     default:
       io.stderr.write(`Unknown command: ${command.join(' ')}\n`)
       return 1
   }
+}
+
+async function daemonClientGet(flags: Record<string, string | boolean>, path: string): Promise<unknown> {
+  const tabId = getPositiveIntFlag(flags, 'tab')
+  return clientFromFlags(flags).request('GET', `${path}${tabId !== undefined ? `?tabId=${tabId}` : ''}`)
+}
+
+function defaultRunPath(name: string, ext = 'pdf'): string {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  return resolvePath(`.agrune/runs/${stamp}/${name}.${ext}`)
+}
+
+async function runStorage(
+  verb: string,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  print: (value: unknown) => void,
+): Promise<number> {
+  const area = verb.startsWith('session') ? 'session' : 'local'
+  const op = verb.split('-')[1]! // get/set/remove/list/clear
+  const body: Record<string, unknown> = { area, op, ...tabBody(flags) }
+  if (op === 'get' || op === 'remove') {
+    const key = positionals[0] ?? getStringFlag(flags, 'key')
+    if (!key) throw new CliError('INVALID_COMMAND', `${verb} requires a <key>`)
+    body.key = key
+  } else if (op === 'set') {
+    const key = positionals[0] ?? getStringFlag(flags, 'key')
+    if (!key) throw new CliError('INVALID_COMMAND', `${verb} requires a <key> and <value>`)
+    body.key = key
+    body.value = positionals.slice(1).join(' ') || (getStringFlag(flags, 'value') ?? '')
+  }
+  print(await clientFromFlags(flags).request('POST', '/storage', body))
+  return 0
+}
+
+async function runInstall(verb: string, positionals: string[], io: ProgramIO): Promise<number> {
+  const { spawnSync } = await import('node:child_process')
+  const browser = verb === 'install-browser' ? (positionals[0] ?? 'chromium') : 'chromium'
+  io.stdout.write(`Running: npx playwright install ${browser}\n`)
+  const result = spawnSync('npx', ['playwright', 'install', browser], { stdio: 'inherit' })
+  return result.status ?? 0
 }
 
 // ---- perception: targets / snapshot ----------------------------------------
@@ -786,13 +1029,14 @@ async function runDaemonForeground(
 ): Promise<number> {
   const { endpoint } = getDaemonEndpoint(flags)
   const headless = getBooleanFlag(flags, 'headless')
+  const attachEndpoint = getStringFlag(flags, 'attach')
 
   // Guard against a second daemon for the same workspace.
   if (await isHealthy(endpoint)) {
     throw new CliError('DAEMON_ALREADY_RUNNING', `An Agrune daemon is already running at ${endpoint}.`)
   }
 
-  const handle = await startDaemon({ endpoint, headless })
+  const handle = await startDaemon({ endpoint, headless, attachEndpoint })
   const isUnix = endpoint.startsWith('unix:')
   writeSessionFile({
     pid: process.pid,

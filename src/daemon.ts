@@ -343,6 +343,151 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
       return { ok: true, action: 'file-upload', paths: r.paths, cancelled: r.cancelled, fileChooser: r.fileChooser }
     }
 
+    // ---- parity MISSING set (M5) -------------------------------------------
+
+    case 'POST /check': {
+      const target = requireString(body, 'target')
+      await session.check(optionalNumber(body.tabId), target)
+      return { ok: true, action: 'check', target }
+    }
+    case 'POST /uncheck': {
+      const target = requireString(body, 'target')
+      await session.uncheck(optionalNumber(body.tabId), target)
+      return { ok: true, action: 'uncheck', target }
+    }
+    case 'POST /keydown': {
+      const key = requireString(body, 'key')
+      await session.keydown(optionalNumber(body.tabId), key)
+      return { ok: true, action: 'keydown', key }
+    }
+    case 'POST /keyup': {
+      const key = requireString(body, 'key')
+      await session.keyup(optionalNumber(body.tabId), key)
+      return { ok: true, action: 'keyup', key }
+    }
+    case 'POST /mousemove': {
+      const x = numberField(body.x, 'x')
+      const y = numberField(body.y, 'y')
+      await session.mousemove(optionalNumber(body.tabId), x, y)
+      return { ok: true, action: 'mousemove', x, y }
+    }
+    case 'POST /mousedown': {
+      await session.mousedown(optionalNumber(body.tabId), parseButton(body.button))
+      return { ok: true, action: 'mousedown' }
+    }
+    case 'POST /mouseup': {
+      await session.mouseup(optionalNumber(body.tabId), parseButton(body.button))
+      return { ok: true, action: 'mouseup' }
+    }
+    case 'POST /mousewheel': {
+      const deltaX = numberField(body.deltaX ?? 0, 'deltaX')
+      const deltaY = numberField(body.deltaY ?? 0, 'deltaY')
+      await session.mousewheel(optionalNumber(body.tabId), deltaX, deltaY)
+      return { ok: true, action: 'mousewheel', deltaX, deltaY }
+    }
+    case 'POST /pdf': {
+      const path = requireString(body, 'path')
+      const saved = await session.pdf(optionalNumber(body.tabId), path)
+      return { ok: true, action: 'pdf', path: saved }
+    }
+    case 'POST /highlight': {
+      const target = requireString(body, 'target')
+      await session.highlight(optionalNumber(body.tabId), target)
+      return { ok: true, action: 'highlight', target }
+    }
+    case 'GET /generate-locator': {
+      const target = query.get('target')
+      if (!target) throw new CliError('INVALID_COMMAND', 'generate-locator requires --target')
+      return { ok: true, ...(await session.generateLocator(optionalNumber(query.get('tabId')), target)) }
+    }
+    case 'GET /cookies':
+      return { ok: true, cookies: await session.cookieList() }
+    case 'GET /cookies/get': {
+      const name = query.get('name')
+      if (!name) throw new CliError('INVALID_COMMAND', 'cookie-get requires --name')
+      return { ok: true, cookies: await session.cookieGet(name) }
+    }
+    case 'POST /cookies/set': {
+      await session.cookieSet(body.cookie as Record<string, unknown>)
+      return { ok: true, action: 'cookie-set' }
+    }
+    case 'POST /cookies/delete': {
+      const name = requireString(body, 'name')
+      await session.cookieDelete(name)
+      return { ok: true, action: 'cookie-delete', name }
+    }
+    case 'POST /cookies/clear':
+      await session.cookieClear()
+      return { ok: true, action: 'cookie-clear' }
+    case 'POST /storage': {
+      const area = body.area === 'session' ? 'session' : 'local'
+      const op = String(body.op)
+      const tabId = optionalNumber(body.tabId)
+      if (op === 'get') return { ok: true, value: await session.storageGet(tabId, area, requireString(body, 'key')) }
+      if (op === 'set') {
+        await session.storageSet(tabId, area, requireString(body, 'key'), String(body.value ?? ''))
+        return { ok: true, action: 'storage-set' }
+      }
+      if (op === 'remove') {
+        await session.storageRemove(tabId, area, requireString(body, 'key'))
+        return { ok: true, action: 'storage-remove' }
+      }
+      if (op === 'clear') {
+        await session.storageClear(tabId, area)
+        return { ok: true, action: 'storage-clear' }
+      }
+      if (op === 'list') return { ok: true, items: await session.storageList(tabId, area) }
+      throw new CliError('INVALID_COMMAND', 'storage op must be one of: get, set, remove, list, clear')
+    }
+    case 'POST /network-state': {
+      const offline = body.offline === true
+      await session.networkStateSet(offline)
+      return { ok: true, action: 'network-state-set', offline }
+    }
+    case 'POST /state-save': {
+      const path = requireString(body, 'path')
+      return { ok: true, action: 'state-save', path: await session.stateSave(path) }
+    }
+    case 'POST /state-load': {
+      await session.stateLoad(optionalNumber(body.tabId), (body.state ?? {}) as never)
+      return { ok: true, action: 'state-load' }
+    }
+    case 'POST /delete-data':
+      await session.deleteData(optionalNumber(body.tabId))
+      return { ok: true, action: 'delete-data' }
+    case 'POST /route': {
+      const glob = requireString(body, 'glob')
+      const action = body.action === 'allow' ? 'allow' : 'block'
+      await session.route(optionalNumber(body.tabId), glob, action)
+      return { ok: true, action: 'route', glob, mode: action }
+    }
+    case 'GET /route-list':
+      return { ok: true, routes: session.routeList(optionalNumber(query.get('tabId'))) }
+    case 'POST /unroute': {
+      const glob = requireString(body, 'glob')
+      await session.unroute(optionalNumber(body.tabId), glob)
+      return { ok: true, action: 'unroute', glob }
+    }
+    case 'POST /tracing/start':
+      await session.tracingStart()
+      return { ok: true, action: 'tracing-start' }
+    case 'POST /tracing/stop': {
+      const path = requireString(body, 'path')
+      return { ok: true, action: 'tracing-stop', path: await session.tracingStop(path) }
+    }
+    case 'GET /video': {
+      const path = await session.videoPath(optionalNumber(query.get('tabId')))
+      return { ok: true, path, ...(path ? {} : { note: 'No video; start the daemon with video recording enabled.' }) }
+    }
+    case 'POST /pause':
+      await session.pause(optionalNumber(body.tabId))
+      return { ok: true, action: 'pause' }
+    case 'GET /list':
+      return { ok: true, ...(await session.listSessions()) }
+    case 'POST /close-all':
+      await session.closeAll()
+      return { ok: true, action: 'close-all', tabs: await session.listTabs() }
+
     case 'POST /close':
     case 'POST /tabs/close': {
       let tabId: number | undefined
@@ -521,6 +666,18 @@ function waitRoute(body: Record<string, unknown>, session: BrowserSession): Prom
   return session.waitForTime(tabId, timeMs!).then(() => ({ ok: true, action: 'wait:time', timeMs }))
 }
 
+function numberField(value: unknown, key: string): number {
+  const n = optionalNumber(value)
+  if (n === undefined) throw new CliError('INVALID_COMMAND', `${key} must be a number`)
+  return n
+}
+
+function parseButton(value: unknown): 'left' | 'right' | 'middle' | undefined {
+  if (value === undefined) return undefined
+  if (value === 'left' || value === 'right' || value === 'middle') return value
+  throw new CliError('INVALID_COMMAND', 'button must be one of: left, right, middle')
+}
+
 function requireStringArray(value: unknown, key: string): string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === 'string' && v.length > 0)) {
     throw new CliError('INVALID_COMMAND', `${key} must be a non-empty array of non-empty strings`)
@@ -602,8 +759,9 @@ export async function startDaemon(opts: {
   endpoint: DaemonEndpoint['endpoint']
   headless: boolean
   cwd?: string
+  attachEndpoint?: string
 }): Promise<DaemonHandle> {
-  const session = new BrowserSession(opts.headless)
+  const session = new BrowserSession(opts.headless, opts.attachEndpoint)
   await session.start()
   const broker = new DaemonEventBroker()
 

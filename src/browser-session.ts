@@ -100,14 +100,34 @@ export class BrowserSession {
   private activeId: number | null = null
   private counter = 0
 
-  constructor(private readonly headless: boolean) {}
+  private readonly attached: boolean
+
+  constructor(
+    private readonly headless: boolean,
+    private readonly attachEndpoint?: string,
+  ) {
+    this.attached = typeof attachEndpoint === 'string' && attachEndpoint.length > 0
+  }
 
   async start(): Promise<void> {
-    this.browser = await chromium.launch({ headless: this.headless })
-    this.context = await this.browser.newContext()
+    if (this.attached) {
+      // attach (§6.5 / A.0.3, off-default per DECISIONS #26): drive the user's real Chrome over
+      // CDP. The manifest security posture does NOT constrain an attached browser — documented.
+      this.browser = await chromium.connectOverCDP(this.attachEndpoint!)
+      this.context = this.browser.contexts()[0] ?? (await this.browser.newContext())
+      for (const page of this.context.pages()) this.registerPage(page)
+    } else {
+      this.browser = await chromium.launch({ headless: this.headless })
+      this.context = await this.browser.newContext()
+    }
     this.context.on('page', (page) => {
       this.registerPage(page)
     })
+  }
+
+  /** detach: disconnect from an attached Chrome WITHOUT killing it (connectOverCDP close). */
+  async detach(): Promise<void> {
+    if (this.attached) await this.browser?.close().catch(() => undefined)
   }
 
   async stop(): Promise<void> {
@@ -589,6 +609,238 @@ export class BrowserSession {
     this.activeId = entry.id
     const result = await fn(entry.page)
     return result === undefined ? undefined : toJsonCompatible(result)
+  }
+
+  // ---- parity MISSING set (M5, §6.5 / A.6) ---------------------------------
+
+  async check(tabId: number | undefined, targetRef: string): Promise<void> {
+    const entry = this.entry(tabId)
+    await (await this.resolve(entry, targetRef)).check()
+  }
+
+  async uncheck(tabId: number | undefined, targetRef: string): Promise<void> {
+    const entry = this.entry(tabId)
+    await (await this.resolve(entry, targetRef)).uncheck()
+  }
+
+  async keydown(tabId: number | undefined, key: string): Promise<void> {
+    await this.entry(tabId).page.keyboard.down(key)
+  }
+
+  async keyup(tabId: number | undefined, key: string): Promise<void> {
+    await this.entry(tabId).page.keyboard.up(key)
+  }
+
+  async mousemove(tabId: number | undefined, x: number, y: number): Promise<void> {
+    await this.entry(tabId).page.mouse.move(x, y)
+  }
+
+  async mousedown(tabId: number | undefined, button?: 'left' | 'right' | 'middle'): Promise<void> {
+    await this.entry(tabId).page.mouse.down(button ? { button } : undefined)
+  }
+
+  async mouseup(tabId: number | undefined, button?: 'left' | 'right' | 'middle'): Promise<void> {
+    await this.entry(tabId).page.mouse.up(button ? { button } : undefined)
+  }
+
+  async mousewheel(tabId: number | undefined, deltaX: number, deltaY: number): Promise<void> {
+    await this.entry(tabId).page.mouse.wheel(deltaX, deltaY)
+  }
+
+  async pdf(tabId: number | undefined, path: string): Promise<string> {
+    const entry = this.entry(tabId)
+    const absolutePath = resolvePath(path)
+    await mkdir(dirname(absolutePath), { recursive: true })
+    await entry.page.pdf({ path: absolutePath })
+    return absolutePath
+  }
+
+  async highlight(tabId: number | undefined, targetRef: string): Promise<void> {
+    const entry = this.entry(tabId)
+    await (await this.resolve(entry, targetRef)).highlight()
+  }
+
+  /** generate-locator: emit BOTH a Playwright locator string and the manifest target-ref. */
+  async generateLocator(tabId: number | undefined, targetRef: string): Promise<{ target: string; playwright: string }> {
+    const entry = this.entry(tabId)
+    const locator = await resolveTargetOrSelectorLocator(entry.page, targetRef)
+    // Public, stable description of the resolved locator.
+    const playwright = await locator
+      .evaluate((el) => {
+        const e = el as HTMLElement
+        if (e.id) return `#${e.id}`
+        const testId = e.getAttribute('data-testid')
+        if (testId) return `getByTestId(${JSON.stringify(testId)})`
+        const role = e.getAttribute('role') ?? e.tagName.toLowerCase()
+        const name = (e.getAttribute('aria-label') ?? e.textContent ?? '').trim().slice(0, 40)
+        return name ? `getByRole(${JSON.stringify(role)}, { name: ${JSON.stringify(name)} })` : e.tagName.toLowerCase()
+      })
+      .catch(() => targetRef)
+    return { target: targetRef, playwright }
+  }
+
+  // cookies (context-level)
+  async cookieList(): Promise<unknown[]> {
+    return this.context.cookies()
+  }
+
+  async cookieGet(name: string): Promise<unknown[]> {
+    return (await this.context.cookies()).filter((c) => c.name === name)
+  }
+
+  async cookieSet(cookie: Record<string, unknown>): Promise<void> {
+    await this.context.addCookies([cookie as Parameters<BrowserContext['addCookies']>[0][number]])
+  }
+
+  async cookieDelete(name: string): Promise<void> {
+    const survivors = (await this.context.cookies()).filter((c) => c.name !== name)
+    await this.context.clearCookies()
+    if (survivors.length > 0) {
+      await this.context.addCookies(survivors.map((c) => ({ ...c })))
+    }
+  }
+
+  async cookieClear(): Promise<void> {
+    await this.context.clearCookies()
+  }
+
+  // local/session storage (per-tab)
+  async storageGet(tabId: number | undefined, area: 'local' | 'session', key: string): Promise<string | null> {
+    return this.entry(tabId).page.evaluate(
+      ({ area, key }) => (area === 'local' ? localStorage : sessionStorage).getItem(key),
+      { area, key },
+    )
+  }
+
+  async storageSet(tabId: number | undefined, area: 'local' | 'session', key: string, value: string): Promise<void> {
+    await this.entry(tabId).page.evaluate(
+      ({ area, key, value }) => (area === 'local' ? localStorage : sessionStorage).setItem(key, value),
+      { area, key, value },
+    )
+  }
+
+  async storageRemove(tabId: number | undefined, area: 'local' | 'session', key: string): Promise<void> {
+    await this.entry(tabId).page.evaluate(
+      ({ area, key }) => (area === 'local' ? localStorage : sessionStorage).removeItem(key),
+      { area, key },
+    )
+  }
+
+  async storageList(tabId: number | undefined, area: 'local' | 'session'): Promise<Record<string, string>> {
+    return this.entry(tabId).page.evaluate((area) => {
+      const store = area === 'local' ? localStorage : sessionStorage
+      const out: Record<string, string> = {}
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i)
+        if (k !== null) out[k] = store.getItem(k) ?? ''
+      }
+      return out
+    }, area)
+  }
+
+  async storageClear(tabId: number | undefined, area: 'local' | 'session'): Promise<void> {
+    await this.entry(tabId).page.evaluate(
+      (area) => (area === 'local' ? localStorage : sessionStorage).clear(),
+      area,
+    )
+  }
+
+  async networkStateSet(offline: boolean): Promise<void> {
+    await this.context.setOffline(offline)
+  }
+
+  async stateSave(path: string): Promise<string> {
+    const absolutePath = resolvePath(path)
+    await mkdir(dirname(absolutePath), { recursive: true })
+    await this.context.storageState({ path: absolutePath })
+    return absolutePath
+  }
+
+  /** Per-tab state load (DECISIONS §11 #20): apply cookies + localStorage WITHOUT recreating the context. */
+  async stateLoad(tabId: number | undefined, state: { cookies?: unknown[]; origins?: Array<{ origin: string; localStorage: Array<{ name: string; value: string }> }> }): Promise<void> {
+    if (Array.isArray(state.cookies) && state.cookies.length > 0) {
+      await this.context.addCookies(state.cookies as Parameters<BrowserContext['addCookies']>[0])
+    }
+    const entry = this.entry(tabId)
+    const origin = new URL(entry.page.url()).origin
+    const match = state.origins?.find((o) => o.origin === origin)
+    if (match) {
+      await entry.page.evaluate((items) => {
+        for (const { name, value } of items) localStorage.setItem(name, value)
+      }, match.localStorage)
+    }
+  }
+
+  /** delete-data: per-tab/origin clear (DECISIONS §11 #20) — no context recreation. */
+  async deleteData(tabId?: number): Promise<void> {
+    await this.context.clearCookies()
+    const entry = this.entry(tabId)
+    await entry.page.evaluate(() => {
+      try {
+        localStorage.clear()
+        sessionStorage.clear()
+      } catch {
+        /* ignore */
+      }
+    })
+  }
+
+  // route registry (per tab)
+  private readonly routes = new Map<number, Map<string, 'block' | 'allow'>>()
+
+  async route(tabId: number | undefined, glob: string, action: 'block' | 'allow'): Promise<void> {
+    const entry = this.entry(tabId)
+    let tabRoutes = this.routes.get(entry.id)
+    if (!tabRoutes) {
+      tabRoutes = new Map()
+      this.routes.set(entry.id, tabRoutes)
+    }
+    tabRoutes.set(glob, action)
+    await entry.page.route(glob, (r) => (tabRoutes!.get(glob) === 'block' ? r.abort() : r.continue()))
+  }
+
+  routeList(tabId?: number): Array<{ glob: string; action: string }> {
+    const entry = this.entry(tabId)
+    const tabRoutes = this.routes.get(entry.id)
+    if (!tabRoutes) return []
+    return [...tabRoutes.entries()].map(([glob, action]) => ({ glob, action }))
+  }
+
+  async unroute(tabId: number | undefined, glob: string): Promise<void> {
+    const entry = this.entry(tabId)
+    await entry.page.unroute(glob)
+    this.routes.get(entry.id)?.delete(glob)
+  }
+
+  async tracingStart(): Promise<void> {
+    await this.context.tracing.start({ screenshots: true, snapshots: true })
+  }
+
+  async tracingStop(path: string): Promise<string> {
+    const absolutePath = resolvePath(path)
+    await mkdir(dirname(absolutePath), { recursive: true })
+    await this.context.tracing.stop({ path: absolutePath })
+    return absolutePath
+  }
+
+  async videoPath(tabId?: number): Promise<string | null> {
+    const video = this.entry(tabId).page.video()
+    return video ? video.path() : null
+  }
+
+  async pause(tabId?: number): Promise<void> {
+    // Opens the Playwright inspector when headed; a no-op-ish in headless. Best-effort (§6.5).
+    await this.entry(tabId).page.pause().catch(() => undefined)
+  }
+
+  async listSessions(): Promise<{ tabs: PublicTab[] }> {
+    return { tabs: await this.listTabs() }
+  }
+
+  async closeAll(): Promise<void> {
+    for (const id of [...this.order]) {
+      await this.tabs.get(id)?.page.close().catch(() => undefined)
+    }
   }
 
   // ---- console / network queries (§5.6) ------------------------------------
