@@ -1,0 +1,12 @@
+{
+  "name": "agrune-visual",
+  "version": "0.1.0",
+  "description": "OPTIONAL cosmetic add-on for agrune: animated cursor flight + aurora glow. Default OFF; never on the action critical path (SPEC §8.5).",
+  "type": "module",
+  "main": "src/index.ts",
+  "peerDependencies": {
+    "playwright": "^1.59"
+  },
+  "license": "MIT",
+  "keywords": ["agrune", "playwright", "visual", "cursor"]
+}

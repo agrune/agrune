@@ -176,6 +176,7 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
         ...(action.options.modifiers ? { modifiers: action.options.modifiers } : {}),
         ...(r.dialog ? { dialog: r.dialog } : {}),
         ...(r.fileChooser ? { fileChooser: r.fileChooser } : {}),
+        ...insightFields(r),
       }
     }
 
@@ -184,8 +185,8 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
       const value = typeof body.value === 'string' ? body.value : ''
       const clear = body.clear !== false
       const strategy = parseFillStrategy(body.strategy)
-      const used = await session.fill(optionalNumber(body.tabId), target, value, clear, strategy)
-      return { ok: true, target, value, strategy: used }
+      const r = await session.fill(optionalNumber(body.tabId), target, value, clear, strategy)
+      return { ok: true, target, value, strategy: r.strategy, ...insightFields(r) }
     }
 
     case 'POST /fill-form': {
@@ -664,6 +665,21 @@ function waitRoute(body: Record<string, unknown>, session: BrowserSession): Prom
       .then(() => ({ ok: true, action: 'wait:textGone', text: textGone }))
   }
   return session.waitForTime(tabId, timeMs!).then(() => ({ ok: true, action: 'wait:time', timeMs }))
+}
+
+/** Pull the optional feedback-plugin insight fields off an action result (§8.2). */
+function insightFields(r: {
+  changed?: boolean
+  feedback?: string
+  screenMessages?: string[]
+  pendingRequired?: string[]
+}): Record<string, unknown> {
+  return {
+    ...(r.changed !== undefined ? { changed: r.changed } : {}),
+    ...(r.feedback ? { feedback: r.feedback } : {}),
+    ...(r.screenMessages && r.screenMessages.length > 0 ? { screenMessages: r.screenMessages } : {}),
+    ...(r.pendingRequired && r.pendingRequired.length > 0 ? { pendingRequired: r.pendingRequired } : {}),
+  }
 }
 
 function numberField(value: unknown, key: string): number {

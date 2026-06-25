@@ -37,7 +37,28 @@ import {
   type SnapshotStore,
   type AriaSnapshotOptions,
 } from './snapshot.js'
-import { resolveTargetLocator, resolveTargetOrSelectorLocator } from './resolver.js'
+import {
+  resolveTargetLocator,
+  resolveTargetOrSelectorLocator,
+  loadManifestFromPage,
+  type ResolveOptions,
+} from './resolver.js'
+import { normalizeAgentTargetId } from './target-ref.js'
+import { loadPluginConfig, type PluginConfig } from './plugins/config.js'
+import { createSelfHealHook } from './plugins/self-heal.js'
+import {
+  detectUnmapped,
+  augmentWithUnmapped,
+  type UnmappedTarget,
+} from './plugins/unmapped.js'
+import {
+  actionChanged,
+  actionFeedback,
+  axMessageDelta,
+  pendingRequiredFields,
+  withActionInsights,
+  type ActionInsights,
+} from './plugins/feedback.js'
 import {
   shouldUseKeystrokeFill,
   fillWithKeystrokes,
@@ -101,12 +122,17 @@ export class BrowserSession {
   private counter = 0
 
   private readonly attached: boolean
+  private readonly plugins: PluginConfig
+  private readonly selfHealHook: ReturnType<typeof createSelfHealHook> | undefined
+  private readonly unmappedRegistry = new Map<number, Map<string, UnmappedTarget>>()
 
   constructor(
     private readonly headless: boolean,
     private readonly attachEndpoint?: string,
   ) {
     this.attached = typeof attachEndpoint === 'string' && attachEndpoint.length > 0
+    this.plugins = loadPluginConfig()
+    this.selfHealHook = this.plugins.selfHeal ? createSelfHealHook() : undefined
   }
 
   async start(): Promise<void> {
@@ -312,7 +338,20 @@ export class BrowserSession {
 
   async snapshot(tabId?: number): Promise<PageSnapshot> {
     const entry = this.entry(tabId)
-    return refreshSnapshot(entry.page, entry.store)
+    const snapshot = await refreshSnapshot(entry.page, entry.store)
+    if (!this.plugins.unmapped) return snapshot
+    // unmapped plugin (§8.3): graft on-screen controls not covered by the manifest. Does NOT
+    // bump the snapshot version.
+    let manifest
+    try {
+      manifest = await loadManifestFromPage(entry.page)
+    } catch {
+      manifest = { version: 3 as const, groups: [] }
+    }
+    const unmapped = await detectUnmapped(entry.page, manifest).catch(() => [])
+    const { snapshot: augmented, registry } = augmentWithUnmapped(snapshot, unmapped)
+    this.unmappedRegistry.set(entry.id, registry)
+    return augmented
   }
 
   async ariaSnapshot(
@@ -326,7 +365,65 @@ export class BrowserSession {
   // ---- resolve helper ------------------------------------------------------
 
   private resolve(entry: TabEntry, targetRef: string): Promise<Locator> {
-    return resolveTargetLocator(entry.page, targetRef)
+    return resolveTargetLocator(entry.page, targetRef, this.resolveOpts(entry.id))
+  }
+
+  /** Resolve options carrying the OPTIONAL plugin hooks (absent when plugins are off, A.0.4). */
+  private resolveOpts(tabId: number): ResolveOptions {
+    const opts: ResolveOptions = {}
+    if (this.selfHealHook) opts.selfHeal = this.selfHealHook
+    if (this.plugins.unmapped) {
+      opts.resolveUnmapped = (ref) => this.unmappedRegistry.get(tabId)?.get(ref)?.selector
+    }
+    return opts
+  }
+
+  // ---- feedback plugin (§8.2) ----------------------------------------------
+
+  private async feedbackBaseline(entry: TabEntry): Promise<{ snapshot: PageSnapshot; ax: string[] }> {
+    const snapshot = await refreshSnapshot(entry.page, entry.store).catch(() => null)
+    const ax = await entry.page
+      .locator('body')
+      .ariaSnapshot()
+      .then((t) => t.split('\n'))
+      .catch(() => [])
+    return { snapshot: snapshot ?? ({ version: 0 } as PageSnapshot), ax }
+  }
+
+  private async computeInsights(
+    entry: TabEntry,
+    kind: 'act' | 'fill',
+    targetRef: string,
+    before: { snapshot: PageSnapshot; ax: string[] },
+  ): Promise<ActionInsights> {
+    if (this.plugins.settleAfterActionMs > 0) {
+      await entry.page.waitForTimeout(this.plugins.settleAfterActionMs).catch(() => undefined)
+    }
+    const after = await refreshSnapshot(entry.page, entry.store).catch(() => null)
+    const changed = actionChanged(before.snapshot, after)
+    let actedId: string | undefined
+    try {
+      actedId = normalizeAgentTargetId(targetRef)
+    } catch {
+      actedId = undefined
+    }
+    const feedback = actionFeedback(before.snapshot, changed, actedId)
+    const axAfter = await entry.page
+      .locator('body')
+      .ariaSnapshot()
+      .then((t) => t.split('\n'))
+      .catch(() => [])
+    const volatileExcludes = (after?.targets ?? [])
+      .filter((t) => t.volatile && t.textContent)
+      .map((t) => t.textContent as string)
+    const screenMessages = axMessageDelta(before.ax, axAfter, volatileExcludes)
+    const pendingRequired = after && (kind === 'act' || kind === 'fill') ? pendingRequiredFields(after.targets) : []
+    return withActionInsights({
+      changed: changed ?? undefined,
+      feedback: feedback ?? undefined,
+      screenMessages,
+      pendingRequired,
+    })
   }
 
   /**
@@ -374,16 +471,17 @@ export class BrowserSession {
     targetRef: string,
     action = 'click',
     options: ClickOptions = {},
-  ): Promise<{ dialog?: DialogInfo; fileChooser?: FileChooserInfo }> {
+  ): Promise<{ dialog?: DialogInfo; fileChooser?: FileChooserInfo } & ActionInsights> {
     const entry = this.entry(tabId)
     this.assertNotDialogBlocked(entry)
     await this.flowBlockGate(entry, [targetRef])
+    const before = this.plugins.feedback ? await this.feedbackBaseline(entry) : null
     const locator = await this.resolve(entry, targetRef)
     const clickOptions = {
       ...(options.button ? { button: options.button } : {}),
       ...(options.modifiers ? { modifiers: options.modifiers } : {}),
     }
-    return this.runActionWithInterruptions(
+    const result = await this.runActionWithInterruptions(
       entry,
       async () => {
         switch (action) {
@@ -409,6 +507,8 @@ export class BrowserSession {
       },
       action === 'click',
     )
+    if (before) return { ...result, ...(await this.computeInsights(entry, 'act', targetRef, before)) }
+    return result
   }
 
   async fill(
@@ -417,10 +517,11 @@ export class BrowserSession {
     value: string,
     clear = true,
     strategy: FillStrategy = 'auto',
-  ): Promise<FillStrategy> {
+  ): Promise<{ strategy: FillStrategy } & ActionInsights> {
     const entry = this.entry(tabId)
     this.assertNotDialogBlocked(entry)
     await this.flowBlockGate(entry, [targetRef])
+    const before = this.plugins.feedback ? await this.feedbackBaseline(entry) : null
     const locator = await this.resolve(entry, targetRef)
     const effective: FillStrategy =
       strategy === 'auto' && (await shouldUseKeystrokeFill(locator))
@@ -430,15 +531,14 @@ export class BrowserSession {
           : strategy
     if (effective === 'keystroke') {
       await fillWithKeystrokes(locator, value, clear)
-      return effective
-    }
-    if (clear) {
+    } else if (clear) {
       await locator.fill(value)
-      return effective
+    } else {
+      const current = await locator.inputValue().catch(() => '')
+      await locator.fill(`${current}${value}`)
     }
-    const current = await locator.inputValue().catch(() => '')
-    await locator.fill(`${current}${value}`)
-    return effective
+    const insights = before ? await this.computeInsights(entry, 'fill', targetRef, before) : {}
+    return { strategy: effective, ...insights }
   }
 
   async fillForm(tabId: number | undefined, fields: FillFormField[]): Promise<void> {
