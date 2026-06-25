@@ -357,7 +357,7 @@ export async function runCommand(parsed: ParsedArgs, io: ProgramIO): Promise<num
     }
     case 'install':
     case 'install-browser':
-      return runInstall(primary, positionals, io)
+      return runInstall(primary, positionals, flags, io)
 
     case 'attach': {
       // Off-default (DECISIONS #26): run a FOREGROUND daemon connected to the user's Chrome over
@@ -416,12 +416,49 @@ async function runStorage(
   return 0
 }
 
-async function runInstall(verb: string, positionals: string[], io: ProgramIO): Promise<number> {
+async function runInstall(
+  verb: string,
+  positionals: string[],
+  flags: Record<string, string | boolean>,
+  io: ProgramIO,
+): Promise<number> {
+  // `agrune install --skills` writes the bundled SKILL.md into the workspace agent dir (§9 / #30).
+  if (verb === 'install' && getBooleanFlag(flags, 'skills')) {
+    return installSkills(io)
+  }
   const { spawnSync } = await import('node:child_process')
   const browser = verb === 'install-browser' ? (positionals[0] ?? 'chromium') : 'chromium'
   io.stdout.write(`Running: npx playwright install ${browser}\n`)
   const result = spawnSync('npx', ['playwright', 'install', browser], { stdio: 'inherit' })
   return result.status ?? 0
+}
+
+async function installSkills(io: ProgramIO): Promise<number> {
+  const { fileURLToPath } = await import('node:url')
+  // The bundled SKILL.md ships under dist/src/skill/ (and src/skill/ when run un-bundled).
+  const candidates = [
+    new URL('./skill/SKILL.md', import.meta.url),
+    new URL('../src/skill/SKILL.md', import.meta.url),
+    new URL('../../src/skill/SKILL.md', import.meta.url),
+  ]
+  let source: string | undefined
+  for (const c of candidates) {
+    const p = fileURLToPath(c)
+    try {
+      source = readFileSync(p, 'utf8')
+      break
+    } catch {
+      /* try next */
+    }
+  }
+  if (source === undefined) {
+    throw new CliError('INTERNAL_ERROR', 'Bundled SKILL.md not found in the agrune package.')
+  }
+  const dest = resolvePath('.claude/skills/agrune/SKILL.md')
+  mkdirSync(dirname(dest), { recursive: true })
+  writeFileSync(dest, source)
+  io.stdout.write(`Installed agrune skill to ${dest}\n`)
+  return 0
 }
 
 // ---- perception: targets / snapshot ----------------------------------------

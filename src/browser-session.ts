@@ -44,6 +44,7 @@ import {
   type ResolveOptions,
 } from './resolver.js'
 import { normalizeAgentTargetId } from './target-ref.js'
+import { assertBrowserInstalled } from './browser-check.js'
 import { loadPluginConfig, type PluginConfig } from './plugins/config.js'
 import { createSelfHealHook } from './plugins/self-heal.js'
 import {
@@ -143,6 +144,7 @@ export class BrowserSession {
       this.context = this.browser.contexts()[0] ?? (await this.browser.newContext())
       for (const page of this.context.pages()) this.registerPage(page)
     } else {
+      assertBrowserInstalled()
       this.browser = await chromium.launch({ headless: this.headless })
       this.context = await this.browser.newContext()
     }

@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { CliError } from './errors.js'
 import { CLI_VERSION } from './version.js'
+import { assertBrowserInstalled } from './browser-check.js'
 import {
   ensureRunDir,
   isPidAlive,
@@ -158,6 +159,10 @@ export async function ensureDaemon(
 }
 
 async function spawnAndWait(endpoint: string, opts: { headless: boolean; cwd?: string }): Promise<void> {
+  // Fail fast with an actionable hint instead of a 15s waitForHealthy timeout when the browser
+  // is not downloaded (the daemon is detached, so its launch error would otherwise be lost). §9.
+  assertBrowserInstalled()
+
   const runDir = ensureRunDir(opts.cwd)
   const lockPath = join(runDir, 'spawn.lock')
 

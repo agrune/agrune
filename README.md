@@ -90,14 +90,31 @@ Agents do not need to read manifest files, load manifests manually, use CSS sele
 
 ## Status & Implementation
 
-This repository is currently **spec-first**. The previous ~10,600-LOC monorepo
-implementation has been removed in favor of a single canonical specification —
-[`SPEC.md`](./SPEC.md) — that defines a lean rebuild: **Playwright public API +
-manifest resolver + thin CLI wrapper + minimal session daemon** (~1,500 LOC,
-single package, public API only — never Playwright internals).
+The lean rebuild is **implemented** — a single package built on Playwright's
+**public API only** (never internals; enforced by the `verify:no-internals` gate):
+**Playwright public API + manifest resolver + thin CLI wrapper + minimal session
+daemon**. Milestones M0–M7 are complete and green (skeleton/guardrails → daemon
+transport → manifest+resolver → snapshot/serializer → core actions → full
+playwright-cli parity → optional plugins → distribution).
 
-`SPEC.md` is the source of truth. It includes the manifest contract, the
-verbatim snapshot/outline serialization format, the full CLI command surface
-and `@playwright/cli` parity table, the daemon wire protocol, the type/error/exit
-contracts, and a golden conformance vector for the serializer (Appendix A). The
-prior implementation remains recoverable in git history.
+```bash
+npm install        # deps
+npx playwright install chromium
+npm run build      # tsup → dist/
+npm test           # unit + real-chromium integration (incl. the A.7 golden vector)
+npm run bench:token   # token micro-bench (outline vs raw a11y)
+```
+
+- [`SPEC.md`](./SPEC.md) — the source of truth (manifest contract, verbatim
+  snapshot/outline format, full command surface + `@playwright/cli` parity table,
+  daemon wire protocol, type/error/exit contracts, golden conformance vector).
+- [`PARITY.md`](./PARITY.md) — every `@playwright/cli` command mapped to its agrune
+  equivalent.
+- [`DECISIONS.md`](./DECISIONS.md) — resolved pre-flight design decisions.
+- [`BENCH.md`](./BENCH.md) — what was/wasn't measured (token reduction; live-model
+  grounding on the real demo; the recorded gpt-5.5 multi-round baseline is flagged
+  as not reproducible without that model).
+
+The optional `agrune-visual` cosmetic add-on lives as a separate package under
+`packages/agrune-visual` (default off, never on the action critical path). The prior
+~10,600-LOC monorepo implementation remains recoverable in git history.

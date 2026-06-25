@@ -9,3 +9,4 @@ testbeds/
 bench/results/
 .playwright-cli/
 *.local
+*.tgz

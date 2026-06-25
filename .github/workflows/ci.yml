@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # HARD invariant: public Playwright API only (no playwright-core/lib imports).
+      - name: verify:no-internals (public-API-only gate)
+        run: npm run verify:no-internals
+
+      - name: typecheck (strict)
+        run: npm run typecheck
+
+      # Browsers for the real-chromium integration tests + benches.
+      - name: install chromium
+        run: npx playwright install --with-deps chromium
+
+      # Includes the A.7 golden-outline conformance test (regression guard).
+      - name: test
+        run: npm test
+
+      # Token micro-bench regression guard — fails if the outline is not << raw a11y.
+      - name: bench:token (token regression guard)
+        run: npm run bench:token

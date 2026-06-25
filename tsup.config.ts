@@ -1,5 +1,5 @@
 import { defineConfig } from 'tsup'
-import { readFileSync } from 'node:fs'
+import { readFileSync, mkdirSync, copyFileSync } from 'node:fs'
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
   version: string
@@ -20,5 +20,13 @@ export default defineConfig({
   external: ['playwright', 'playwright-core'],
   define: {
     __AGRUNE_CLI_VERSION__: JSON.stringify(pkg.version),
+  },
+  async onSuccess() {
+    // Ship the bundled SKILL.md adjacent to the built CLI so `agrune install --skills` finds it.
+    mkdirSync(new URL('./dist/src/skill/', import.meta.url), { recursive: true })
+    copyFileSync(
+      new URL('./src/skill/SKILL.md', import.meta.url),
+      new URL('./dist/src/skill/SKILL.md', import.meta.url),
+    )
   },
 })
