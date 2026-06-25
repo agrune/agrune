@@ -29,6 +29,15 @@ help text + route table already assume HTTP).
 - **A.0.4** self-heal decoupled: core resolver returns `TARGET_NOT_FOUND` with **no `repair` field** when the plugin is absent.
 - **A.0.5** sensitive-word set stays in CORE (security fail-safe), always on.
 
+## Manifest schema divergences (M2 — to satisfy the A.7 golden manifest gate)
+Appendix A is NORMATIVE-SUPERSEDING, and its A.7.1 golden manifest omits two fields that the
+original strict schema (§3.1, §3.7) required. The M2 gate mandates the golden manifest validate,
+so the lean schema relaxes exactly two fields (no behavioral change otherwise):
+- `version` → `z.literal(3).default(3)`: absent → stamped 3 (matches `defineManifest`); a present
+  value must still be exactly 3 (a v2 manifest is rejected).
+- repeat `template` → optional (the golden repeat omits it; `template` is unused at runtime).
+`macros`/`canvas` are dropped from the runtime schema (§10.2): accepted-and-stripped, not rejected.
+
 ## Visual plugin packaging (resolves §11 #32)
 Separate optional package **`agrune-visual`**, default OFF, never on the action critical path.
 `ai-motion`/WebGL2 stay out of the core dependency tree.
