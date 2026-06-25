@@ -1161,6 +1161,18 @@ By the code's own admission ("pure decoration"; "the real input is the synthetic
 
 `pointerDurationMs:600, pointerAnimation:true, cursorName:'default', auroraGlow:true, auroraTheme:'light', surfaceScreenMessages:true, detectUnmapped:true, settleAfterActionMs:0, surfaceRequiredFields:true`. Merged via `normalizeRuntimeConfig`/`mergeRuntimeConfig`. Self-heal toggled via `PlaywrightSessionOptions.selfHeal` and `AGRUNE_SELF_HEAL=off`. **In the lean rebuild the visual defaults (`pointerAnimation`, `auroraGlow`) flip OFF.**
 
+### 8.7 Manifest-Drift Detection + Scoped a11y Fallback (DEFAULT-ON; `AGRUNE_DRIFT=off`)
+
+The resilience net for "the app changed and the manifest is now stale on this screen." Where §8.1 self-heal re-grounds ONE drifted target, this detects a screen-wide stale manifest and hands the agent the live a11y escape hatch so it degrades to pwcli-level instead of hard-failing.
+
+**Detection is a PURE function over the `PageSnapshot` the core already built** (`detectManifestDrift(snapshot)`) — every `PageTarget` already carries `domResolved`, so there is **zero extra DOM work** on the happy path.
+
+**Anchoring (the false-positive guard).** The manifest covers the WHOLE app, but any one screen realizes only a slice — so most targets being absent is NORMAL, not drift. A group is judged only when **engaged** (≥1 of its direct targets still resolves → we are demonstrably on its screen). An engaged group whose direct targets have largely vanished (`missing/total ≥ ratioThreshold`, default `0.5`, on groups with `≥ minTargets` direct targets, default `3`) is flagged. Repeat instances are excluded (a list with 0 rows is empty, not drift).
+
+**Limitation (honest).** A TOTAL wipe (0 resolved) of a routed group is indistinguishable from "not on this screen" without a route anchor, so it is not flagged. Partial drift — the common, recoverable case — is caught.
+
+**Surface (algorithm detects, agent decides).** On confirmed drift, `GET /targets` attaches `drift: DriftReport` AND, captured once at that moment, the full-page `ariaFallback` (the §4.4 escape hatch). The CLI appends a `⚠ MANIFEST DRIFT` notice + the a11y to the `targets` text so the agent re-orients in the SAME response — no extra round-trip, no thrashing on dead targets. **Healthy screens pay nothing** (no `drift` field, no a11y capture); only the rare stale screen pays the full-a11y cost — strictly ≤ pwcli, which pays it every look. The core never rewrites the manifest.
+
 ---
 
 ## 9. Distribution
@@ -1268,6 +1280,55 @@ LOC budget per module: see §2.5.
 37. Sensitive heuristic multilang set is hardcoded (ko/ja/zh/fr/de/es). Make it data-driven/extensible, and make the English word list configurable to reduce false positives (e.g. "security question")?
 38. Log redaction is blanket per-endpoint (independent of the per-field heuristic — non-sensitive fill values are also redacted). Confirm coarse policy vs heuristic-only redaction.
 39. `actionChanged` treats `after == null` (snapshot capture failed) as `changed = true`. Confirm fail-as-changed is intended (vs null/unknown), since it can emit a false `onSuccess`.
+
+---
+
+## 12. Manifest Lifecycle & Self-Repair (ROADMAP — post-core)
+
+> **Status: ROADMAP, NOT YET BUILT.** §8.7 drift detection is the SENSOR this layer consumes; it is already implemented. This section is the design of record for the manifest's full lifecycle — a static file shipped with the app becomes a **versioned, externally-managed, self-repairing artifact**. Motivation: amortize the one standing objection to agrune's thesis (manifest **curation cost**) via an automated **sense → fetch → escalate → repair → verify → publish** loop. Curation is bootstrapped by humans, then maintained by the loop.
+
+### 12.1 The resilience ladder (severity → recovery)
+
+| Severity | Recovery | Status |
+|---|---|---|
+| Target-level drift (one ref) | §8.1 self-heal — deterministic, in-process, instant | **BUILT** |
+| Screen-level drift | §12.2 fetch the latest manifest from the store — automated, seconds | ROADMAP |
+| Store miss (no fresh manifest) | §8.7 a11y escape-hatch keeps the agent working NOW, degraded | **BUILT** |
+| Durable fix needed | §12.3 ticket → §12.4 autonomous repair → verify → publish | ROADMAP |
+
+**Invariant: the system NEVER hard-stops.** It degrades to a11y-level operation (the agent keeps going) while the durable fix is in flight.
+
+### 12.2 Manifest store + fetch-latest (Tier 1)
+
+- **Manifest source becomes PLUGGABLE:** `page-injected` (`window.__agrune_manifest__`, current) | `store-fetched` | `local-file`. Default keeps page-injected primary; the store acts as an **override-on-drift**. Precedence/merge rules TBD.
+- **Addressing:** keyed by `(origin, appVersionOrContentHash, schemaVersion)`. Cheap version probe via ETag/content-hash; full fetch only on drift or version mismatch.
+- The store is the **publish target** for §12.4 repairs — everything downstream depends on it, so it is built FIRST.
+- **SECURITY (load-bearing):** `keyFrom` is compiled via `new Function` (§3.11.4) — a remote manifest is a **code-injection surface**. Store artifacts MUST be **signed + pinned**; unsigned/unpinned manifests are rejected, never executed.
+
+### 12.3 Ticket emission (Tier 3 escalation)
+
+- **Payload is ~90% the §8.7 `DriftReport`** (group, missing targetIds, captured a11y) + screenshot + URL + app version. Cheap to generate because the sensor already produced it.
+- **Sink is PLUGGABLE:** GitHub issue | Linear | webhook.
+- **Dedup** by fingerprint `hash(origin, groupId, sorted(missingTargetIds))` → repeated drift = one OPEN ticket, not one-per-load.
+- **Debounce:** emit only after drift is CONFIRMED across N loads / M seconds. The §8.7 per-call detection is correct for the inline a11y fallback but too twitchy for escalation (ticket spam + needless re-fetches).
+
+### 12.4 Autonomous repair harness (the agent)
+
+- **Job:** an agent drives the live app and **PATCHES the drifted targets only** — healthy targets are FROZEN (patch, never rewrite; diff-based; MUST NOT regress working refs).
+- **It is not authoring blind.** Three assets, all already produced by the runtime:
+  - **INPUT** = the live a11y auto-served on drift (§8.7).
+  - **SPEC** = the OLD manifest target (`name`/`desc`/`role`) — *"find what now does what 'Filter' used to do."* This is §8.1 self-heal's intent-matching **escalated from target-scope to screen-scope** by an LLM. Same operation, different scale.
+  - **ORACLE** = the target's `onSuccess` — resolve the repaired selector, optionally act, confirm the declared effect.
+- **VERIFICATION GATE (first-class invariant): `propose → verify → publish`, NEVER `guess → publish`.** A wrong manifest in the store is **worse than no manifest** (no manifest → safe a11y fallback; wrong manifest → confident wrong actions at scale). A target is published only if it (a) passes schema + forbidden-selector + keyFrom gates (§3.11) AND (b) resolves + satisfies its effect oracle.
+- **Provenance + rollback:** every store version records author (`human`|`agent`), timestamp, target app version; one-click rollback. Treat as infra config.
+
+### 12.5 Build order & dependencies
+
+1. **Store + fetch-latest (§12.2)** — backbone; everything publishes to / reads from it. Highest value, lowest risk.
+2. **Ticket emitter (§12.3)** — cheap given the `DriftReport`; pluggable sink.
+3. **Repair harness (§12.4)** — consumes 1 (publishes) and 2 (triggered by tickets); built LAST because it most needs the verification scaffolding to be safe.
+
+The §8.7 sensor is the prerequisite for all three and is **already built**.
 
 ---
 

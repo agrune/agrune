@@ -60,6 +60,7 @@ import {
   withActionInsights,
   type ActionInsights,
 } from './plugins/feedback.js'
+import { detectManifestDrift, type DriftReport } from './plugins/drift.js'
 import {
   shouldUseKeystrokeFill,
   fillWithKeystrokes,
@@ -362,6 +363,27 @@ export class BrowserSession {
   ): Promise<{ text: string; mode: 'ai' | 'default'; target?: string; depth?: number }> {
     const entry = this.entry(tabId)
     return ariaSnapshotImpl(entry.page, (ref) => resolveTargetOrSelectorLocator(entry.page, ref), opts)
+  }
+
+  /**
+   * Manifest-drift check (§8.6). Pure analysis over the snapshot the caller already built — no
+   * extra DOM work. On CONFIRMED drift only, also captures the full-page a11y (the escape hatch)
+   * so the agent can re-orient in the same response. Healthy screens pay nothing. Returns null
+   * when the plugin is off or no drift is detected.
+   */
+  async driftCheck(
+    tabId: number | undefined,
+    snapshot: PageSnapshot,
+  ): Promise<{ drift: DriftReport; ariaFallback?: string } | null> {
+    if (!this.plugins.drift) return null
+    const drift = detectManifestDrift(snapshot)
+    if (!drift.drifted) return null
+    const entry = this.entry(tabId)
+    const ariaFallback = await entry.page
+      .locator('body')
+      .ariaSnapshot()
+      .catch(() => undefined)
+    return ariaFallback ? { drift, ariaFallback } : { drift }
   }
 
   // ---- resolve helper ------------------------------------------------------

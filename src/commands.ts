@@ -11,6 +11,7 @@ import type { ProgramIO } from './program.js'
 import { writeResult } from './format.js'
 import { CliError } from './errors.js'
 import { formatSnapshot, type PageSnapshot } from './snapshot.js'
+import { formatDriftNotice, type DriftReport } from './plugins/drift.js'
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { resolve as resolvePath, dirname } from 'node:path'
 import { CLI_VERSION } from './version.js'
@@ -489,23 +490,31 @@ async function runTargets(flags: Record<string, string | boolean>, io: ProgramIO
   }
 
   const query = tabId !== undefined ? `?tabId=${tabId}` : ''
-  const res = await clientFromFlags(flags).request<{ ok: true; snapshot: PageSnapshot }>(
-    'GET',
-    `/targets${query}`,
-  )
+  const res = await clientFromFlags(flags).request<{
+    ok: true
+    snapshot: PageSnapshot
+    drift?: DriftReport
+    ariaFallback?: string
+  }>('GET', `/targets${query}`)
 
   if (json) {
     writeResult(io.stdout, res, { json: true })
     return 0
   }
 
-  const text = formatSnapshot(res.snapshot, {
+  let text = formatSnapshot(res.snapshot, {
     full: mode === 'full' || getBooleanFlag(flags, 'full'),
     groupId: getStringFlag(flags, 'group'),
     groupIds,
     targetRef: getStringFlag(flags, 'target'),
     includeTextContent: getBooleanFlag(flags, 'text', 'include-text-content'),
   })
+
+  // §8.6: surface drift + the auto-attached a11y escape hatch so the agent re-orients instead
+  // of thrashing on stale targets. Present only when the daemon confirmed drift.
+  if (res.drift?.drifted) {
+    text += `\n\n${formatDriftNotice(res.drift, res.ariaFallback)}`
+  }
 
   const filename = getStringFlag(flags, 'filename', 'output')
   if (filename !== undefined) {

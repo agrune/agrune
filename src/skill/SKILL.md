@@ -72,4 +72,8 @@ agrune file-upload <path...>       # satisfy a pending file chooser (no paths ca
 - `sensitive` targets (passwords, etc.) are masked: you never see their value, and that is
   intentional — just `fill` them.
 - If a target won't resolve, re-run `agrune targets` (the page may have navigated) before retrying.
+- **`⚠ MANIFEST DRIFT`** under `agrune targets` means the app changed and the manifest is stale on
+  this screen — the manifest refs above are unreliable. A live a11y snapshot is attached right
+  below the notice: re-orient from THAT (work the page like raw `agrune snapshot` output) instead
+  of retrying the listed refs.
 - Run `agrune --help` for the complete, current command surface.

@@ -84,6 +84,63 @@ const HEAL_HTML = `<!doctype html><title>SH</title>
 <button id="real-save" onclick="document.title='SAVED'">Save</button>
 <script>window.__agrune_manifest__=${JSON.stringify(HEAL_MANIFEST)}</script>`
 
+const DRIFT_MANIFEST = {
+  version: 3,
+  groups: [
+    {
+      groupId: 'board',
+      name: 'Board',
+      targets: [
+        { targetId: 'a', name: 'A', selector: { css: '#a' }, actionKinds: ['click'] },
+        { targetId: 'b', name: 'B', selector: { css: '#b' }, actionKinds: ['click'] },
+        { targetId: 'c', name: 'C', selector: { css: '#c' }, actionKinds: ['click'] },
+        { targetId: 'd', name: 'D', selector: { css: '#d' }, actionKinds: ['click'] },
+      ],
+    },
+  ],
+}
+const DRIFT_HTML = `<!doctype html><title>DR</title>
+<button id="a">A</button><button id="b">B</button>
+<button id="c">C</button><button id="d">D</button>
+<script>window.__agrune_manifest__=${JSON.stringify(DRIFT_MANIFEST)}</script>`
+
+// Remove 3 of the 4 board buttons (keep #a so the group stays ENGAGED) → structure break.
+const BREAK_DOM = `() => { for (const id of ['b','c','d']) document.getElementById(id)?.remove() }`
+
+describe('M6 — manifest drift (§8.6, default-ON; real chromium)', () => {
+  it('healthy screen: no drift field, no a11y attached', async () => {
+    await withDaemon({}, async (endpoint, url) => {
+      await requestJson(endpoint, 'POST', '/open', { url })
+      const r = (await requestJson(endpoint, 'GET', '/targets')) as any
+      expect(r.drift).toBeUndefined()
+      expect(r.ariaFallback).toBeUndefined()
+    }, DRIFT_HTML)
+  })
+
+  it('structure break: engaged group largely vanished → drift + full-page a11y attached', async () => {
+    await withDaemon({}, async (endpoint, url) => {
+      await requestJson(endpoint, 'POST', '/open', { url })
+      await requestJson(endpoint, 'POST', '/evaluate', { source: BREAK_DOM })
+      const r = (await requestJson(endpoint, 'GET', '/targets')) as any
+      expect(r.drift?.drifted).toBe(true)
+      expect(r.drift.groups[0].groupId).toBe('board')
+      expect(r.drift.groups[0].missing).toBe(3)
+      expect(typeof r.ariaFallback).toBe('string')
+      expect(r.ariaFallback.length).toBeGreaterThan(0)
+    }, DRIFT_HTML)
+  })
+
+  it('AGRUNE_DRIFT=off: same break is NOT flagged (escape hatch disabled)', async () => {
+    await withDaemon({ AGRUNE_DRIFT: 'off' }, async (endpoint, url) => {
+      await requestJson(endpoint, 'POST', '/open', { url })
+      await requestJson(endpoint, 'POST', '/evaluate', { source: BREAK_DOM })
+      const r = (await requestJson(endpoint, 'GET', '/targets')) as any
+      expect(r.drift).toBeUndefined()
+      expect(r.ariaFallback).toBeUndefined()
+    }, DRIFT_HTML)
+  })
+})
+
 describe('M6 — plugins OFF by default (core unchanged, A.0.4)', () => {
   it('feedback absent: click returns no changed/feedback fields', async () => {
     await withDaemon({}, async (endpoint, url) => {

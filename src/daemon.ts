@@ -113,8 +113,12 @@ async function routeRequest(ctx: RouteCtx): Promise<Record<string, unknown>> {
 
     case 'GET /targets': {
       // Server builds + filters the snapshot; the CLI formats it (A.2.3).
-      const snapshot = await session.snapshot(optionalNumber(query.get('tabId')))
-      return { ok: true, snapshot }
+      const tabId = optionalNumber(query.get('tabId'))
+      const snapshot = await session.snapshot(tabId)
+      // §8.6: drift detection rides on the snapshot just built (zero extra DOM work); the
+      // full-a11y escape hatch is attached only when drift is confirmed.
+      const drift = await session.driftCheck(tabId, snapshot)
+      return { ok: true, snapshot, ...(drift ?? {}) }
     }
 
     case 'GET /snapshot': {
