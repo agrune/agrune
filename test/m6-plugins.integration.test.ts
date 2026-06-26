@@ -117,17 +117,36 @@ describe('M6 — manifest drift (§8.6, default-ON; real chromium)', () => {
     }, DRIFT_HTML)
   })
 
-  it('structure break: engaged group largely vanished → drift + full-page a11y attached', async () => {
+  it('structure break: regression from a healthy baseline → drift + full-page a11y attached', async () => {
     await withDaemon({}, async (endpoint, url) => {
       await requestJson(endpoint, 'POST', '/open', { url })
+      // First read establishes the healthy high-water-mark (4/4 board targets) — no drift yet.
+      const healthy = (await requestJson(endpoint, 'GET', '/targets')) as any
+      expect(healthy.drift).toBeUndefined()
+      // Now break the structure; the next read sees the regression from 4 → 1.
       await requestJson(endpoint, 'POST', '/evaluate', { source: BREAK_DOM })
       const r = (await requestJson(endpoint, 'GET', '/targets')) as any
       expect(r.drift?.drifted).toBe(true)
       expect(r.drift.groups[0].groupId).toBe('board')
+      expect(r.drift.groups[0].baseline).toBe(4)
+      expect(r.drift.groups[0].resolved).toBe(1)
       expect(r.drift.groups[0].missing).toBe(3)
       expect(typeof r.ariaFallback).toBe('string')
       expect(r.ariaFallback.length).toBeGreaterThan(0)
     }, DRIFT_HTML)
+  })
+
+  it('wizard-style first sight: many targets unresolved but NEVER healthier → no false drift', async () => {
+    // The page loads with only 1 of 4 board targets present from the start (no baseline of 4 is
+    // ever established). This is the progressive-disclosure shape; it must NOT read as drift.
+    const WIZARD_HTML = `<!doctype html><title>WZ</title>
+<button id="a">A</button>
+<script>window.__agrune_manifest__=${JSON.stringify(DRIFT_MANIFEST)}</script>`
+    await withDaemon({}, async (endpoint, url) => {
+      await requestJson(endpoint, 'POST', '/open', { url })
+      const r = (await requestJson(endpoint, 'GET', '/targets')) as any
+      expect(r.drift).toBeUndefined()
+    }, WIZARD_HTML)
   })
 
   it('AGRUNE_DRIFT=off: same break is NOT flagged (escape hatch disabled)', async () => {

@@ -3,14 +3,19 @@
 // "the manifest looks stale for THIS screen" so the agent can fall back to the a11y escape hatch
 // instead of thrashing on dead targets.
 //
-// Anchoring (the false-positive guard): the manifest covers the WHOLE app, but any one screen
-// realizes only a slice — so most targets being absent is NORMAL, not drift. A group is only
-// judged when it is ENGAGED (>=1 of its direct targets still resolves → we are demonstrably on
-// its screen). An engaged group whose targets have LARGELY vanished is real drift.
+// Drift = REGRESSION from a high-water-mark, not merely a low ratio. The manifest covers the
+// WHOLE app, but any one screen — and any one step of a multi-step UI — realizes only a slice,
+// so a high "unresolved share" is NORMAL (e.g. a wizard on step 1 has steps 2-3 absent). Flagging
+// on raw ratio false-fires on every wizard/accordion/tab. Instead we compare against the most
+// targets this group has EVER resolved on this screen (its baseline): a genuine app change makes
+// a group that USED to resolve N targets suddenly resolve far fewer. A progressive UI never had a
+// high baseline, so it never trips. The session owns the per-(url,group) baseline; this module is
+// pure and receives it.
 //
-// Limitation (honest): a TOTAL wipe (0 resolved) of a routed group is indistinguishable from
-// "not on this screen" without a route anchor, so it is not flagged here. Partial drift — the
-// common, recoverable case — is caught.
+// Limitations (honest): drift is detected as a WITHIN-history regression — a group seen broken on
+// its very first read has no healthy baseline to fall from, so it isn't flagged here (the agent
+// discovers that via a failing action instead). A TOTAL wipe (0 resolved) reads as "left the
+// screen" and is skipped.
 //
 // Detection is algorithmic; the DECISION to act is the agent's. The core surfaces the report
 // (and, on confirmed drift, the scoped escape-hatch a11y); it never silently rewrites anything.
@@ -22,6 +27,8 @@ export interface GroupDrift {
   groupName?: string
   total: number
   resolved: number
+  /** Peak resolved-count previously seen for this group on this screen — what it regressed from. */
+  baseline: number
   missing: number
   ratio: number
   missingTargetIds: string[]
@@ -53,7 +60,17 @@ function directTargetsOf(snapshot: PageSnapshot, groupId: string): PageTarget[] 
   return snapshot.targets.filter((t) => t.groupId === groupId && !t.repeatInstance)
 }
 
-export function detectManifestDrift(snapshot: PageSnapshot, options: DriftOptions = {}): DriftReport {
+/**
+ * @param baseline per-group peak resolved-count previously seen ON THIS SCREEN (keyed by groupId).
+ *   The session keys its store by url and passes the slice for the current url. Omit it (or pass
+ *   an empty map) and nothing is flagged — drift is a fall FROM a known-healthy peak, and with no
+ *   history every group is at its own peak.
+ */
+export function detectManifestDrift(
+  snapshot: PageSnapshot,
+  baseline?: Map<string, number>,
+  options: DriftOptions = {},
+): DriftReport {
   const opts = { ...DEFAULTS, ...options }
   const drifted: GroupDrift[] = []
 
@@ -63,19 +80,26 @@ export function detectManifestDrift(snapshot: PageSnapshot, options: DriftOption
     if (total < opts.minTargets) continue
 
     const resolved = direct.filter((t) => t.domResolved === true).length
-    // Anchor: not engaged (we are simply not on this screen) → no signal.
+    // Not engaged (we simply aren't on this screen / it's fully gone) → no signal.
     if (resolved === 0) continue
 
-    const missing = total - resolved
-    const ratio = missing / total
-    if (ratio < opts.ratioThreshold) continue
+    // High-water-mark: the most this group has resolved here, including now. A first sighting
+    // has prior === resolved, so it can never look like a regression — that's what stops wizards
+    // (which never resolve all their steps at once) from false-firing.
+    const prior = Math.max(baseline?.get(group.groupId) ?? 0, resolved)
+    if (prior < opts.minTargets) continue
+    // Drift = resolved fell to <= (1 - threshold) of the peak. With prior === resolved this is
+    // resolved <= resolved/2, i.e. false → no flag.
+    if (resolved > prior * (1 - opts.ratioThreshold)) continue
 
+    const ratio = (prior - resolved) / prior
     drifted.push({
       groupId: group.groupId,
       groupName: group.groupName,
       total,
       resolved,
-      missing,
+      baseline: prior,
+      missing: prior - resolved,
       ratio: Math.round(ratio * 1000) / 1000,
       missingTargetIds: direct
         .filter((t) => t.domResolved !== true)
@@ -92,6 +116,21 @@ export function detectManifestDrift(snapshot: PageSnapshot, options: DriftOption
   }
 }
 
+/** Update a per-(url,group) baseline store with the resolved counts from a fresh snapshot.
+ * The session calls this each snapshot so the high-water-mark tracks the healthiest state seen. */
+export function updateDriftBaseline(
+  snapshot: PageSnapshot,
+  store: Map<string, number>,
+  keyFor: (groupId: string) => string,
+): void {
+  for (const group of snapshot.groups) {
+    const resolved = directTargetsOf(snapshot, group.groupId).filter((t) => t.domResolved === true).length
+    if (resolved === 0) continue
+    const key = keyFor(group.groupId)
+    if (resolved > (store.get(key) ?? 0)) store.set(key, resolved)
+  }
+}
+
 /** Human/agent-facing notice appended to the `targets` text output when drift is confirmed. */
 export function formatDriftNotice(report: DriftReport, ariaFallback?: string): string {
   if (!report.drifted) return ''
@@ -100,9 +139,9 @@ export function formatDriftNotice(report: DriftReport, ariaFallback?: string): s
   ]
   for (const g of report.groups) {
     const pct = Math.round(g.ratio * 100)
-    lines.push(`  group "${g.groupName ?? g.groupId}" (${g.groupId}): ${g.missing}/${g.total} declared targets unresolved (${pct}%)`)
+    lines.push(`  group "${g.groupName ?? g.groupId}" (${g.groupId}): now resolves ${g.resolved}/${g.total} targets, down from ${g.baseline} seen earlier on this screen (${pct}% drop)`)
     if (g.missingTargetIds.length > 0) {
-      lines.push(`    missing: ${g.missingTargetIds.join(', ')}`)
+      lines.push(`    no longer resolving: ${g.missingTargetIds.join(', ')}`)
     }
   }
   if (ariaFallback) {

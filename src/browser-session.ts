@@ -60,7 +60,7 @@ import {
   withActionInsights,
   type ActionInsights,
 } from './plugins/feedback.js'
-import { detectManifestDrift, type DriftReport } from './plugins/drift.js'
+import { detectManifestDrift, updateDriftBaseline, type DriftReport } from './plugins/drift.js'
 import {
   shouldUseKeystrokeFill,
   fillWithKeystrokes,
@@ -107,6 +107,9 @@ interface TabEntry {
   pendingFileChoosers: Map<number, FileChooser>
   fileChooserWaiters: FileChooserWaiter[]
   fileChooserActions: Map<number, Promise<unknown>>
+  /** §8.7 drift baseline: peak resolved-target count seen per `${url}\t${groupId}` — drift is a
+   * regression from this high-water-mark, not merely a low ratio (avoids wizard false positives). */
+  driftBaseline: Map<string, number>
 }
 
 export interface ClickOptions {
@@ -194,6 +197,7 @@ export class BrowserSession {
       pendingFileChoosers: new Map(),
       fileChooserWaiters: [],
       fileChooserActions: new Map(),
+      driftBaseline: new Map(),
     }
     this.tabs.set(id, entry)
     this.order.push(id)
@@ -376,9 +380,19 @@ export class BrowserSession {
     snapshot: PageSnapshot,
   ): Promise<{ drift: DriftReport; ariaFallback?: string } | null> {
     if (!this.plugins.drift) return null
-    const drift = detectManifestDrift(snapshot)
-    if (!drift.drifted) return null
     const entry = this.entry(tabId)
+    // Drift is a regression from the most this group has ever resolved on THIS url. Read the
+    // per-url slice of the baseline, judge against it, then fold the fresh counts back in.
+    const url = entry.page.url()
+    const keyFor = (groupId: string): string => `${url}\t${groupId}`
+    const urlBaseline = new Map<string, number>()
+    for (const group of snapshot.groups) {
+      const k = keyFor(group.groupId)
+      if (entry.driftBaseline.has(k)) urlBaseline.set(group.groupId, entry.driftBaseline.get(k)!)
+    }
+    const drift = detectManifestDrift(snapshot, urlBaseline)
+    updateDriftBaseline(snapshot, entry.driftBaseline, keyFor)
+    if (!drift.drifted) return null
     const ariaFallback = await entry.page
       .locator('body')
       .ariaSnapshot()

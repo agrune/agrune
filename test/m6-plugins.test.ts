@@ -92,7 +92,7 @@ describe('M6 — feedback signals (§8.2, pure)', () => {
   })
 })
 
-describe('M6 — manifest-drift detection (§8.6, pure, group-anchored)', () => {
+describe('M6 — manifest-drift detection (§8.6, pure, high-water-mark regression)', () => {
   // Build a snapshot with two groups; each target resolved/missing per `domResolved`.
   function snap(groups: Array<{ id: string; resolved: number; missing: number; repeatExtra?: number }>): PageSnapshot {
     const targets: PageTarget[] = []
@@ -119,40 +119,60 @@ describe('M6 — manifest-drift detection (§8.6, pure, group-anchored)', () => 
     } as PageTarget
   }
 
-  it('flags an ENGAGED group whose targets largely vanished (partial drift)', () => {
-    const r = detectManifestDrift(snap([{ id: 'board', resolved: 1, missing: 7 }]))
+  const base = (entries: Array<[string, number]>): Map<string, number> => new Map(entries)
+
+  it('flags a REGRESSION from a known-healthy baseline', () => {
+    // board used to resolve 8 here; now only 1 → real drift.
+    const r = detectManifestDrift(snap([{ id: 'board', resolved: 1, missing: 7 }]), base([['board', 8]]))
     expect(r.drifted).toBe(true)
     expect(r.groups[0]!.groupId).toBe('board')
-    expect(r.groups[0]!.missing).toBe(7)
+    expect(r.groups[0]!.baseline).toBe(8)
+    expect(r.groups[0]!.resolved).toBe(1)
     expect(r.groups[0]!.missingTargetIds).toContain('board-m0')
   })
 
+  it('does NOT flag a wizard on FIRST sight — the false-positive that motivated the fix', () => {
+    // task_wizard declares 17 targets across 3 steps; on step 1 only ~6 resolve. With no prior
+    // baseline (first time we see it), this must NOT read as drift — it never resolved more.
+    const r = detectManifestDrift(snap([{ id: 'task_wizard', resolved: 6, missing: 11 }]))
+    expect(r.drifted).toBe(false)
+  })
+
+  it('does NOT flag a progressive step even WITH a baseline at the per-step peak', () => {
+    // The wizard's high-water-mark is its busiest single step (~6), never all 17. A later step
+    // with ~5 resolved is not a regression from 6.
+    const r = detectManifestDrift(snap([{ id: 'task_wizard', resolved: 5, missing: 12 }]), base([['task_wizard', 6]]))
+    expect(r.drifted).toBe(false)
+  })
+
   it('does NOT flag a group we are simply not on (0 resolved = not engaged)', () => {
-    // messenger has 0 resolved on the board screen — normal, not drift.
-    const r = detectManifestDrift(snap([{ id: 'board', resolved: 8, missing: 0 }, { id: 'messenger', resolved: 0, missing: 6 }]))
+    const r = detectManifestDrift(
+      snap([{ id: 'board', resolved: 8, missing: 0 }, { id: 'messenger', resolved: 0, missing: 6 }]),
+      base([['messenger', 6]]),
+    )
     expect(r.drifted).toBe(false)
   })
 
-  it('does NOT flag a healthy group (most targets resolve)', () => {
-    const r = detectManifestDrift(snap([{ id: 'board', resolved: 7, missing: 1 }]))
+  it('does NOT flag a healthy group still at its baseline', () => {
+    const r = detectManifestDrift(snap([{ id: 'board', resolved: 8, missing: 0 }]), base([['board', 8]]))
     expect(r.drifted).toBe(false)
   })
 
-  it('ignores groups below minTargets even if all missing-but-one', () => {
-    const r = detectManifestDrift(snap([{ id: 'tiny', resolved: 1, missing: 1 }]))
+  it('ignores groups whose baseline never reached minTargets', () => {
+    const r = detectManifestDrift(snap([{ id: 'tiny', resolved: 1, missing: 1 }]), base([['tiny', 2]]))
     expect(r.drifted).toBe(false)
   })
 
-  it('repeat instances do not count toward drift (empty list ≠ drift)', () => {
-    // 4 direct all resolved, plus 5 missing repeat rows → not drift.
-    const r = detectManifestDrift(snap([{ id: 'list', resolved: 4, missing: 0, repeatExtra: 5 }]))
+  it('repeat instances do not count toward the baseline or drift', () => {
+    const r = detectManifestDrift(snap([{ id: 'list', resolved: 4, missing: 0, repeatExtra: 5 }]), base([['list', 4]]))
     expect(r.drifted).toBe(false)
   })
 
-  it('formatDriftNotice: agent-facing notice carries the a11y when attached', () => {
-    const report = detectManifestDrift(snap([{ id: 'board', resolved: 1, missing: 7 }]))
+  it('formatDriftNotice: regression framing + carries the a11y when attached', () => {
+    const report = detectManifestDrift(snap([{ id: 'board', resolved: 1, missing: 7 }]), base([['board', 8]]))
     const withAria = formatDriftNotice(report, '- button "A"')
     expect(withAria).toContain('MANIFEST DRIFT')
+    expect(withAria).toContain('down from 8')
     expect(withAria).toContain('a11y fallback')
     expect(withAria).toContain('- button "A"')
     // No a11y → instruct the agent to call snapshot instead.
